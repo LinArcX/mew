@@ -37,6 +37,7 @@ struct KeyBinding {
   KeyCode keycode;
   unsigned int modifiers;
   std::string command;
+  std::string display;   // human-readable form, e.g. "Win-q"
 };
 
 enum ResizeDirection {
@@ -50,6 +51,29 @@ enum ResizeDirection {
   RESIZE_BOTTOM_LEFT,
   RESIZE_BOTTOM_RIGHT
 };
+
+// Context menu
+static Window context_menu = None;
+static bool context_menu_active = false;
+
+static const int MENU_WIDTH = 180;
+static const int MENU_ITEM_HEIGHT = 28;
+static const unsigned long COLOR_MENU_BG     = 0x1e1e1e;
+static const unsigned long COLOR_MENU_BORDER = 0x555555;
+static const unsigned long COLOR_MENU_TEXT   = 0xffffff;
+
+static const std::vector<std::string> context_menu_items = {
+    "Show Keybindings",
+    "Exit",
+};
+
+// Keybindings viewer window
+static Window keybindings_window = None;
+static bool keybindings_window_active = false;
+//static bool keybindings_window_maximized = false;
+
+// Set by the "Exit" menu item, checked in the main loop.
+static volatile bool should_quit = false;
 
 static Display* display = nullptr;
 static Window root;
@@ -88,6 +112,367 @@ static const unsigned long COLOR_SWITCHER_BG     = 0x1e1e1e;
 static const unsigned long COLOR_SWITCHER_BORDER = 0x555555;
 static const unsigned long COLOR_SWITCHER_HL     = 0x0a64c8;
 static const unsigned long COLOR_SWITCHER_TEXT   = 0xffffff;
+
+static void focus_next();
+
+// NEW forward declarations
+//static int kb_close_button_x();
+//static void move_keybindings_window();
+//static void keybindings_window_apply_geometry();
+
+static void hide_context_menu()
+{
+    if (context_menu != None && context_menu_active) {
+        XUnmapWindow(display, context_menu);
+    }
+    context_menu_active = false;
+}
+
+static void draw_context_menu()
+{
+    if (context_menu == None || !context_menu_active)
+        return;
+
+    int height = (int)context_menu_items.size() * MENU_ITEM_HEIGHT;
+
+    GC gc = XCreateGC(display, context_menu, 0, nullptr);
+
+    XSetForeground(display, gc, COLOR_MENU_BG);
+    XFillRectangle(display, context_menu, gc, 0, 0, MENU_WIDTH, height);
+
+    XSetForeground(display, gc, COLOR_MENU_BORDER);
+    XDrawRectangle(display, context_menu, gc, 0, 0, MENU_WIDTH - 1, height - 1);
+
+    for (size_t i = 0; i < context_menu_items.size(); ++i) {
+        int y = (int)i * MENU_ITEM_HEIGHT;
+
+        XSetForeground(display, gc, COLOR_MENU_TEXT);
+        XDrawString(display, context_menu, gc,
+                    12, y + MENU_ITEM_HEIGHT - 9,
+                    context_menu_items[i].c_str(),
+                    (int)context_menu_items[i].size());
+    }
+
+    XFreeGC(display, gc);
+}
+
+static void show_context_menu(int x, int y)
+{
+    int height = (int)context_menu_items.size() * MENU_ITEM_HEIGHT;
+
+    int screen_w = DisplayWidth(display, screen);
+    int screen_h = DisplayHeight(display, screen);
+
+    if (x + MENU_WIDTH > screen_w) x = screen_w - MENU_WIDTH;
+    if (y + height > screen_h)     y = screen_h - height;
+
+    if (context_menu == None) {
+        XSetWindowAttributes attrs{};
+        attrs.override_redirect = True;
+        attrs.background_pixel  = COLOR_MENU_BG;
+        attrs.border_pixel      = COLOR_MENU_BORDER;
+        attrs.event_mask        = ExposureMask | ButtonPressMask;
+
+        context_menu = XCreateWindow(
+            display, root,
+            x, y, MENU_WIDTH, height,
+            1,
+            CopyFromParent, InputOutput, CopyFromParent,
+            CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask,
+            &attrs
+        );
+    } else {
+        XMoveResizeWindow(display, context_menu, x, y, MENU_WIDTH, height);
+    }
+
+    XMapRaised(display, context_menu);
+    context_menu_active = true;
+    draw_context_menu();
+}
+
+static int kb_win_x, kb_win_y;
+static int kb_win_width, kb_win_height;
+//static int kb_win_old_x, kb_win_old_y, kb_win_old_width, kb_win_old_height;
+
+static const int KB_LINE_HEIGHT = 20;
+static const int KB_PADDING = 12;
+static const int KB_DEFAULT_WIDTH = 560;
+
+static void kb_button_geometry(int& close_x, int& max_x, int& min_x)
+{
+    close_x = kb_win_width - BUTTON_WIDTH;
+}
+
+static std::string get_config_directory()
+{
+  const char* home = getenv("HOME");
+  if (!home) {
+    return "";
+  }
+  return std::string(home) + "/.config/mew";
+}
+
+
+static void raise_keybindings_window_if_active()
+{
+  if (keybindings_window != None && keybindings_window_active) {
+    XRaiseWindow(display, keybindings_window);
+  }
+}
+
+static std::vector<std::string> kb_display_lines;
+
+static void build_keybindings_display()
+{
+    kb_display_lines.clear();
+    kb_display_lines.push_back(get_config_directory() + "/keybindings");
+    kb_display_lines.push_back(""); // spacer
+
+    int i = 1;
+    for (const KeyBinding& b : keybindings) {
+        std::ostringstream oss;
+        oss << i << ". " << b.display << " --> " << b.command;
+        kb_display_lines.push_back(oss.str());
+        ++i;
+    }
+
+    if (keybindings.empty()) {
+        kb_display_lines.push_back("(no keybindings configured)");
+    }
+}
+
+static void draw_keybindings_window()
+{
+    if (keybindings_window == None || !keybindings_window_active)
+        return;
+
+    GC gc = XCreateGC(display, keybindings_window, 0, nullptr);
+
+    // Whole window background (border color, matches client frame style)
+    XSetForeground(display, gc, COLOR_BORDER);
+    XFillRectangle(display, keybindings_window, gc, 0, 0, kb_win_width, kb_win_height);
+
+    // Titlebar
+    XSetForeground(display, gc, COLOR_TITLE);
+    XFillRectangle(display, keybindings_window, gc,
+                   BORDER_WIDTH, BORDER_WIDTH,
+                   kb_win_width - BORDER_WIDTH * 2, TITLE_HEIGHT - BORDER_WIDTH);
+
+    int close_x, max_x, min_x;
+    kb_button_geometry(close_x, max_x, min_x);
+
+    // Buttons
+    XSetForeground(display, gc, COLOR_BUTTON);
+    XFillRectangle(display, keybindings_window, gc, min_x, BORDER_WIDTH, BUTTON_WIDTH, TITLE_HEIGHT - BORDER_WIDTH);
+
+    // Icons
+    XSetForeground(display, gc, COLOR_TEXT);
+
+    //// Minimize
+    //XDrawLine(display, keybindings_window, gc,
+    //          min_x + 9, TITLE_HEIGHT / 2 + 4,
+    //          min_x + BUTTON_WIDTH - 9, TITLE_HEIGHT / 2 + 4);
+
+    // Maximize / restore
+    //if (keybindings_window_maximized) {
+    //    XDrawRectangle(display, keybindings_window, gc, max_x + 9, 8, 10, 9);
+    //    XDrawRectangle(display, keybindings_window, gc, max_x + 12, 11, 10, 9);
+    //} else {
+    //    XDrawRectangle(display, keybindings_window, gc, max_x + 9, 8, 11, 10);
+    //}
+
+    // Close
+    XDrawLine(display, keybindings_window, gc, close_x + 9, 8, close_x + BUTTON_WIDTH - 9, TITLE_HEIGHT - 9);
+    XDrawLine(display, keybindings_window, gc, close_x + BUTTON_WIDTH - 9, 8, close_x + 9, TITLE_HEIGHT - 9);
+
+    // Title text
+    static const char* title_text = "Keybindings";
+    XDrawString(display, keybindings_window, gc, BORDER_WIDTH + 8, TITLE_HEIGHT - 9, title_text, (int)strlen(title_text));
+
+    // Content area background
+    XSetForeground(display, gc, COLOR_SWITCHER_BG);
+    XFillRectangle(display, keybindings_window, gc,
+                   BORDER_WIDTH, TITLE_HEIGHT,
+                   kb_win_width - BORDER_WIDTH * 2,
+                   kb_win_height - TITLE_HEIGHT - BORDER_WIDTH);
+
+    // Content text
+    XSetForeground(display, gc, COLOR_SWITCHER_TEXT);
+    int y = TITLE_HEIGHT + KB_PADDING + 12;
+    for (const std::string& line : kb_display_lines) {
+        if (!line.empty()) {
+            XDrawString(display, keybindings_window, gc,
+                        BORDER_WIDTH + KB_PADDING, y,
+                        line.c_str(), (int)line.size());
+        }
+        y += KB_LINE_HEIGHT;
+        if (y > kb_win_height - BORDER_WIDTH - 4)
+            break; // don't draw past the window (no scrolling yet)
+    }
+
+    XFreeGC(display, gc);
+}
+
+static int kb_close_button_x()
+{
+    return kb_win_width - BUTTON_WIDTH;
+}
+
+static void keybindings_window_apply_geometry()
+{
+    XMoveResizeWindow(display, keybindings_window, kb_win_x, kb_win_y, kb_win_width, kb_win_height);
+    draw_keybindings_window();
+}
+
+static void move_keybindings_window()
+{
+    Window dummy;
+    int root_x, root_y, win_x, win_y;
+    unsigned int mask;
+
+    XQueryPointer(display, root, &dummy, &dummy,
+                  &root_x, &root_y, &win_x, &win_y, &mask);
+
+    int start_x = kb_win_x;
+    int start_y = kb_win_y;
+
+    XGrabPointer(
+        display, keybindings_window, False,
+        ButtonMotionMask | ButtonReleaseMask,
+        GrabModeAsync, GrabModeAsync,
+        None, None, CurrentTime
+    );
+
+    XEvent event;
+    while (true) {
+        XMaskEvent(display, ButtonMotionMask | ButtonReleaseMask, &event);
+
+        if (event.type == MotionNotify) {
+            int dx = event.xmotion.x_root - root_x;
+            int dy = event.xmotion.y_root - root_y;
+
+            kb_win_x = start_x + dx;
+            kb_win_y = start_y + dy;
+
+            keybindings_window_apply_geometry();
+        }
+
+        if (event.type == ButtonRelease)
+            break;
+    }
+
+    XUngrabPointer(display, CurrentTime);
+}
+
+//static void draw_keybindings_window()
+//{
+//    if (keybindings_window == None || !keybindings_window_active)
+//        return;
+//
+//    GC gc = XCreateGC(display, keybindings_window, 0, nullptr);
+//
+//    XSetForeground(display, gc, COLOR_SWITCHER_BG);
+//    XFillRectangle(display, keybindings_window, gc, 0, 0, 400, 300);
+//
+//    XSetForeground(display, gc, COLOR_SWITCHER_BORDER);
+//    XDrawRectangle(display, keybindings_window, gc, 0, 0, 399, 299);
+//
+//    XSetForeground(display, gc, COLOR_SWITCHER_TEXT);
+//    XDrawString(display, keybindings_window, gc, 12, 24, "Keybindings", 11);
+//
+//    XFreeGC(display, gc);
+//}
+
+//static void show_keybindings_window()
+//{
+//    int width = 400, height = 300;
+//    int screen_w = DisplayWidth(display, screen);
+//    int screen_h = DisplayHeight(display, screen);
+//    int x = (screen_w - width) / 2;
+//    int y = (screen_h - height) / 2;
+//
+//    if (keybindings_window == None) {
+//        XSetWindowAttributes attrs{};
+//        attrs.override_redirect = True;
+//        attrs.background_pixel  = COLOR_SWITCHER_BG;
+//        attrs.border_pixel      = COLOR_SWITCHER_BORDER;
+//        attrs.event_mask        = ExposureMask;
+//
+//        keybindings_window = XCreateWindow(
+//            display, root,
+//            x, y, width, height,
+//            1,
+//            CopyFromParent, InputOutput, CopyFromParent,
+//            CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask,
+//            &attrs
+//        );
+//    } else {
+//        XMoveResizeWindow(display, keybindings_window, x, y, width, height);
+//    }
+//
+//    XMapRaised(display, keybindings_window);
+//    keybindings_window_active = true;
+//    draw_keybindings_window();
+//}
+
+static void show_keybindings_window()
+{
+    build_keybindings_display();
+
+    int screen_w = DisplayWidth(display, screen);
+    int screen_h = DisplayHeight(display, screen);
+
+    if (keybindings_window == None) {
+        kb_win_width = KB_DEFAULT_WIDTH;
+        kb_win_height = std::min(
+            (int)(TITLE_HEIGHT + BORDER_WIDTH + KB_PADDING * 2 + kb_display_lines.size() * KB_LINE_HEIGHT + 12),
+            screen_h - 80
+        );
+        kb_win_x = (screen_w - kb_win_width) / 2;
+        kb_win_y = (screen_h - kb_win_height) / 2;
+
+        XSetWindowAttributes attrs{};
+        attrs.override_redirect = True;
+        attrs.background_pixel  = COLOR_BORDER;
+        attrs.border_pixel      = COLOR_SWITCHER_BORDER;
+        attrs.event_mask        = ExposureMask | ButtonPressMask;
+
+        keybindings_window = XCreateWindow(
+            display, root,
+            kb_win_x, kb_win_y, kb_win_width, kb_win_height,
+            1,
+            CopyFromParent, InputOutput, CopyFromParent,
+            CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask,
+            &attrs
+        );
+    } else {
+        // Recompute height in case keybindings changed since last open
+        kb_win_height = std::min(
+            (int)(TITLE_HEIGHT + BORDER_WIDTH + KB_PADDING * 2 + kb_display_lines.size() * KB_LINE_HEIGHT + 12),
+            screen_h - 80
+        );
+        XMoveResizeWindow(display, keybindings_window, kb_win_x, kb_win_y, kb_win_width, kb_win_height);
+    }
+
+    XMapRaised(display, keybindings_window);
+    keybindings_window_active = true;
+    draw_keybindings_window();
+}
+
+static void handle_context_menu_selection(int index)
+{
+    if (index < 0 || index >= (int)context_menu_items.size())
+        return;
+
+    const std::string& label = context_menu_items[index];
+
+    if (label == "Exit") {
+        should_quit = true;
+    }
+    else if (label == "Show Keybindings") {
+        show_keybindings_window();
+    }
+}
 
 static bool is_alt_held()
 {
@@ -321,6 +706,99 @@ static void sighup_handler(int)
     need_reconfigure = 1;
 }
 
+static std::string expand_key_string(const std::string& key_string)
+{
+    std::stringstream ss(key_string);
+    std::string part;
+    std::vector<std::string> parts;
+    while (std::getline(ss, part, '-')) {
+        parts.push_back(part);
+    }
+    if (parts.empty())
+        return key_string;
+
+    std::string result;
+    for (size_t i = 0; i + 1 < parts.size(); ++i) {
+        const std::string& m = parts[i];
+        std::string full;
+        if (m == "W")      full = "Win";
+        else if (m == "A") full = "Alt";
+        else if (m == "C") full = "Control";
+        else if (m == "S") full = "Shift";
+        else               full = m; // unknown modifier, keep as-is
+        result += full + "-";
+    }
+    result += parts.back();
+    return result;
+}
+
+
+
+
+
+
+
+
+//static void keybindings_window_apply_geometry()
+//{
+//    XMoveResizeWindow(display, keybindings_window, kb_win_x, kb_win_y, kb_win_width, kb_win_height);
+//    draw_keybindings_window();
+//}
+
+
+
+static void hide_keybindings_window()
+{
+    if (keybindings_window != None && keybindings_window_active) {
+        XUnmapWindow(display, keybindings_window);
+    }
+    keybindings_window_active = false;
+}
+
+//static void maximize_keybindings_window()
+//{
+//    int screen_w = DisplayWidth(display, screen);
+//    int screen_h = DisplayHeight(display, screen);
+//
+//    if (!keybindings_window_maximized) {
+//        kb_win_old_x = kb_win_x;
+//        kb_win_old_y = kb_win_y;
+//        kb_win_old_width = kb_win_width;
+//        kb_win_old_height = kb_win_height;
+//
+//        kb_win_x = 0;
+//        kb_win_y = 0;
+//        kb_win_width = screen_w;
+//        kb_win_height = screen_h;
+//        keybindings_window_maximized = true;
+//    } else {
+//        kb_win_x = kb_win_old_x;
+//        kb_win_y = kb_win_old_y;
+//        kb_win_width = kb_win_old_width;
+//        kb_win_height = kb_win_old_height;
+//        keybindings_window_maximized = false;
+//    }
+//
+//    keybindings_window_apply_geometry();
+//}
+
+static void handle_keybindings_window_click(XButtonEvent* event)
+{
+    if (event->y < BORDER_WIDTH || event->y >= TITLE_HEIGHT) {
+      return; // clicks below the titlebar do nothing for now
+    }
+
+    int close_x = kb_close_button_x();
+
+    if (event->x >= close_x) {
+        hide_keybindings_window();
+        return;
+    }
+
+    // Anywhere else on the titlebar -> drag to move
+    move_keybindings_window();
+}
+
 // ------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------
@@ -356,14 +834,7 @@ static std::string expand_home(const std::string& path)
 // ------------------------------------------------------------
 // Config
 // ------------------------------------------------------------
-static std::string get_config_directory()
-{
-  const char* home = getenv("HOME");
-  if (!home) {
-    return "";
-  }
-  return std::string(home) + "/.config/mew";
-}
+
 
 static std::string get_pidfile()
 {
@@ -552,6 +1023,7 @@ static void load_keybindings()
     binding.keycode = keycode;
     binding.modifiers = modifiers;
     binding.command = expand_home(command);
+    binding.display = expand_key_string(key_string);
 
     keybindings.push_back(binding);
 
@@ -853,6 +1325,7 @@ static void focus_client(Client* client)
   }
 
   XRaiseWindow(display, client->frame);
+  raise_keybindings_window_if_active();
   XSetInputFocus(display, client->window, RevertToPointerRoot, CurrentTime);
   draw_frame(client);
 
@@ -1240,80 +1713,108 @@ static void resize_window(
 
 static void move_client(Client* client)
 {
-    if (client->maximized)
-        return;
+  if (client->maximized) {
+    return;
+  }
 
-    Window dummy;
+  Window dummy;
 
-    int root_x;
-    int root_y;
+  int root_x;
+  int root_y;
 
-    int win_x;
-    int win_y;
+  int win_x;
+  int win_y;
 
-    unsigned int mask;
+  unsigned int mask;
 
-    XQueryPointer(
-        display,
-        root,
-        &dummy,
-        &dummy,
-        &root_x,
-        &root_y,
-        &win_x,
-        &win_y,
-        &mask
-    );
+  XQueryPointer(
+      display,
+      root,
+      &dummy,
+      &dummy,
+      &root_x,
+      &root_y,
+      &win_x,
+      &win_y,
+      &mask
+  );
 
-    int start_x = client->x;
-    int start_y = client->y;
+  int start_x = kb_win_x;// client->x;
+  int start_y = kb_win_y;// client->y;
 
-    XGrabPointer(
-        display,
-        client->frame,
-        False,
-        ButtonMotionMask |
-        ButtonReleaseMask,
-        GrabModeAsync,
-        GrabModeAsync,
-        None,
-        None,
-        CurrentTime
-    );
+  XGrabPointer(
+    display, keybindings_window, False,
+    ButtonMotionMask | ButtonReleaseMask,
+    GrabModeAsync, GrabModeAsync,
+    None, None, CurrentTime
+  );
 
-    XEvent event;
+  XEvent event;
+  while (true) {
+      XMaskEvent(display, ButtonMotionMask | ButtonReleaseMask, &event);
 
-    while (true) {
+      if (event.type == MotionNotify) {
+          int dx = event.xmotion.x_root - root_x;
+          int dy = event.xmotion.y_root - root_y;
 
-        XMaskEvent(
-            display,
-            ButtonMotionMask |
-            ButtonReleaseMask,
-            &event
-        );
+          kb_win_x = start_x + dx;
+          kb_win_y = start_y + dy;
 
-        if (event.type == MotionNotify) {
+          keybindings_window_apply_geometry();
+      }
 
-            int dx =
-                event.xmotion.x_root - root_x;
+      if (event.type == ButtonRelease)
+          break;
+  }
 
-            int dy =
-                event.xmotion.y_root - root_y;
+  XUngrabPointer(display, CurrentTime);
 
-            client->x = start_x + dx;
-            client->y = start_y + dy;
+  //XGrabPointer(
+  //    display,
+  //    client->frame,
+  //    False,
+  //    ButtonMotionMask |
+  //    ButtonReleaseMask,
+  //    GrabModeAsync,
+  //    GrabModeAsync,
+  //    None,
+  //    None,
+  //    CurrentTime
+  //);
 
-            resize_client(client);
-        }
+  //XEvent event;
 
-        if (event.type == ButtonRelease)
-            break;
-    }
+  //while (true) {
 
-    XUngrabPointer(
-        display,
-        CurrentTime
-    );
+  //    XMaskEvent(
+  //        display,
+  //        ButtonMotionMask |
+  //        ButtonReleaseMask,
+  //        &event
+  //    );
+
+  //    if (event.type == MotionNotify) {
+
+  //        int dx =
+  //            event.xmotion.x_root - root_x;
+
+  //        int dy =
+  //            event.xmotion.y_root - root_y;
+
+  //        client->x = start_x + dx;
+  //        client->y = start_y + dy;
+
+  //        resize_client(client);
+  //    }
+
+  //    if (event.type == ButtonRelease)
+  //        break;
+  //}
+
+  //XUngrabPointer(
+  //    display,
+  //    CurrentTime
+  //);
 }
 
 
@@ -1537,6 +2038,8 @@ static void manage(Window window)
 
   XMapWindow(display, client->frame);
   XMapWindow(display, window);
+
+  raise_keybindings_window_if_active();
 
   clients.push_back(client);
   resize_client(client);
@@ -2024,11 +2527,35 @@ int main(int argc, char** argv)
 
         case ButtonPress:
         {
-            handle_button_press(
-                &event.xbutton
-            );
+          Window w = event.xbutton.window;
 
-            break;
+          // Click on the keybindings window -> handle its titlebar buttons
+          if (keybindings_window_active && w == keybindings_window) {
+              handle_keybindings_window_click(&event.xbutton);
+              break;
+          }
+
+          // Click landed on an open context menu -> select the item.
+          if (context_menu_active && w == context_menu) {
+              int index = event.xbutton.y / MENU_ITEM_HEIGHT;
+              hide_context_menu();
+              handle_context_menu_selection(index);
+              break;
+          }
+
+          // Any other click dismisses an open menu.
+          if (context_menu_active) {
+              hide_context_menu();
+          }
+
+          // Right-click on empty desktop space -> open the menu.
+          if (w == root && event.xbutton.button == Button3) {
+              show_context_menu(event.xbutton.x_root, event.xbutton.y_root);
+              break;
+          }
+
+          handle_button_press(&event.xbutton);
+          break;
         }
 
 
@@ -2046,6 +2573,14 @@ int main(int argc, char** argv)
         {
           if (event.xexpose.window == switcher) {
             draw_switcher();
+            break;
+          }
+          if (event.xexpose.window == context_menu) {
+            draw_context_menu();
+            break;
+          }
+          if (event.xexpose.window == keybindings_window) {
+            draw_keybindings_window();
             break;
           }
 
@@ -2168,6 +2703,9 @@ int main(int argc, char** argv)
         //}
         //break;
       }
+    }
+    if (should_quit) {
+      break;
     }
   }
 

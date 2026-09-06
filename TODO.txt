@@ -2,10 +2,15 @@
 - [+] open window in center of screen
 - [+] when do alt+tab and when i hold this key combination, it should shows all open windows in a pop-up window.
   So i can cycle through them.(Alt+tab and Alt+Shift+tab for reverse cycle)
-- [ ] right click for mew with these options:
+- [+] right click for mew with these options:
   - reconfigure
-  - exit
-  - show keybindings
+  - [+] exit
+  - [+] show keybindings
+- add panel
+  - [ ] language switcher
+  - [ ] volume icon
+  - [ ] app launcher
+  - [ ] network manager
 - [ ] default background color
 - [ ] ability to reconfigure mew without log out from it.
 - [ ] change font of titles.
@@ -22,6 +27,7 @@
   - mouse_theme
 - [ ] add a setting in config file to assign for each window, the size/position of it when it starts.
 - [P] mew --reconfigure
+  - [ ] put mew.pid in /tmp
 - [ ] mew --restart
 
 # apps
