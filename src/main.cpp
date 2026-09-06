@@ -6,21 +6,21 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <vector>
+#include <sys/stat.h>
 
 struct Client {
     Window window;
     Window frame;
 
-    int x;
-    int y;
-    int width;
-    int height;
+    int x, y;
+    int width, height;
 
-    int old_x;
-    int old_y;
-    int old_width;
-    int old_height;
+    int old_x, old_y;
+    int old_width, old_height;
 
     bool maximized;
     bool minimized;
@@ -28,16 +28,37 @@ struct Client {
     Time last_title_click;
 };
 
+struct KeyBinding {
+    KeyCode keycode;
+    unsigned int modifiers;
+    std::string command;
+};
+
+enum ResizeDirection {
+    RESIZE_NONE,
+    RESIZE_LEFT,
+    RESIZE_RIGHT,
+    RESIZE_TOP,
+    RESIZE_BOTTOM,
+    RESIZE_TOP_LEFT,
+    RESIZE_TOP_RIGHT,
+    RESIZE_BOTTOM_LEFT,
+    RESIZE_BOTTOM_RIGHT
+};
+
 static Display* display = nullptr;
 static Window root;
 static int screen;
 
 static std::vector<Client*> clients;
+static std::vector<KeyBinding> keybindings;
 
 static const int TITLE_HEIGHT = 28;
 static const int BORDER_WIDTH = 2;
 static const int RESIZE_BORDER = 6;
+
 static const int BUTTON_WIDTH = 30;
+
 static const int MIN_WIDTH = 120;
 static const int MIN_HEIGHT = 60;
 
@@ -49,60 +70,397 @@ static const unsigned long COLOR_TEXT   = 0xffffff;
 static Atom WM_DELETE_WINDOW;
 static Atom WM_PROTOCOLS;
 
-enum ResizeDirection {
-    RESIZE_NONE = 0,
-    RESIZE_LEFT,
-    RESIZE_RIGHT,
-    RESIZE_TOP,
-    RESIZE_BOTTOM,
-    RESIZE_TOP_LEFT,
-    RESIZE_TOP_RIGHT,
-    RESIZE_BOTTOM_LEFT,
-    RESIZE_BOTTOM_RIGHT
-};
+static void focus_next();
+
+// ------------------------------------------------------------
+// Helpers
+// ------------------------------------------------------------
 
 static Client* find_client(Window window)
 {
     for (Client* client : clients) {
         if (client->window == window ||
-            client->frame == window)
+            client->frame == window) {
             return client;
+        }
     }
 
     return nullptr;
 }
+
 
 static Client* get_focused_client()
 {
     Window focused;
     int revert;
 
-    XGetInputFocus(
-        display,
-        &focused,
-        &revert
-    );
+    XGetInputFocus(display, &focused, &revert);
 
     return find_client(focused);
 }
 
-static void draw_frame(Client* client)
-{
-    XWindowAttributes attr;
 
-    if (!XGetWindowAttributes(
-            display,
-            client->frame,
-            &attr))
+static std::string trim(const std::string& str)
+{
+    size_t start = str.find_first_not_of(" \t\r\n");
+
+    if (start == std::string::npos)
+        return "";
+
+    size_t end = str.find_last_not_of(" \t\r\n");
+
+    return str.substr(start, end - start + 1);
+}
+
+
+static std::string expand_home(const std::string& path)
+{
+    if (path == "~")
+        return std::string(getenv("HOME"));
+
+    if (path.rfind("~/", 0) == 0) {
+        const char* home = getenv("HOME");
+
+        if (!home)
+            return path;
+
+        return std::string(home) + path.substr(1);
+    }
+
+    return path;
+}
+
+
+// ------------------------------------------------------------
+// Config
+// ------------------------------------------------------------
+
+static std::string get_config_directory()
+{
+    const char* home = getenv("HOME");
+
+    if (!home)
+        return "";
+
+    return std::string(home) + "/.config/mew";
+}
+
+
+static void create_config_directory()
+{
+    const char* home = getenv("HOME");
+
+    if (!home)
         return;
 
-    GC gc =
-        XCreateGC(
-            display,
-            client->frame,
-            0,
-            nullptr
+    std::string config = std::string(home) + "/.config";
+    std::string mew = config + "/mew";
+
+    mkdir(config.c_str(), 0755);
+    mkdir(mew.c_str(), 0755);
+}
+
+
+static bool parse_keybinding(
+    const std::string& line,
+    std::string& key,
+    std::string& command)
+{
+    /*
+        Expected format:
+
+        key="W-q", command="~/power_manager.sh"
+    */
+
+    size_t key_pos = line.find("key=");
+
+    if (key_pos == std::string::npos)
+        return false;
+
+    size_t key_start = line.find('"', key_pos);
+
+    if (key_start == std::string::npos)
+        return false;
+
+    size_t key_end = line.find('"', key_start + 1);
+
+    if (key_end == std::string::npos)
+        return false;
+
+    key = line.substr(
+        key_start + 1,
+        key_end - key_start - 1
+    );
+
+
+    size_t command_pos = line.find("command=", key_end);
+
+    if (command_pos == std::string::npos)
+        return false;
+
+    size_t command_start = line.find('"', command_pos);
+
+    if (command_start == std::string::npos)
+        return false;
+
+    size_t command_end = line.find('"', command_start + 1);
+
+    if (command_end == std::string::npos)
+        return false;
+
+    command = line.substr(
+        command_start + 1,
+        command_end - command_start - 1
+    );
+
+    return true;
+}
+
+
+static bool parse_key(
+    const std::string& key_string,
+    unsigned int& modifiers,
+    std::string& key_name)
+{
+    modifiers = 0;
+
+    std::stringstream ss(key_string);
+    std::string part;
+    std::vector<std::string> parts;
+
+    while (std::getline(ss, part, '-')) {
+        parts.push_back(part);
+    }
+
+    if (parts.empty())
+        return false;
+
+    /*
+        Everything except the last component is considered
+        a modifier.
+
+        Examples:
+
+        W-q
+        A-F4
+        C-S-q
+        W-S-q
+    */
+
+    for (size_t i = 0; i + 1 < parts.size(); ++i) {
+        const std::string& modifier = parts[i];
+
+        if (modifier == "W") {
+            modifiers |= Mod4Mask;
+        }
+        else if (modifier == "A") {
+            modifiers |= Mod1Mask;
+        }
+        else if (modifier == "C") {
+            modifiers |= ControlMask;
+        }
+        else if (modifier == "S") {
+            modifiers |= ShiftMask;
+        }
+        else {
+            fprintf(
+                stderr,
+                "mew: unknown modifier '%s'\n",
+                modifier.c_str()
+            );
+
+            return false;
+        }
+    }
+
+    key_name = parts.back();
+
+    return true;
+}
+
+
+static void load_keybindings()
+{
+    keybindings.clear();
+
+    std::string path =
+        get_config_directory() + "/keybindings";
+
+    std::ifstream file(path);
+
+    if (!file.is_open()) {
+        fprintf(
+            stderr,
+            "mew: no keybindings file: %s\n",
+            path.c_str()
         );
+
+        return;
+    }
+
+    std::string line;
+
+    while (std::getline(file, line)) {
+
+        line = trim(line);
+
+        if (line.empty())
+            continue;
+
+        if (line[0] == '#')
+            continue;
+
+        std::string key_string;
+        std::string command;
+
+        if (!parse_keybinding(
+                line,
+                key_string,
+                command)) {
+
+            fprintf(
+                stderr,
+                "mew: invalid keybinding: %s\n",
+                line.c_str()
+            );
+
+            continue;
+        }
+
+        unsigned int modifiers;
+        std::string key_name;
+
+        if (!parse_key(
+                key_string,
+                modifiers,
+                key_name)) {
+
+            continue;
+        }
+
+        KeySym keysym = XStringToKeysym(
+            key_name.c_str()
+        );
+
+        if (keysym == NoSymbol) {
+            fprintf(
+                stderr,
+                "mew: unknown key: %s\n",
+                key_name.c_str()
+            );
+
+            continue;
+        }
+
+        KeyCode keycode = XKeysymToKeycode(
+            display,
+            keysym
+        );
+
+        if (keycode == 0) {
+            fprintf(
+                stderr,
+                "mew: cannot find keycode: %s\n",
+                key_name.c_str()
+            );
+
+            continue;
+        }
+
+        KeyBinding binding;
+
+        binding.keycode = keycode;
+        binding.modifiers = modifiers;
+        binding.command = expand_home(command);
+
+        keybindings.push_back(binding);
+
+        printf(
+            "mew: keybinding %s -> %s\n",
+            key_string.c_str(),
+            binding.command.c_str()
+        );
+    }
+}
+
+
+static void run_autostart()
+{
+    std::string path =
+        get_config_directory() + "/autostart";
+
+    std::ifstream file(path);
+
+    if (!file.is_open()) {
+        fprintf(
+            stderr,
+            "mew: no autostart file: %s\n",
+            path.c_str()
+        );
+
+        return;
+    }
+
+    std::string line;
+
+    while (std::getline(file, line)) {
+
+        line = trim(line);
+
+        if (line.empty())
+            continue;
+
+        if (line[0] == '#')
+            continue;
+
+        printf(
+            "mew: autostart: %s\n",
+            line.c_str()
+        );
+
+        /*
+            Run asynchronously so one program doesn't block
+            the window manager.
+        */
+
+        std::string command =
+            line + " >/dev/null 2>&1 &";
+
+        std::system(command.c_str());
+    }
+}
+
+
+// ------------------------------------------------------------
+// Drawing
+// ------------------------------------------------------------
+
+static void draw_frame(Client* client)
+{
+    XSetWindowAttributes attrs;
+
+    GC gc = XCreateGC(
+        display,
+        client->frame,
+        0,
+        nullptr
+    );
+
+    XSetForeground(
+        display,
+        gc,
+        COLOR_BORDER
+    );
+
+    XFillRectangle(
+        display,
+        client->frame,
+        gc,
+        0,
+        0,
+        client->width + BORDER_WIDTH * 2,
+        client->height + TITLE_HEIGHT + BORDER_WIDTH
+    );
 
     XSetForeground(
         display,
@@ -114,36 +472,31 @@ static void draw_frame(Client* client)
         display,
         client->frame,
         gc,
-        0,
-        0,
-        attr.width,
-        TITLE_HEIGHT
+        BORDER_WIDTH,
+        BORDER_WIDTH,
+        client->width,
+        TITLE_HEIGHT - BORDER_WIDTH
     );
 
-    XSetForeground(
-        display,
-        gc,
-        COLOR_BORDER
-    );
-
-    XDrawRectangle(
-        display,
-        client->frame,
-        gc,
-        0,
-        0,
-        attr.width - 1,
-        attr.height - 1
-    );
+    int button_y = BORDER_WIDTH;
 
     int close_x =
-        attr.width - BUTTON_WIDTH;
+        BORDER_WIDTH +
+        client->width -
+        BUTTON_WIDTH;
 
     int max_x =
-        attr.width - BUTTON_WIDTH * 2;
+        close_x -
+        BUTTON_WIDTH;
 
     int min_x =
-        attr.width - BUTTON_WIDTH * 3;
+        max_x -
+        BUTTON_WIDTH;
+
+
+    /*
+        Buttons
+    */
 
     XSetForeground(
         display,
@@ -156,30 +509,34 @@ static void draw_frame(Client* client)
         client->frame,
         gc,
         min_x,
-        0,
+        button_y,
         BUTTON_WIDTH,
-        TITLE_HEIGHT
+        TITLE_HEIGHT - BORDER_WIDTH
     );
-
+    
     XFillRectangle(
         display,
         client->frame,
         gc,
         max_x,
-        0,
+        button_y,
         BUTTON_WIDTH,
-        TITLE_HEIGHT
+        TITLE_HEIGHT - BORDER_WIDTH
     );
-
+    
     XFillRectangle(
         display,
         client->frame,
         gc,
         close_x,
-        0,
+        button_y,
         BUTTON_WIDTH,
-        TITLE_HEIGHT
+        TITLE_HEIGHT - BORDER_WIDTH
     );
+
+    /*
+        Icons
+    */
 
     XSetForeground(
         display,
@@ -187,38 +544,45 @@ static void draw_frame(Client* client)
         COLOR_TEXT
     );
 
-    int min_cx =
-        min_x + BUTTON_WIDTH / 2;
-
-    int min_cy =
-        TITLE_HEIGHT / 2 + 5;
+    /*
+        Minimize icon
+    */
 
     XDrawLine(
         display,
         client->frame,
         gc,
-        min_cx - 6,
-        min_cy,
-        min_cx + 6,
-        min_cy
+        min_x + 9,
+        TITLE_HEIGHT / 2 + 4,
+        min_x + BUTTON_WIDTH - 9,
+        TITLE_HEIGHT / 2 + 4
     );
 
-    int max_cx =
-        max_x + BUTTON_WIDTH / 2;
 
-    int max_cy =
-        TITLE_HEIGHT / 2;
+    /*
+        Maximize / restore icon
+    */
 
-    if (!client->maximized) {
+    if (client->maximized) {
 
         XDrawRectangle(
             display,
             client->frame,
             gc,
-            max_cx - 6,
-            max_cy - 6,
-            12,
-            12
+            max_x + 9,
+            8,
+            10,
+            9
+        );
+
+        XDrawRectangle(
+            display,
+            client->frame,
+            gc,
+            max_x + 12,
+            11,
+            10,
+            9
         );
 
     } else {
@@ -227,67 +591,57 @@ static void draw_frame(Client* client)
             display,
             client->frame,
             gc,
-            max_cx - 4,
-            max_cy - 6,
-            9,
-            9
-        );
-
-        XDrawLine(
-            display,
-            client->frame,
-            gc,
-            max_cx - 7,
-            max_cy - 3,
-            max_cx - 7,
-            max_cy + 6
-        );
-
-        XDrawLine(
-            display,
-            client->frame,
-            gc,
-            max_cx - 7,
-            max_cy + 6,
-            max_cx + 3,
-            max_cy + 6
+            max_x + 9,
+            8,
+            11,
+            10
         );
     }
 
-    int close_cx =
-        close_x + BUTTON_WIDTH / 2;
 
-    int close_cy =
-        TITLE_HEIGHT / 2;
+    /*
+        Close icon
+    */
 
     XDrawLine(
         display,
         client->frame,
         gc,
-        close_cx - 6,
-        close_cy - 6,
-        close_cx + 6,
-        close_cy + 6
+        close_x + 9,
+        8,
+        close_x + BUTTON_WIDTH - 9,
+        TITLE_HEIGHT - 9
     );
 
     XDrawLine(
         display,
         client->frame,
         gc,
-        close_cx + 6,
-        close_cy - 6,
-        close_cx - 6,
-        close_cy + 6
+        close_x + BUTTON_WIDTH - 9,
+        8,
+        close_x + 9,
+        TITLE_HEIGHT - 9
+    );
+
+
+    /*
+        Title
+    */
+
+    XSetForeground(
+        display,
+        gc,
+        COLOR_TEXT
     );
 
     XDrawString(
         display,
         client->frame,
         gc,
-        8,
-        19,
-        "miniwm",
-        6
+        BORDER_WIDTH + 8,
+        TITLE_HEIGHT - 9,
+        "mew",
+        3
     );
 
     XFreeGC(
@@ -296,26 +650,13 @@ static void draw_frame(Client* client)
     );
 }
 
+
+// ------------------------------------------------------------
+// Client management
+// ------------------------------------------------------------
+
 static void resize_client(Client* client)
 {
-    int frame_width =
-        client->width +
-        BORDER_WIDTH * 2;
-
-    int frame_height =
-        client->height +
-        TITLE_HEIGHT +
-        BORDER_WIDTH;
-
-    XMoveResizeWindow(
-        display,
-        client->frame,
-        client->x,
-        client->y,
-        frame_width,
-        frame_height
-    );
-
     XMoveResizeWindow(
         display,
         client->window,
@@ -325,13 +666,28 @@ static void resize_client(Client* client)
         client->height
     );
 
+    XMoveResizeWindow(
+        display,
+        client->frame,
+        client->x,
+        client->y,
+        client->width + BORDER_WIDTH * 2,
+        client->height + TITLE_HEIGHT + BORDER_WIDTH
+    );
+
     draw_frame(client);
 }
+
 
 static void focus_client(Client* client)
 {
     if (!client || client->minimized)
         return;
+
+    XRaiseWindow(
+        display,
+        client->frame
+    );
 
     XSetInputFocus(
         display,
@@ -340,10 +696,7 @@ static void focus_client(Client* client)
         CurrentTime
     );
 
-    XRaiseWindow(
-        display,
-        client->frame
-    );
+    draw_frame(client);
 }
 
 static void close_client(Client* client)
@@ -351,64 +704,150 @@ static void close_client(Client* client)
     if (!client)
         return;
 
-    Atom* protocols = nullptr;
-    int count = 0;
-
-    if (XGetWMProtocols(
-            display,
-            client->window,
-            &protocols,
-            &count)) {
-
-        for (int i = 0; i < count; ++i) {
-
-            if (protocols[i] ==
-                WM_DELETE_WINDOW) {
-
-                XEvent event{};
-
-                event.xclient.type =
-                    ClientMessage;
-
-                event.xclient.window =
-                    client->window;
-
-                event.xclient.message_type =
-                    WM_PROTOCOLS;
-
-                event.xclient.format = 32;
-
-                event.xclient.data.l[0] =
-                    WM_DELETE_WINDOW;
-
-                event.xclient.data.l[1] =
-                    CurrentTime;
-
-                XSendEvent(
-                    display,
-                    client->window,
-                    False,
-                    NoEventMask,
-                    &event
-                );
-
-                XFree(protocols);
-                return;
-            }
-        }
-
-        XFree(protocols);
-    }
+    /*
+     * client->window is the REAL application window.
+     * client->frame is only mew's decoration.
+     */
+    Window app_window = client->window;
 
     XKillClient(
         display,
-        client->window
+        app_window
+    );
+
+    XSync(
+        display,
+        False
     );
 }
 
+
+//static void close_client(Client* client)
+//{
+//    if (!client)
+//        return;
+//
+//    Atom* protocols = nullptr;
+//    int count = 0;
+//
+//    if (XGetWMProtocols(
+//            display,
+//            client->window,
+//            &protocols,
+//            &count)) {
+//
+//        for (int i = 0; i < count; ++i) {
+//
+//            if (protocols[i] ==
+//                WM_DELETE_WINDOW) {
+//
+//                XEvent event{};
+//
+//                event.xclient.type =
+//                    ClientMessage;
+//
+//                event.xclient.window =
+//                    client->window;
+//
+//                event.xclient.message_type =
+//                    WM_PROTOCOLS;
+//
+//                event.xclient.format = 32;
+//
+//                event.xclient.data.l[0] =
+//                    WM_DELETE_WINDOW;
+//
+//                event.xclient.data.l[1] =
+//                    CurrentTime;
+//
+//                XSendEvent(
+//                    display,
+//                    client->window,
+//                    False,
+//                    NoEventMask,
+//                    &event
+//                );
+//
+//                XFree(protocols);
+//                return;
+//            }
+//        }
+//
+//        XFree(protocols);
+//    }
+//
+//    XKillClient(
+//        display,
+//        client->window
+//    );
+//}
+
+//static void close_client(Client* client)
+//{
+//    if (!client)
+//        return;
+//
+//    Window window = client->window;
+//
+//    Atom* protocols = nullptr;
+//    int count = 0;
+//    bool supports_delete = false;
+//
+//    if (XGetWMProtocols(
+//            display,
+//            window,
+//            &protocols,
+//            &count)) {
+//
+//        for (int i = 0; i < count; ++i) {
+//            if (protocols[i] == WM_DELETE_WINDOW) {
+//                supports_delete = true;
+//                break;
+//            }
+//        }
+//
+//        if (protocols)
+//            XFree(protocols);
+//    }
+//
+//    if (supports_delete) {
+//        XEvent event{};
+//
+//        event.xclient.type = ClientMessage;
+//        event.xclient.window = window;
+//        event.xclient.message_type = WM_PROTOCOLS;
+//        event.xclient.format = 32;
+//
+//        event.xclient.data.l[0] = WM_DELETE_WINDOW;
+//        event.xclient.data.l[1] = CurrentTime;
+//
+//        XSendEvent(
+//            display,
+//            window,
+//            False,
+//            NoEventMask,
+//            &event
+//        );
+//
+//        XFlush(display);
+//
+//    } else {
+//        /*
+//         * Forcefully destroy the actual application window.
+//         * Never destroy client->frame here.
+//         */
+//        XDestroyWindow(
+//            display,
+//            window
+//        );
+//
+//        XFlush(display);
+//    }
+//}
+
 static void minimize_client(Client* client)
 {
-    if (!client || client->minimized)
+    if (!client)
         return;
 
     client->minimized = true;
@@ -417,112 +856,82 @@ static void minimize_client(Client* client)
         display,
         client->frame
     );
+
+    focus_next();
 }
+
 
 static void maximize_client(Client* client)
 {
     if (!client)
         return;
 
-    if (client->maximized) {
+    if (!client->maximized) {
 
-        client->x =
-            client->old_x;
+        client->old_x = client->x;
+        client->old_y = client->y;
 
-        client->y =
-            client->old_y;
+        client->old_width = client->width;
+        client->old_height = client->height;
+
+        client->x = 0;
+        client->y = 0;
 
         client->width =
-            client->old_width;
+            DisplayWidth(display, screen)
+            - BORDER_WIDTH * 2;
 
         client->height =
-            client->old_height;
+            DisplayHeight(display, screen)
+            - TITLE_HEIGHT
+            - BORDER_WIDTH;
+
+        client->maximized = true;
+
+    } else {
+
+        client->x = client->old_x;
+        client->y = client->old_y;
+
+        client->width = client->old_width;
+        client->height = client->old_height;
 
         client->maximized = false;
-
-        XMapWindow(
-            display,
-            client->frame
-        );
-
-        resize_client(client);
-        focus_client(client);
-
-        return;
     }
-
-    client->old_x =
-        client->x;
-
-    client->old_y =
-        client->y;
-
-    client->old_width =
-        client->width;
-
-    client->old_height =
-        client->height;
-
-    client->x = 0;
-    client->y = 0;
-
-    client->width =
-        DisplayWidth(
-            display,
-            screen
-        ) -
-        BORDER_WIDTH * 2;
-
-    client->height =
-        DisplayHeight(
-            display,
-            screen
-        ) -
-        TITLE_HEIGHT -
-        BORDER_WIDTH;
-
-    client->maximized = true;
-
-    XMapWindow(
-        display,
-        client->frame
-    );
 
     resize_client(client);
     focus_client(client);
 }
+
+
+// ------------------------------------------------------------
+// Resize
+// ------------------------------------------------------------
 
 static ResizeDirection get_resize_direction(
     Client* client,
     int x,
     int y)
 {
-    if (!client ||
-        client->maximized)
-        return RESIZE_NONE;
+    int frame_width =
+        client->width + BORDER_WIDTH * 2;
 
-    XWindowAttributes attr;
-
-    if (!XGetWindowAttributes(
-            display,
-            client->frame,
-            &attr))
-        return RESIZE_NONE;
-
-    int width = attr.width;
-    int height = attr.height;
+    int frame_height =
+        client->height +
+        TITLE_HEIGHT +
+        BORDER_WIDTH;
 
     bool left =
         x <= RESIZE_BORDER;
 
     bool right =
-        x >= width - RESIZE_BORDER;
+        x >= frame_width - RESIZE_BORDER;
 
     bool top =
         y <= RESIZE_BORDER;
 
     bool bottom =
-        y >= height - RESIZE_BORDER;
+        y >= frame_height - RESIZE_BORDER;
 
     if (left && top)
         return RESIZE_TOP_LEFT;
@@ -551,46 +960,33 @@ static ResizeDirection get_resize_direction(
     return RESIZE_NONE;
 }
 
-static Cursor cursor_for_direction(
+
+static unsigned int cursor_for_direction(
     ResizeDirection direction)
 {
     switch (direction) {
 
-    case RESIZE_LEFT:
-    case RESIZE_RIGHT:
-        return XCreateFontCursor(
-            display,
-            XC_sb_h_double_arrow
-        );
+        case RESIZE_LEFT:
+        case RESIZE_RIGHT:
+            return XC_sb_h_double_arrow;
 
-    case RESIZE_TOP:
-    case RESIZE_BOTTOM:
-        return XCreateFontCursor(
-            display,
-            XC_sb_v_double_arrow
-        );
+        case RESIZE_TOP:
+        case RESIZE_BOTTOM:
+            return XC_sb_v_double_arrow;
 
-    case RESIZE_TOP_LEFT:
-    case RESIZE_BOTTOM_RIGHT:
-        return XCreateFontCursor(
-            display,
-            XC_top_left_corner
-        );
+        case RESIZE_TOP_LEFT:
+        case RESIZE_BOTTOM_RIGHT:
+            return XC_top_left_corner;
 
-    case RESIZE_TOP_RIGHT:
-    case RESIZE_BOTTOM_LEFT:
-        return XCreateFontCursor(
-            display,
-            XC_top_right_corner
-        );
+        case RESIZE_TOP_RIGHT:
+        case RESIZE_BOTTOM_LEFT:
+            return XC_top_right_corner;
 
-    default:
-        return XCreateFontCursor(
-            display,
-            XC_left_ptr
-        );
+        default:
+            return XC_left_ptr;
     }
 }
+
 
 static void update_cursor(
     Client* client,
@@ -598,16 +994,12 @@ static void update_cursor(
     int y)
 {
     ResizeDirection direction =
-        get_resize_direction(
-            client,
-            x,
-            y
-        );
+        get_resize_direction(client, x, y);
 
-    Cursor cursor =
-        cursor_for_direction(
-            direction
-        );
+    Cursor cursor = XCreateFontCursor(
+        display,
+        cursor_for_direction(direction)
+    );
 
     XDefineCursor(
         display,
@@ -621,54 +1013,44 @@ static void update_cursor(
     );
 }
 
+
 static void resize_window(
     Client* client,
     ResizeDirection direction)
 {
-    if (!client ||
-        direction == RESIZE_NONE ||
-        client->maximized)
+    if (client->maximized)
         return;
 
-    Window child;
+    int start_x = client->x;
+    int start_y = client->y;
 
-    int start_root_x;
-    int start_root_y;
+    int start_width = client->width;
+    int start_height = client->height;
 
+    Window dummy;
+    int root_x;
+    int root_y;
     int win_x;
     int win_y;
-
     unsigned int mask;
 
-    if (!XQueryPointer(
-            display,
-            root,
-            &child,
-            &child,
-            &start_root_x,
-            &start_root_y,
-            &win_x,
-            &win_y,
-            &mask))
-        return;
-
-    const int start_x =
-        client->x;
-
-    const int start_y =
-        client->y;
-
-    const int start_width =
-        client->width;
-
-    const int start_height =
-        client->height;
+    XQueryPointer(
+        display,
+        root,
+        &dummy,
+        &dummy,
+        &root_x,
+        &root_y,
+        &win_x,
+        &win_y,
+        &mask
+    );
 
     XGrabPointer(
         display,
         client->frame,
         False,
-        PointerMotionMask |
+        ButtonMotionMask |
         ButtonReleaseMask,
         GrabModeAsync,
         GrabModeAsync,
@@ -677,172 +1059,105 @@ static void resize_window(
         CurrentTime
     );
 
-    bool resizing = true;
+    XEvent event;
 
-    while (resizing) {
-
-        XEvent event;
+    while (true) {
 
         XMaskEvent(
             display,
-            PointerMotionMask |
-            ButtonReleaseMask |
-            ExposureMask,
+            ButtonMotionMask |
+            ButtonReleaseMask,
             &event
         );
 
-        if (event.type ==
-            MotionNotify) {
+        if (event.type == MotionNotify) {
 
             int dx =
-                event.xmotion.x_root -
-                start_root_x;
+                event.xmotion.x_root - root_x;
 
             int dy =
-                event.xmotion.y_root -
-                start_root_y;
+                event.xmotion.y_root - root_y;
 
             int new_x = start_x;
             int new_y = start_y;
 
-            int new_width =
-                start_width;
+            int new_width = start_width;
+            int new_height = start_height;
 
-            int new_height =
-                start_height;
 
-            switch (direction) {
+            if (direction == RESIZE_LEFT ||
+                direction == RESIZE_TOP_LEFT ||
+                direction == RESIZE_BOTTOM_LEFT) {
 
-            case RESIZE_LEFT:
-                new_x =
-                    start_x + dx;
-                new_width =
-                    start_width - dx;
-                break;
-
-            case RESIZE_RIGHT:
-                new_width =
-                    start_width + dx;
-                break;
-
-            case RESIZE_TOP:
-                new_y =
-                    start_y + dy;
-                new_height =
-                    start_height - dy;
-                break;
-
-            case RESIZE_BOTTOM:
-                new_height =
-                    start_height + dy;
-                break;
-
-            case RESIZE_TOP_LEFT:
-                new_x =
-                    start_x + dx;
-                new_y =
-                    start_y + dy;
-                new_width =
-                    start_width - dx;
-                new_height =
-                    start_height - dy;
-                break;
-
-            case RESIZE_TOP_RIGHT:
-                new_y =
-                    start_y + dy;
-                new_width =
-                    start_width + dx;
-                new_height =
-                    start_height - dy;
-                break;
-
-            case RESIZE_BOTTOM_LEFT:
-                new_x =
-                    start_x + dx;
-                new_width =
-                    start_width - dx;
-                new_height =
-                    start_height + dy;
-                break;
-
-            case RESIZE_BOTTOM_RIGHT:
-                new_width =
-                    start_width + dx;
-                new_height =
-                    start_height + dy;
-                break;
-
-            default:
-                break;
+                new_x = start_x + dx;
+                new_width = start_width - dx;
             }
 
-            if (new_width <
-                MIN_WIDTH) {
 
-                if (direction ==
-                        RESIZE_LEFT ||
-                    direction ==
-                        RESIZE_TOP_LEFT ||
-                    direction ==
-                        RESIZE_BOTTOM_LEFT) {
+            if (direction == RESIZE_RIGHT ||
+                direction == RESIZE_TOP_RIGHT ||
+                direction == RESIZE_BOTTOM_RIGHT) {
 
-                    new_x =
-                        start_x +
-                        start_width -
-                        MIN_WIDTH;
+                new_width = start_width + dx;
+            }
+
+
+            if (direction == RESIZE_TOP ||
+                direction == RESIZE_TOP_LEFT ||
+                direction == RESIZE_TOP_RIGHT) {
+
+                new_y = start_y + dy;
+                new_height = start_height - dy;
+            }
+
+
+            if (direction == RESIZE_BOTTOM ||
+                direction == RESIZE_BOTTOM_LEFT ||
+                direction == RESIZE_BOTTOM_RIGHT) {
+
+                new_height = start_height + dy;
+            }
+
+
+            if (new_width < MIN_WIDTH) {
+
+                if (direction == RESIZE_LEFT ||
+                    direction == RESIZE_TOP_LEFT ||
+                    direction == RESIZE_BOTTOM_LEFT) {
+
+                    new_x -=
+                        MIN_WIDTH - new_width;
                 }
 
-                new_width =
-                    MIN_WIDTH;
+                new_width = MIN_WIDTH;
             }
 
-            if (new_height <
-                MIN_HEIGHT) {
 
-                if (direction ==
-                        RESIZE_TOP ||
-                    direction ==
-                        RESIZE_TOP_LEFT ||
-                    direction ==
-                        RESIZE_TOP_RIGHT) {
+            if (new_height < MIN_HEIGHT) {
 
-                    new_y =
-                        start_y +
-                        start_height -
-                        MIN_HEIGHT;
+                if (direction == RESIZE_TOP ||
+                    direction == RESIZE_TOP_LEFT ||
+                    direction == RESIZE_TOP_RIGHT) {
+
+                    new_y -=
+                        MIN_HEIGHT - new_height;
                 }
 
-                new_height =
-                    MIN_HEIGHT;
+                new_height = MIN_HEIGHT;
             }
 
-            client->x =
-                new_x;
 
-            client->y =
-                new_y;
+            client->x = new_x;
+            client->y = new_y;
 
-            client->width =
-                new_width;
-
-            client->height =
-                new_height;
+            client->width = new_width;
+            client->height = new_height;
 
             resize_client(client);
-
-        } else if (
-            event.type ==
-            ButtonRelease) {
-
-            resizing = false;
-
-        } else if (
-            event.type ==
-            Expose) {
-
-            draw_frame(client);
         }
+
+        if (event.type == ButtonRelease)
+            break;
     }
 
     XUngrabPointer(
@@ -851,45 +1166,46 @@ static void resize_window(
     );
 }
 
+
+// ------------------------------------------------------------
+// Move
+// ------------------------------------------------------------
+
 static void move_client(Client* client)
 {
-    if (!client ||
-        client->maximized)
+    if (client->maximized)
         return;
 
-    Window child;
+    Window dummy;
 
-    int start_mouse_x;
-    int start_mouse_y;
+    int root_x;
+    int root_y;
 
     int win_x;
     int win_y;
 
     unsigned int mask;
 
-    if (!XQueryPointer(
-            display,
-            root,
-            &child,
-            &child,
-            &start_mouse_x,
-            &start_mouse_y,
-            &win_x,
-            &win_y,
-            &mask))
-        return;
+    XQueryPointer(
+        display,
+        root,
+        &dummy,
+        &dummy,
+        &root_x,
+        &root_y,
+        &win_x,
+        &win_y,
+        &mask
+    );
 
-    int start_x =
-        client->x;
-
-    int start_y =
-        client->y;
+    int start_x = client->x;
+    int start_y = client->y;
 
     XGrabPointer(
         display,
         client->frame,
         False,
-        PointerMotionMask |
+        ButtonMotionMask |
         ButtonReleaseMask,
         GrabModeAsync,
         GrabModeAsync,
@@ -898,51 +1214,33 @@ static void move_client(Client* client)
         CurrentTime
     );
 
-    bool moving = true;
+    XEvent event;
 
-    while (moving) {
-
-        XEvent event;
+    while (true) {
 
         XMaskEvent(
             display,
-            PointerMotionMask |
-            ButtonReleaseMask |
-            ExposureMask,
+            ButtonMotionMask |
+            ButtonReleaseMask,
             &event
         );
 
-        if (event.type ==
-            MotionNotify) {
+        if (event.type == MotionNotify) {
 
             int dx =
-                event.xmotion.x_root -
-                start_mouse_x;
+                event.xmotion.x_root - root_x;
 
             int dy =
-                event.xmotion.y_root -
-                start_mouse_y;
+                event.xmotion.y_root - root_y;
 
-            client->x =
-                start_x + dx;
-
-            client->y =
-                start_y + dy;
+            client->x = start_x + dx;
+            client->y = start_y + dy;
 
             resize_client(client);
-
-        } else if (
-            event.type ==
-            ButtonRelease) {
-
-            moving = false;
-
-        } else if (
-            event.type ==
-            Expose) {
-
-            draw_frame(client);
         }
+
+        if (event.type == ButtonRelease)
+            break;
     }
 
     XUngrabPointer(
@@ -951,123 +1249,128 @@ static void move_client(Client* client)
     );
 }
 
-static void handle_button_press(
-    XButtonEvent* event)
+
+// ------------------------------------------------------------
+// Button handling
+// ------------------------------------------------------------
+
+static void handle_button_press(XButtonEvent* event)
 {
     Client* client =
-        find_client(
-            event->window
-        );
+        find_client(event->window);
 
     if (!client)
         return;
 
     focus_client(client);
 
-    if (event->window !=
-        client->frame)
+    ResizeDirection direction =
+        get_resize_direction(
+            client,
+            event->x,
+            event->y
+        );
+
+    if (event->button == Button1 &&
+        direction != RESIZE_NONE) {
+
+        resize_window(
+            client,
+            direction
+        );
+
         return;
+    }
+
 
     /*
-     * Double-click title bar.
-     */
-    if (event->button == Button1 &&
-        event->y >= RESIZE_BORDER &&
+        Titlebar
+    */
+
+    if (event->y >= RESIZE_BORDER &&
         event->y < TITLE_HEIGHT) {
 
-        Time now = event->time;
+        int frame_width =
+            client->width +
+            BORDER_WIDTH * 2;
 
-        if (client->last_title_click != 0 &&
-            now -
-                client->last_title_click <
-                400) {
+        int close_x =
+            frame_width -
+            BUTTON_WIDTH -
+            BORDER_WIDTH;
 
-            client->last_title_click = 0;
+        int max_x =
+            close_x -
+            BUTTON_WIDTH;
 
-            maximize_client(client);
-            return;
+        int min_x =
+            max_x -
+            BUTTON_WIDTH;
+
+
+        /*
+            Buttons
+        */
+
+        if (event->button == Button1) {
+
+            if (event->x >= min_x &&
+                event->x < max_x) {
+
+                minimize_client(client);
+                return;
+            }
+
+            if (event->x >= max_x &&
+                event->x < close_x) {
+
+                maximize_client(client);
+                return;
+            }
+
+            if (event->x >= close_x) {
+                close_client(client);
+                return;
+            }
         }
 
-        client->last_title_click = now;
-    }
+        /*
+            Double-click titlebar to maximize/restore.
+        */
 
-    int frame_width =
-        client->width +
-        BORDER_WIDTH * 2;
+        if (event->button == Button1 &&
+            event->x < min_x) {
 
-    /*
-     * Resize borders.
-     */
-    if (event->y >= TITLE_HEIGHT ||
-        event->x < RESIZE_BORDER ||
-        event->x >=
-            frame_width - RESIZE_BORDER) {
+            Time now = event->time;
 
-        ResizeDirection direction =
-            get_resize_direction(
-                client,
-                event->x,
-                event->y
-            );
+            if (client->last_title_click != 0 &&
+                now - client->last_title_click < 400) {
 
-        if (direction !=
-            RESIZE_NONE) {
+                client->last_title_click = 0;
 
-            resize_window(
-                client,
-                direction
-            );
+                maximize_client(client);
+
+                return;
+            }
+
+            client->last_title_click = now;
+
+            move_client(client);
 
             return;
         }
     }
-
-    if (event->y >= TITLE_HEIGHT)
-        return;
-
-    int close_x =
-        frame_width -
-        BUTTON_WIDTH;
-
-    int max_x =
-        frame_width -
-        BUTTON_WIDTH * 2;
-
-    int min_x =
-        frame_width -
-        BUTTON_WIDTH * 3;
-
-    if (event->x >= close_x) {
-
-        close_client(client);
-        return;
-    }
-
-    if (event->x >= max_x &&
-        event->x < close_x) {
-
-        maximize_client(client);
-        return;
-    }
-
-    if (event->x >= min_x &&
-        event->x < max_x) {
-
-        minimize_client(client);
-        return;
-    }
-
-    if (event->button == Button1)
-        move_client(client);
 }
 
-static void handle_motion(
-    XMotionEvent* event)
+
+// ------------------------------------------------------------
+// Motion
+// ------------------------------------------------------------
+
+static void handle_motion(XMotionEvent* event)
 {
     Client* client =
-        find_client(
-            event->window
-        );
+        find_client(event->window);
 
     if (!client)
         return;
@@ -1078,6 +1381,11 @@ static void handle_motion(
         event->y
     );
 }
+
+
+// ------------------------------------------------------------
+// Manage windows
+// ------------------------------------------------------------
 
 static void manage(Window window)
 {
@@ -1095,60 +1403,40 @@ static void manage(Window window)
     if (attr.override_redirect)
         return;
 
+
     Client* client =
         new Client{};
 
-    client->window =
-        window;
+    client->window = window;
+    client->frame = XCreateSimpleWindow(
+        display,
+        root,
+        attr.x,
+        attr.y,
+        attr.width + BORDER_WIDTH * 2,
+        attr.height + TITLE_HEIGHT + BORDER_WIDTH,
+        0,
+        COLOR_BORDER,
+        COLOR_TITLE
+    );
 
-    client->x =
-        attr.x;
+    client->x = attr.x;
+    client->y = attr.y;
 
-    client->y =
-        attr.y;
+    client->width = attr.width;
+    client->height = attr.height;
 
-    client->width =
-        attr.width;
+    client->old_x = attr.x;
+    client->old_y = attr.y;
 
-    client->height =
-        attr.height;
+    client->old_width = attr.width;
+    client->old_height = attr.height;
 
-    client->old_x =
-        attr.x;
+    client->maximized = false;
+    client->minimized = false;
 
-    client->old_y =
-        attr.y;
+    client->last_title_click = 0;
 
-    client->old_width =
-        attr.width;
-
-    client->old_height =
-        attr.height;
-
-    client->maximized =
-        false;
-
-    client->minimized =
-        false;
-
-    client->last_title_click =
-        0;
-
-    client->frame =
-        XCreateSimpleWindow(
-            display,
-            root,
-            client->x,
-            client->y,
-            client->width +
-                BORDER_WIDTH * 2,
-            client->height +
-                TITLE_HEIGHT +
-                BORDER_WIDTH,
-            BORDER_WIDTH,
-            COLOR_BORDER,
-            COLOR_TITLE
-        );
 
     XSelectInput(
         display,
@@ -1159,10 +1447,12 @@ static void manage(Window window)
         PointerMotionMask
     );
 
+
     XAddToSaveSet(
         display,
         window
     );
+
 
     XReparentWindow(
         display,
@@ -1172,16 +1462,6 @@ static void manage(Window window)
         TITLE_HEIGHT
     );
 
-    XSelectInput(
-        display,
-        window,
-        StructureNotifyMask |
-        PropertyChangeMask
-    );
-
-    clients.push_back(
-        client
-    );
 
     XMapWindow(
         display,
@@ -1190,29 +1470,26 @@ static void manage(Window window)
 
     XMapWindow(
         display,
-        client->window
+        window
     );
 
+
+    clients.push_back(client);
+
     resize_client(client);
+
     focus_client(client);
 }
+
 
 static void unmanage(Client* client)
 {
     if (!client)
         return;
 
-    Window window =
-        client->window;
-
-    XUnmapWindow(
-        display,
-        window
-    );
-
     XReparentWindow(
         display,
-        window,
+        client->window,
         root,
         client->x,
         client->y
@@ -1220,7 +1497,7 @@ static void unmanage(Client* client)
 
     XRemoveFromSaveSet(
         display,
-        window
+        client->window
     );
 
     XDestroyWindow(
@@ -1228,26 +1505,23 @@ static void unmanage(Client* client)
         client->frame
     );
 
-    auto it =
-        std::find(
+    clients.erase(
+        std::remove(
             clients.begin(),
             clients.end(),
             client
-        );
-
-    if (it != clients.end())
-        clients.erase(it);
+        ),
+        clients.end()
+    );
 
     delete client;
 }
 
-/*
- * Alt+Tab:
- *
- * The current implementation cycles through the
- * managed clients. The next non-minimized client
- * receives focus and is raised.
- */
+
+// ------------------------------------------------------------
+// Alt+Tab
+// ------------------------------------------------------------
+
 static void focus_next()
 {
     if (clients.empty())
@@ -1256,7 +1530,7 @@ static void focus_next()
     Client* current =
         get_focused_client();
 
-    size_t start_index = 0;
+    size_t start = 0;
 
     if (current) {
 
@@ -1269,177 +1543,196 @@ static void focus_next()
 
         if (it != clients.end()) {
 
-            start_index =
-                std::distance(
-                    clients.begin(),
-                    it
-                );
-
-            start_index =
-                (start_index + 1) %
-                clients.size();
+            start =
+                (it - clients.begin() + 1)
+                % clients.size();
         }
     }
 
-    for (size_t i = 0;
-         i < clients.size();
-         ++i) {
+    for (size_t i = 0; i < clients.size(); ++i) {
+
+        size_t index =
+            (start + i) % clients.size();
 
         Client* client =
-            clients[
-                (start_index + i) %
-                clients.size()
-            ];
+            clients[index];
 
         if (!client->minimized) {
 
             focus_client(client);
+
             return;
         }
     }
 }
 
-static void grab_keys()
+
+// ------------------------------------------------------------
+// Keybindings
+// ------------------------------------------------------------
+
+static void grab_key(
+    KeyCode keycode,
+    unsigned int modifiers)
 {
-    unsigned int modifiers[] = {
+    unsigned int lock_masks[] = {
         0,
         LockMask,
         Mod2Mask,
         LockMask | Mod2Mask
     };
 
-    KeyCode tab =
+    for (unsigned int lock : lock_masks) {
+
+        XGrabKey(
+            display,
+            keycode,
+            modifiers | lock,
+            root,
+            True,
+            GrabModeAsync,
+            GrabModeAsync
+        );
+    }
+}
+
+
+static void grab_keys()
+{
+    /*
+        Built-in shortcuts
+    */
+
+    grab_key(
         XKeysymToKeycode(
             display,
             XK_Tab
-        );
+        ),
+        Mod1Mask
+    );
 
-    KeyCode f4 =
+    grab_key(
         XKeysymToKeycode(
             display,
             XK_F4
-        );
+        ),
+        Mod1Mask
+    );
 
-    KeyCode f1 =
+    grab_key(
         XKeysymToKeycode(
             display,
             XK_F1
-        );
+        ),
+        Mod1Mask
+    );
 
-    KeyCode q =
+    grab_key(
         XKeysymToKeycode(
             display,
             XK_q
-        );
+        ),
+        Mod1Mask | ShiftMask
+    );
 
-    for (unsigned int extra :
-         modifiers) {
 
-        /*
-         * Alt+Tab
-         */
-        XGrabKey(
-            display,
-            tab,
-            Mod1Mask | extra,
-            root,
-            True,
-            GrabModeAsync,
-            GrabModeAsync
-        );
+    /*
+        User-configured shortcuts
+    */
 
-        /*
-         * Alt+F4
-         */
-        XGrabKey(
-            display,
-            f4,
-            Mod1Mask | extra,
-            root,
-            True,
-            GrabModeAsync,
-            GrabModeAsync
-        );
+    for (const KeyBinding& binding : keybindings) {
 
-        /*
-         * Alt+F1
-         */
-        XGrabKey(
-            display,
-            f1,
-            Mod1Mask | extra,
-            root,
-            True,
-            GrabModeAsync,
-            GrabModeAsync
-        );
-
-        /*
-         * Alt+Shift+Q
-         */
-        XGrabKey(
-            display,
-            q,
-            Mod1Mask |
-            ShiftMask |
-            extra,
-            root,
-            True,
-            GrabModeAsync,
-            GrabModeAsync
+        grab_key(
+            binding.keycode,
+            binding.modifiers
         );
     }
 }
+
+
+static bool handle_custom_keybinding(
+    XKeyEvent* event)
+{
+    unsigned int state =
+        event->state &
+        ~(LockMask | Mod2Mask);
+
+    for (const KeyBinding& binding : keybindings) {
+
+        if (event->keycode ==
+                binding.keycode &&
+            state ==
+                binding.modifiers) {
+
+            std::string command =
+                binding.command +
+                " >/dev/null 2>&1 &";
+
+            printf(
+                "mew: running: %s\n",
+                binding.command.c_str()
+            );
+
+            std::system(
+                command.c_str()
+            );
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+// ------------------------------------------------------------
+// X error handler
+// ------------------------------------------------------------
 
 static int error_handler(
     Display*,
-    XErrorEvent* error)
+    XErrorEvent*)
 {
-    if (error->error_code ==
-        BadAccess) {
-
-        std::fprintf(
-            stderr,
-            "Another window manager is already running.\n"
-        );
-
-        std::exit(1);
-    }
-
     return 0;
 }
 
+
+// ------------------------------------------------------------
+// Main
+// ------------------------------------------------------------
+
 int main()
 {
-    display =
-        XOpenDisplay(
-            nullptr
-        );
+    display = XOpenDisplay(nullptr);
 
     if (!display) {
 
-        std::fprintf(
+        fprintf(
             stderr,
-            "Cannot open X display.\n"
+            "mew: cannot open display\n"
         );
 
         return 1;
     }
 
     screen =
-        DefaultScreen(
-            display
-        );
+        DefaultScreen(display);
 
     root =
-        RootWindow(
-            display,
-            screen
-        );
+        RootWindow(display, screen);
+
 
     XSetErrorHandler(
         error_handler
     );
+
+
+    WM_DELETE_WINDOW =
+        XInternAtom(
+            display,
+            "WM_DELETE_WINDOW",
+            False
+        );
 
     WM_PROTOCOLS =
         XInternAtom(
@@ -1448,12 +1741,24 @@ int main()
             False
         );
 
-    WM_DELETE_WINDOW =
-        XInternAtom(
-            display,
-            "WM_DELETE_WINDOW",
-            False
-        );
+
+    /*
+        Create ~/.config/mew
+    */
+
+    create_config_directory();
+
+
+    /*
+        Load configuration
+    */
+
+    load_keybindings();
+
+
+    /*
+        Become the window manager
+    */
 
     XSelectInput(
         display,
@@ -1464,23 +1769,22 @@ int main()
         PropertyChangeMask
     );
 
-    XSync(
-        display,
-        False
-    );
+
+    /*
+        Grab keyboard shortcuts
+    */
 
     grab_keys();
 
-    XSync(
-        display,
-        False
-    );
+
+    /*
+        Manage existing windows
+    */
 
     Window root_return;
     Window parent_return;
 
     Window* children = nullptr;
-
     unsigned int child_count = 0;
 
     if (XQueryTree(
@@ -1503,12 +1807,11 @@ int main()
                     &attr))
                 continue;
 
-            if (attr.map_state != IsUnmapped &&
+            if (attr.map_state ==
+                    IsViewable &&
                 !attr.override_redirect) {
 
-                manage(
-                    children[i]
-                );
+                manage(children[i]);
             }
         }
 
@@ -1516,14 +1819,26 @@ int main()
             XFree(children);
     }
 
+
+    /*
+        Start autostart programs AFTER
+        the window manager is initialized.
+    */
+
+    run_autostart();
+
+
     XSync(
         display,
         False
     );
 
-    bool running = true;
 
-    while (running) {
+    /*
+        Main event loop
+    */
+
+    while (true) {
 
         XEvent event;
 
@@ -1532,269 +1847,258 @@ int main()
             &event
         );
 
+
         switch (event.type) {
 
-        case MapRequest:
-
-            manage(
-                event.xmaprequest.window
-            );
-
-            break;
-
-        case ConfigureRequest:
-        {
-            XConfigureRequestEvent* e =
-                &event.xconfigurerequest;
-
-            Client* client =
-                find_client(
-                    e->window
-                );
-
-            if (!client) {
-
-                XWindowChanges changes{};
-
-                changes.x =
-                    e->x;
-
-                changes.y =
-                    e->y;
-
-                changes.width =
-                    e->width;
-
-                changes.height =
-                    e->height;
-
-                changes.border_width =
-                    e->border_width;
-
-                changes.sibling =
-                    e->above;
-
-                changes.stack_mode =
-                    e->detail;
-
-                XConfigureWindow(
-                    display,
-                    e->window,
-                    e->value_mask,
-                    &changes
+            case MapRequest:
+            {
+                manage(
+                    event.xmaprequest.window
                 );
 
                 break;
             }
 
-            if (!client->maximized) {
 
-                if (e->value_mask &
-                    CWWidth)
-                    client->width =
-                        e->width;
+            case ConfigureRequest:
+            {
+                Client* client =
+                    find_client(
+                        event.xconfigurerequest.window
+                    );
 
-                if (e->value_mask &
-                    CWHeight)
-                    client->height =
-                        e->height;
+                if (!client) {
 
-                if (e->value_mask &
+                    XWindowChanges changes;
+
+                    changes.x =
+                        event.xconfigurerequest.x;
+
+                    changes.y =
+                        event.xconfigurerequest.y;
+
+                    changes.width =
+                        event.xconfigurerequest.width;
+
+                    changes.height =
+                        event.xconfigurerequest.height;
+
+                    changes.border_width =
+                        event.xconfigurerequest.border_width;
+
+                    changes.sibling =
+                        event.xconfigurerequest.above;
+
+                    changes.stack_mode =
+                        event.xconfigurerequest.detail;
+
+                    XConfigureWindow(
+                        display,
+                        event.xconfigurerequest.window,
+                        event.xconfigurerequest.value_mask,
+                        &changes
+                    );
+
+                    break;
+                }
+
+
+                if (client->maximized)
+                    break;
+
+
+                if (event.xconfigurerequest.value_mask &
                     CWX)
-                    client->x =
-                        e->x;
 
-                if (e->value_mask &
+                    client->x =
+                        event.xconfigurerequest.x;
+
+                if (event.xconfigurerequest.value_mask &
                     CWY)
+
                     client->y =
-                        e->y;
+                        event.xconfigurerequest.y;
+
+                if (event.xconfigurerequest.value_mask &
+                    CWWidth)
+
+                    client->width =
+                        std::max(
+                            MIN_WIDTH,
+                            event.xconfigurerequest.width
+                        );
+
+                if (event.xconfigurerequest.value_mask &
+                    CWHeight)
+
+                    client->height =
+                        std::max(
+                            MIN_HEIGHT,
+                            event.xconfigurerequest.height
+                        );
+
 
                 resize_client(client);
+
+                break;
             }
 
-            break;
-        }
 
-        case ButtonPress:
-
-            handle_button_press(
-                &event.xbutton
-            );
-
-            break;
-
-        case MotionNotify:
-
-            handle_motion(
-                &event.xmotion
-            );
-
-            break;
-
-        case Expose:
-        {
-            Client* client =
-                find_client(
-                    event.xexpose.window
+            case ButtonPress:
+            {
+                handle_button_press(
+                    &event.xbutton
                 );
 
-            if (client)
-                draw_frame(client);
-
-            break;
-        }
-
-        case DestroyNotify:
-        {
-            Client* client =
-                find_client(
-                    event.xdestroywindow.window
-                );
-
-            if (client) {
-
-                auto it =
-                    std::find(
-                        clients.begin(),
-                        clients.end(),
-                        client
-                    );
-
-                if (it != clients.end())
-                    clients.erase(it);
-
-                if (client->frame)
-                    XDestroyWindow(
-                        display,
-                        client->frame
-                    );
-
-                delete client;
+                break;
             }
 
-            break;
-        }
 
-        case UnmapNotify:
-        {
-            Client* client =
-                find_client(
-                    event.xunmap.window
+            case MotionNotify:
+            {
+                handle_motion(
+                    &event.xmotion
                 );
 
-            if (client &&
-                event.xunmap.window ==
-                    client->window) {
-
-                if (!client->minimized)
-                    unmanage(client);
+                break;
             }
 
-            break;
-        }
 
-        case KeyPress:
-        {
-            KeySym key =
-                XLookupKeysym(
-                    &event.xkey,
-                    0
-                );
-
-            bool alt =
-                event.xkey.state &
-                Mod1Mask;
-
-            bool shift =
-                event.xkey.state &
-                ShiftMask;
-
-            /*
-             * Alt+Tab
-             */
-            if (alt &&
-                key == XK_Tab) {
-
-                focus_next();
-
-            /*
-             * Alt+F4
-             */
-            } else if (
-                alt &&
-                key == XK_F4) {
-
+            case Expose:
+            {
                 Client* client =
-                    get_focused_client();
+                    find_client(
+                        event.xexpose.window
+                    );
 
                 if (client)
-                    close_client(client);
+                    draw_frame(client);
 
-            /*
-             * Alt+F1
-             */
-            } else if (
-                alt &&
-                key == XK_F1) {
-
-                std::system(
-                    "wezterm start >/dev/null 2>&1 &"
-                );
-
-            /*
-             * Alt+Shift+Q
-             */
-            } else if (
-                alt &&
-                shift &&
-                key == XK_q) {
-
-                running = false;
+                break;
             }
 
-            break;
-        }
 
-        default:
-            break;
+            case DestroyNotify:
+            {
+                Client* client =
+                    find_client(
+                        event.xdestroywindow.window
+                    );
+
+                if (client)
+                    unmanage(client);
+
+                break;
+            }
+
+
+            case UnmapNotify:
+            {
+                Client* client =
+                    find_client(
+                        event.xunmap.window
+                    );
+
+                if (client &&
+                    event.xunmap.window ==
+                        client->window) {
+
+                    unmanage(client);
+                }
+
+                break;
+            }
+
+
+            case KeyPress:
+            {
+                XKeyEvent* key =
+                    &event.xkey;
+
+
+                /*
+                    First check user configuration.
+                */
+
+                if (handle_custom_keybinding(key))
+                    break;
+
+
+                unsigned int state =
+                    key->state &
+                    ~(LockMask | Mod2Mask);
+
+
+                KeySym keysym =
+                    XLookupKeysym(
+                        key,
+                        0
+                    );
+
+
+                /*
+                    Alt+Tab
+                */
+
+                if (state == Mod1Mask &&
+                    keysym == XK_Tab) {
+
+                    focus_next();
+                    break;
+                }
+
+
+                /*
+                    Alt+F4
+                */
+
+                if (state == Mod1Mask &&
+                    keysym == XK_F4) {
+
+                    Client* client =
+                        get_focused_client();
+
+                    if (client)
+                        close_client(client);
+
+                    break;
+                }
+
+
+                /*
+                    Alt+F1
+                */
+
+                if (state == Mod1Mask &&
+                    keysym == XK_F1) {
+
+                    std::system(
+                        "wezterm start >/dev/null 2>&1 &"
+                    );
+
+                    break;
+                }
+
+
+                /*
+                    Alt+Shift+Q
+                    Quit mew
+                */
+
+                if (state ==
+                        (Mod1Mask | ShiftMask) &&
+                    keysym == XK_q) {
+
+                    XCloseDisplay(display);
+
+                    return 0;
+                }
+
+                break;
+            }
         }
     }
 
-    for (Client* client :
-         clients) {
-
-        XUnmapWindow(
-            display,
-            client->window
-        );
-
-        XReparentWindow(
-            display,
-            client->window,
-            root,
-            client->x,
-            client->y
-        );
-
-        XRemoveFromSaveSet(
-            display,
-            client->window
-        );
-
-        XDestroyWindow(
-            display,
-            client->frame
-        );
-
-        delete client;
-    }
-
-    clients.clear();
-
-    XSync(
-        display,
-        False
-    );
 
     XCloseDisplay(
         display
