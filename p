@@ -113,13 +113,16 @@ menu () {
 
       echo ">>> compiling (debug mode)"
       bear -- g++ -std=c++23 -g -pg -O0 -DDEBUG --coverage \
-        src/*.cpp $(pkg-config --cflags --libs x11) -o build/debug/mew
-        #-Wall -Wextra -Werror \
+        src/*.cpp $(pkg-config --cflags --libs x11 xft) -o build/debug/mew
 
-        ##-Wformat=2 -Wunused-function -Wpedantic -Wno-unused-parameter \
-        #-Wredundant-decls -Wmissing-include-dirs -Wlogical-op \
-        #-Wshadow -Wwrite-strings -Wunused-result \
-        # -ldl -pthread -lmagic -lm \
+      xxd -i -n mew_font_ttf ./assets/fonts/SofiaSans-Light.ttf > src/font_data.h
+
+      #-Wall -Wextra -Werror \
+
+      ##-Wformat=2 -Wunused-function -Wpedantic -Wno-unused-parameter \
+      #-Wredundant-decls -Wmissing-include-dirs -Wlogical-op \
+      #-Wshadow -Wwrite-strings -Wunused-result \
+      # -ldl -pthread -lmagic -lm \
       if [ $? -eq 1 ]; then
         # error
         mpg123 -f 3000 /home/$USER/VoidConf/assets/error2.mp3 > /dev/null 2>&1 

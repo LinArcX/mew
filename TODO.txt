@@ -3,21 +3,20 @@
 - [+] when do alt+tab and when i hold this key combination, it should shows all open windows in a pop-up window.
   So i can cycle through them.(Alt+tab and Alt+Shift+tab for reverse cycle)
 - [+] right click for mew with these options:
-  - reconfigure
+  - [ ] reconfigure
   - [+] exit
   - [+] show keybindings
+- [P] change windows title fonts.
+- [ ] change mouse theme.
+- [ ] change window themes.
+- [ ] default background color
+- [ ] ability to snap left/right/bottom/top with a keyboard shortcut
+- [ ] ability to maximize/minimize with keyboard shortcut
 - add panel
   - [ ] language switcher
   - [ ] volume icon
   - [ ] app launcher
   - [ ] network manager
-- [ ] default background color
-- [ ] ability to reconfigure mew without log out from it.
-- [ ] change font of titles.
-- [ ] change mouse theme.
-- [ ] change window themes.
-- [ ] ability to maximize/minimize with keyboard shortcut
-- [ ] ability to snap left/right/bottom/top with a keyboard shortcut
 - [ ] config file in: ~/.config/mew/config:
   - background_color
   - background_image

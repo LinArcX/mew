@@ -1,3 +1,7 @@
+#include <X11/Xft/Xft.h>
+#include <sys/mman.h>   // memfd_create
+#include "font_data.h"
+
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/keysym.h>
@@ -67,6 +71,10 @@ static const std::vector<std::string> context_menu_items = {
     "Exit",
 };
 
+static XftFont* title_font = nullptr;
+static XftColor title_text_color;
+static bool title_text_color_ready = false;
+
 // Keybindings viewer window
 static Window keybindings_window = None;
 static bool keybindings_window_active = false;
@@ -98,6 +106,7 @@ static const unsigned long COLOR_TEXT   = 0xffffff;
 
 static Atom WM_DELETE_WINDOW;
 static Atom WM_PROTOCOLS;
+static Atom NET_WM_NAME;
 
 // Switcher
 static Window switcher = None;
@@ -201,6 +210,41 @@ static const int KB_DEFAULT_WIDTH = 560;
 static void kb_button_geometry(int& close_x, int& max_x, int& min_x)
 {
     close_x = kb_win_width - BUTTON_WIDTH;
+}
+
+static void load_title_font()
+{
+  int fd = memfd_create("mew-font", 0);
+  if (fd < 0) {
+    fprintf(stderr, "mew: memfd_create failed for embedded font\n");
+    return;
+  }
+
+  ssize_t written = write(fd, mew_font_ttf, mew_font_ttf_len);
+  if (written != (ssize_t)mew_font_ttf_len) {
+    fprintf(stderr, "mew: failed to write embedded font to memfd\n");
+    close(fd);
+    return;
+  }
+
+  char path[64];
+  snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
+
+  title_font = XftFontOpen(
+    display, screen,
+    XFT_FILE, XftTypeString, path,
+    XFT_INDEX, XftTypeInteger, 0,
+    XFT_SIZE, XftTypeDouble, 12.0,
+    nullptr
+  );
+
+  // Deliberately leaked: FreeType may lazily re-read the stream for
+  // the font's lifetime, so the memfd must stay alive for as long as
+  // mew runs. Cost is a few KB, reclaimed automatically on exit.
+
+  if (!title_font) {
+    fprintf(stderr, "mew: failed to open embedded font\n");
+  }
 }
 
 static std::string get_config_directory()
@@ -322,6 +366,54 @@ static void keybindings_window_apply_geometry()
 {
     XMoveResizeWindow(display, keybindings_window, kb_win_x, kb_win_y, kb_win_width, kb_win_height);
     draw_keybindings_window();
+}
+
+static void ensure_title_text_color()
+{
+  if (title_text_color_ready)
+    return;
+
+  XRenderColor render_color;
+  render_color.red   = 0xffff;
+  render_color.green = 0xffff;
+  render_color.blue  = 0xffff;
+  render_color.alpha = 0xffff;
+
+  XftColorAllocValue(
+    display, DefaultVisual(display, screen),
+    DefaultColormap(display, screen),
+    &render_color, &title_text_color
+  );
+
+  title_text_color_ready = true;
+}
+
+static void draw_title_text(Window window, int x, int y, const std::string& text)
+{
+  if (!title_font) {
+    // Fallback so a load failure doesn't leave titles blank.
+    GC gc = XCreateGC(display, window, 0, nullptr);
+    XSetForeground(display, gc, COLOR_TEXT);
+    XDrawString(display, window, gc, x, y, text.c_str(), (int)text.size());
+    XFreeGC(display, gc);
+    return;
+  }
+
+  ensure_title_text_color();
+
+  XftDraw* draw = XftDrawCreate(
+    display, window,
+    DefaultVisual(display, screen),
+    DefaultColormap(display, screen)
+  );
+
+  XftDrawStringUtf8(
+    draw, &title_text_color, title_font,
+    x, y,
+    (const FcChar8*)text.c_str(), (int)text.size()
+  );
+
+  XftDrawDestroy(draw);
 }
 
 static void move_keybindings_window()
@@ -1268,15 +1360,25 @@ static void draw_frame(Client* client)
         COLOR_TEXT
     );
 
-    XDrawString(
-        display,
-        client->frame,
-        gc,
-        BORDER_WIDTH + 8,
-        TITLE_HEIGHT - 9,
-        "mew",
-        3
-    );
+    //int baseline = BORDER_WIDTH + (TITLE_HEIGHT - BORDER_WIDTH + title_font ? title_font->ascent : 10) / 2;
+
+    std::string title = get_window_title(client->window);
+
+    int text_height = title_font ? (title_font->ascent + title_font->descent) : 10;
+    int baseline = BORDER_WIDTH 
+      + (TITLE_HEIGHT - BORDER_WIDTH - text_height) / 2 
+      + (title_font ? title_font->ascent : 10);
+    draw_title_text(client->frame, BORDER_WIDTH + 8, baseline, title);
+
+    //XDrawString(
+    //    display,
+    //    client->frame,
+    //    gc,
+    //    BORDER_WIDTH + 8,
+    //    TITLE_HEIGHT - 9,
+    //    "mew",
+    //    3
+    //);
 
     XFreeGC(
         display,
@@ -1718,32 +1820,19 @@ static void move_client(Client* client)
   }
 
   Window dummy;
-
-  int root_x;
-  int root_y;
-
-  int win_x;
-  int win_y;
-
+  int root_x, root_y, win_x, win_y;
   unsigned int mask;
 
   XQueryPointer(
-      display,
-      root,
-      &dummy,
-      &dummy,
-      &root_x,
-      &root_y,
-      &win_x,
-      &win_y,
-      &mask
+    display, root, &dummy, &dummy,
+    &root_x, &root_y, &win_x, &win_y, &mask
   );
 
-  int start_x = kb_win_x;// client->x;
-  int start_y = kb_win_y;// client->y;
+  int start_x = client->x;
+  int start_y = client->y;
 
   XGrabPointer(
-    display, keybindings_window, False,
+    display, client->frame, False,
     ButtonMotionMask | ButtonReleaseMask,
     GrabModeAsync, GrabModeAsync,
     None, None, CurrentTime
@@ -1751,71 +1840,139 @@ static void move_client(Client* client)
 
   XEvent event;
   while (true) {
-      XMaskEvent(display, ButtonMotionMask | ButtonReleaseMask, &event);
+    XMaskEvent(display, ButtonMotionMask | ButtonReleaseMask, &event);
 
-      if (event.type == MotionNotify) {
-          int dx = event.xmotion.x_root - root_x;
-          int dy = event.xmotion.y_root - root_y;
+    if (event.type == MotionNotify) {
+      int dx = event.xmotion.x_root - root_x;
+      int dy = event.xmotion.y_root - root_y;
 
-          kb_win_x = start_x + dx;
-          kb_win_y = start_y + dy;
+      client->x = start_x + dx;
+      client->y = start_y + dy;
 
-          keybindings_window_apply_geometry();
-      }
+      resize_client(client);
+    }
 
-      if (event.type == ButtonRelease)
-          break;
+    if (event.type == ButtonRelease)
+      break;
   }
 
   XUngrabPointer(display, CurrentTime);
-
-  //XGrabPointer(
-  //    display,
-  //    client->frame,
-  //    False,
-  //    ButtonMotionMask |
-  //    ButtonReleaseMask,
-  //    GrabModeAsync,
-  //    GrabModeAsync,
-  //    None,
-  //    None,
-  //    CurrentTime
-  //);
-
-  //XEvent event;
-
-  //while (true) {
-
-  //    XMaskEvent(
-  //        display,
-  //        ButtonMotionMask |
-  //        ButtonReleaseMask,
-  //        &event
-  //    );
-
-  //    if (event.type == MotionNotify) {
-
-  //        int dx =
-  //            event.xmotion.x_root - root_x;
-
-  //        int dy =
-  //            event.xmotion.y_root - root_y;
-
-  //        client->x = start_x + dx;
-  //        client->y = start_y + dy;
-
-  //        resize_client(client);
-  //    }
-
-  //    if (event.type == ButtonRelease)
-  //        break;
-  //}
-
-  //XUngrabPointer(
-  //    display,
-  //    CurrentTime
-  //);
 }
+
+//static void move_client(Client* client)
+//{
+//  if (client->maximized) {
+//    return;
+//  }
+//
+//  Window dummy;
+//
+//  int root_x;
+//  int root_y;
+//
+//  int win_x;
+//  int win_y;
+//
+//  unsigned int mask;
+//
+//  XQueryPointer(
+//      display,
+//      root,
+//      &dummy,
+//      &dummy,
+//      &root_x,
+//      &root_y,
+//      &win_x,
+//      &win_y,
+//      &mask
+//  );
+//
+//  int start_x = kb_win_x;// client->x;
+//  int start_y = kb_win_y;// client->y;
+//                         //
+//  int grab_result = XGrabPointer(
+//    display, client->frame, False,
+//    ButtonMotionMask | ButtonReleaseMask,
+//    GrabModeAsync, GrabModeAsync,
+//    None, None, CurrentTime
+//  );
+//  fprintf(stderr, "mew: grab result = %d (0 = success)\n", grab_result);
+//
+//
+//  //XGrabPointer(
+//  //  display, keybindings_window, False,
+//  //  ButtonMotionMask | ButtonReleaseMask,
+//  //  GrabModeAsync, GrabModeAsync,
+//  //  None, None, CurrentTime
+//  //);
+//
+//  XEvent event;
+//  while (true) {
+//      XMaskEvent(display, ButtonMotionMask | ButtonReleaseMask, &event);
+//
+//      if (event.type == MotionNotify) {
+//          int dx = event.xmotion.x_root - root_x;
+//          int dy = event.xmotion.y_root - root_y;
+//
+//          kb_win_x = start_x + dx;
+//          kb_win_y = start_y + dy;
+//
+//          keybindings_window_apply_geometry();
+//      }
+//
+//      if (event.type == ButtonRelease)
+//          break;
+//  }
+//
+//  XUngrabPointer(display, CurrentTime);
+//
+//  //XGrabPointer(
+//  //    display,
+//  //    client->frame,
+//  //    False,
+//  //    ButtonMotionMask |
+//  //    ButtonReleaseMask,
+//  //    GrabModeAsync,
+//  //    GrabModeAsync,
+//  //    None,
+//  //    None,
+//  //    CurrentTime
+//  //);
+//
+//  //XEvent event;
+//
+//  //while (true) {
+//
+//  //    XMaskEvent(
+//  //        display,
+//  //        ButtonMotionMask |
+//  //        ButtonReleaseMask,
+//  //        &event
+//  //    );
+//
+//  //    if (event.type == MotionNotify) {
+//
+//  //        int dx =
+//  //            event.xmotion.x_root - root_x;
+//
+//  //        int dy =
+//  //            event.xmotion.y_root - root_y;
+//
+//  //        client->x = start_x + dx;
+//  //        client->y = start_y + dy;
+//
+//  //        resize_client(client);
+//  //    }
+//
+//  //    if (event.type == ButtonRelease)
+//  //        break;
+//  //}
+//
+//  //XUngrabPointer(
+//  //    display,
+//  //    CurrentTime
+//  //);
+//}
 
 
 // ------------------------------------------------------------
@@ -1824,109 +1981,58 @@ static void move_client(Client* client)
 
 static void handle_button_press(XButtonEvent* event)
 {
-    Client* client =
-        find_client(event->window);
+    Client* client = find_client(event->window);
 
-    if (!client)
-        return;
-
-    focus_client(client);
-
-    ResizeDirection direction =
-        get_resize_direction(
-            client,
-            event->x,
-            event->y
-        );
-
-    if (event->button == Button1 &&
-        direction != RESIZE_NONE) {
-
-        resize_window(
-            client,
-            direction
-        );
-
-        return;
+    if (!client) {
+      return;
     }
 
+    focus_client(client);
+    ResizeDirection direction = get_resize_direction(client, event->x, event->y);
 
-    /*
-        Titlebar
-    */
+    if (event->button == Button1 && direction != RESIZE_NONE) {
+      resize_window(client, direction);
+      return;
+    }
 
-    if (event->y >= RESIZE_BORDER &&
-        event->y < TITLE_HEIGHT) {
+    // Titlebar
+    if (event->y >= RESIZE_BORDER && event->y < TITLE_HEIGHT) {
+      int frame_width = client->width + BORDER_WIDTH * 2;
+      int close_x = frame_width - BUTTON_WIDTH - BORDER_WIDTH;
+      int max_x = close_x - BUTTON_WIDTH;
+      int min_x = max_x - BUTTON_WIDTH;
 
-        int frame_width =
-            client->width +
-            BORDER_WIDTH * 2;
-
-        int close_x =
-            frame_width -
-            BUTTON_WIDTH -
-            BORDER_WIDTH;
-
-        int max_x =
-            close_x -
-            BUTTON_WIDTH;
-
-        int min_x =
-            max_x -
-            BUTTON_WIDTH;
-
-
-        /*
-            Buttons
-        */
-
-        if (event->button == Button1) {
-
-            if (event->x >= min_x &&
-                event->x < max_x) {
-
-                minimize_client(client);
-                return;
-            }
-
-            if (event->x >= max_x &&
-                event->x < close_x) {
-
-                maximize_client(client);
-                return;
-            }
-
-            if (event->x >= close_x) {
-                close_client(client);
-                return;
-            }
+      // Buttons
+      if (event->button == Button1) {
+        if (event->x >= min_x && event->x < max_x) {
+          minimize_client(client);
+          return;
         }
 
-        /*
-            Double-click titlebar to maximize/restore.
-        */
-
-        if (event->button == Button1 &&
-            event->x < min_x) {
-
-            Time now = event->time;
-
-            if (client->last_title_click != 0 &&
-                now - client->last_title_click < 400) {
-
-                client->last_title_click = 0;
-
-                maximize_client(client);
-
-                return;
-            }
-
-            client->last_title_click = now;
-
-            move_client(client);
-
-            return;
+        if (event->x >= max_x && event->x < close_x) {
+          maximize_client(client);
+          return;
         }
+
+        if (event->x >= close_x) {
+          close_client(client);
+          return;
+        }
+      }
+
+      // Double-click titlebar to maximize/restore.
+      if (event->button == Button1 && event->x < min_x) {
+        Time now = event->time;
+        if (client->last_title_click != 0 && now - client->last_title_click < 400) {
+          client->last_title_click = 0;
+          maximize_client(client);
+          return;
+        }
+
+        client->last_title_click = now;
+        move_client(client);
+        return;
+      }
     }
 }
 
@@ -2027,7 +2133,8 @@ static void manage(Window window)
 
   XAddToSaveSet(display, window);
 
-  XSelectInput(display, window, StructureNotifyMask);
+  //XSelectInput(display, window, StructureNotifyMask);
+  XSelectInput(display, window, StructureNotifyMask | PropertyChangeMask);
   XReparentWindow(
     display,
     window,
@@ -2293,6 +2400,7 @@ int main(int argc, char** argv)
   root =
       RootWindow(display, screen);
 
+  load_title_font();
 
   XSetErrorHandler(
       error_handler
@@ -2435,6 +2543,22 @@ int main(int argc, char** argv)
     XNextEvent(display, &event);
 
     switch (event.type) {
+      case PropertyNotify:
+      {
+        //Atom name_atom = XInternAtom(display, "_NET_WM_NAME", False);
+      
+        NET_WM_NAME = XInternAtom(display, "_NET_WM_NAME", False);
+
+        if (event.xproperty.atom == XA_WM_NAME || event.xproperty.atom == NET_WM_NAME) {
+      
+          Client* client = find_client(event.xproperty.window);
+          if (client) {
+            draw_frame(client);
+          }
+        }
+        break;
+      }
+
         case MapRequest:
         {
             manage(event.xmaprequest.window);

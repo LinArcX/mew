@@ -1,6 +1,10 @@
 # mew
 a wm for x
 
+# libs
+  libXft-devel
+  freetype-devel
+
 # run
 ## xephyr
   ./start_xephyr.sh
