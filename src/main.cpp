@@ -1,5 +1,8 @@
 #include <X11/Xft/Xft.h>
-#include <sys/mman.h>   // memfd_create
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include <fontconfig/fontconfig.h>
+#include <fontconfig/fcfreetype.h>
 #include "font_data.h"
 
 #include <X11/Xlib.h>
@@ -59,6 +62,10 @@ enum ResizeDirection {
 // Context menu
 static Window context_menu = None;
 static bool context_menu_active = false;
+
+
+static FT_Library ft_library = nullptr;
+static FT_Face ft_face = nullptr;
 
 static const int MENU_WIDTH = 180;
 static const int MENU_ITEM_HEIGHT = 28;
@@ -214,38 +221,94 @@ static void kb_button_geometry(int& close_x, int& max_x, int& min_x)
 
 static void load_title_font()
 {
-  int fd = memfd_create("mew-font", 0);
-  if (fd < 0) {
-    fprintf(stderr, "mew: memfd_create failed for embedded font\n");
+  if (FT_Init_FreeType(&ft_library) != 0) {
+    fprintf(stderr, "mew: FT_Init_FreeType failed\n");
     return;
   }
 
-  ssize_t written = write(fd, mew_font_ttf, mew_font_ttf_len);
-  if (written != (ssize_t)mew_font_ttf_len) {
-    fprintf(stderr, "mew: failed to write embedded font to memfd\n");
-    close(fd);
+  if (FT_New_Memory_Face(
+        ft_library,
+        mew_font_ttf,
+        (FT_Long)mew_font_ttf_len,
+        0,
+        &ft_face) != 0) {
+    fprintf(stderr, "mew: FT_New_Memory_Face failed to parse embedded font\n");
     return;
   }
 
-  char path[64];
-  snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
-
-  title_font = XftFontOpen(
-    display, screen,
-    XFT_FILE, XftTypeString, path,
-    XFT_INDEX, XftTypeInteger, 0,
-    XFT_SIZE, XftTypeDouble, 12.0,
-    nullptr
+  fprintf(
+    stderr,
+    "mew: loaded embedded font: %s %s\n",
+    ft_face->family_name ? ft_face->family_name : "?",
+    ft_face->style_name  ? ft_face->style_name  : "?"
   );
 
-  // Deliberately leaked: FreeType may lazily re-read the stream for
-  // the font's lifetime, so the memfd must stay alive for as long as
-  // mew runs. Cost is a few KB, reclaimed automatically on exit.
+  FcPattern* pattern = FcPatternCreate();
+  FcPatternAddFTFace(pattern, FC_FT_FACE, ft_face);
+  FcPatternAddDouble(pattern, FC_PIXEL_SIZE, 17.0);
+
+  // Force good rendering defaults explicitly — don't rely on Xft.*
+  // X resources, since a minimal WM setup like this usually has none set.
+  FcPatternAddBool(pattern, FC_ANTIALIAS, FcTrue);
+  FcPatternAddBool(pattern, FC_AUTOHINT, FcFalse);
+  FcPatternAddBool(pattern, FC_HINTING, FcTrue);
+  FcPatternAddInteger(pattern, FC_HINT_STYLE, FC_HINT_SLIGHT);
+  FcPatternAddInteger(pattern, FC_RGBA, FC_RGBA_RGB);
+  FcPatternAddInteger(pattern, FC_LCD_FILTER, FC_LCD_DEFAULT);
+
+  // Fill in sane rendering defaults (antialiasing, hinting, RGBA order)
+  // based on this specific display, same as XftFontOpen would do internally.
+  FcConfigSubstitute(nullptr, pattern, FcMatchPattern);
+  XftDefaultSubstitute(display, screen, pattern);
+
+  // XftFontOpenPattern wraps our FT_Face directly and does NOT run
+  // FcFontMatch against the system font database, so it can't get
+  // silently substituted the way XftFontOpen did.
+  title_font = XftFontOpenPattern(display, pattern);
+
+  // Note: on success or failure, XftFontOpenPattern takes ownership of
+  // `pattern` internally (frees it on failure, stores it on success) —
+  // do not call FcPatternDestroy(pattern) yourself either way.
 
   if (!title_font) {
-    fprintf(stderr, "mew: failed to open embedded font\n");
+    fprintf(stderr, "mew: XftFontOpenPattern failed for embedded font\n");
   }
 }
+
+//static void load_title_font()
+//{
+//  int fd = memfd_create("mew-font", 0);
+//  if (fd < 0) {
+//    fprintf(stderr, "mew: memfd_create failed for embedded font\n");
+//    return;
+//  }
+//
+//  ssize_t written = write(fd, mew_font_ttf, mew_font_ttf_len);
+//  if (written != (ssize_t)mew_font_ttf_len) {
+//    fprintf(stderr, "mew: failed to write embedded font to memfd\n");
+//    close(fd);
+//    return;
+//  }
+//
+//  char path[64];
+//  snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
+//
+//  title_font = XftFontOpen(
+//    display, screen,
+//    XFT_FILE, XftTypeString, path,
+//    XFT_INDEX, XftTypeInteger, 0,
+//    XFT_SIZE, XftTypeDouble, 12.0,
+//    nullptr
+//  );
+//
+//  // Deliberately leaked: FreeType may lazily re-read the stream for
+//  // the font's lifetime, so the memfd must stay alive for as long as
+//  // mew runs. Cost is a few KB, reclaimed automatically on exit.
+//
+//  if (!title_font) {
+//    fprintf(stderr, "mew: failed to open embedded font\n");
+//  }
+//}
 
 static std::string get_config_directory()
 {
