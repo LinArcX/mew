@@ -1,0 +1,3 @@
+build/*
+garbage/*
+compile_commands.json
