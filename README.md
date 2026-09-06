@@ -1,1 +1,13 @@
-g++ -std=c++17 -O2 -Wall -Wextra src/main.cpp $(pkg-config --cflags --libs x11) -o build/debug/mew
+# mew
+a wm for x
+
+# run
+## xephyr
+  ./start_xephyr.sh
+
+## tty
+put this line into: ~/.xinitrc.mew
+  exec <PATH>/mew
+
+Then:
+  startx ~/.xinitrc.mew -- :1

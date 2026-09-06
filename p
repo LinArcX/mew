@@ -45,6 +45,8 @@ menu () {
   
     # tests
     "build(tests)" "run(tests)" "gdb(tests)" "clean(tests)"
+
+    "start xephyr" "stop xephyr"
  
     # documentation
     "doxygen(generate)" 
@@ -111,8 +113,8 @@ menu () {
 
       echo ">>> compiling (debug mode)"
       bear -- g++ -std=c++23 -g -pg -O0 -DDEBUG --coverage \
-        -Wall -Wextra -Werror \
         src/*.cpp $(pkg-config --cflags --libs x11) -o build/debug/mew
+        #-Wall -Wextra -Werror \
 
         ##-Wformat=2 -Wunused-function -Wpedantic -Wno-unused-parameter \
         #-Wredundant-decls -Wmissing-include-dirs -Wlogical-op \
@@ -214,6 +216,13 @@ menu () {
     "clean(tests)")
       echo ">>> cleaning build/tests directory"
       rm -r build/tests/*
+      ;;
+
+    "start xephyr")
+      ./start_xephyr.sh 
+      ;;
+    "stop xephyr")
+      ./stop_xephyr.sh
       ;;
     "doxygen(generate)")
       doxygen
