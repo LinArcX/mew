@@ -13,37 +13,37 @@
 #include <sys/stat.h>
 
 struct Client {
-    Window window;
-    Window frame;
+  Window window;
+  Window frame;
 
-    int x, y;
-    int width, height;
+  int x, y;
+  int width, height;
 
-    int old_x, old_y;
-    int old_width, old_height;
+  int old_x, old_y;
+  int old_width, old_height;
 
-    bool maximized;
-    bool minimized;
+  bool maximized;
+  bool minimized;
 
-    Time last_title_click;
+  Time last_title_click;
 };
 
 struct KeyBinding {
-    KeyCode keycode;
-    unsigned int modifiers;
-    std::string command;
+  KeyCode keycode;
+  unsigned int modifiers;
+  std::string command;
 };
 
 enum ResizeDirection {
-    RESIZE_NONE,
-    RESIZE_LEFT,
-    RESIZE_RIGHT,
-    RESIZE_TOP,
-    RESIZE_BOTTOM,
-    RESIZE_TOP_LEFT,
-    RESIZE_TOP_RIGHT,
-    RESIZE_BOTTOM_LEFT,
-    RESIZE_BOTTOM_RIGHT
+  RESIZE_NONE,
+  RESIZE_LEFT,
+  RESIZE_RIGHT,
+  RESIZE_TOP,
+  RESIZE_BOTTOM,
+  RESIZE_TOP_LEFT,
+  RESIZE_TOP_RIGHT,
+  RESIZE_BOTTOM_LEFT,
+  RESIZE_BOTTOM_RIGHT
 };
 
 static Display* display = nullptr;
@@ -75,366 +75,281 @@ static void focus_next();
 // ------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------
-
 static Client* find_client(Window window)
 {
-    for (Client* client : clients) {
-        if (client->window == window ||
-            client->frame == window) {
-            return client;
-        }
+  for (Client* client : clients) {
+    if (client->window == window ||
+        client->frame == window) {
+        return client;
     }
-
-    return nullptr;
+  }
+  return nullptr;
 }
-
 
 static Client* get_focused_client()
 {
-    Window focused;
-    int revert;
+  Window focused;
+  int revert;
 
-    XGetInputFocus(display, &focused, &revert);
+  XGetInputFocus(display, &focused, &revert);
 
-    return find_client(focused);
+  return find_client(focused);
 }
-
 
 static std::string trim(const std::string& str)
 {
-    size_t start = str.find_first_not_of(" \t\r\n");
+  size_t start = str.find_first_not_of(" \t\r\n");
+  if (start == std::string::npos) {
+    return "";
+  }
 
-    if (start == std::string::npos)
-        return "";
-
-    size_t end = str.find_last_not_of(" \t\r\n");
-
-    return str.substr(start, end - start + 1);
+  size_t end = str.find_last_not_of(" \t\r\n");
+  return str.substr(start, end - start + 1);
 }
-
 
 static std::string expand_home(const std::string& path)
 {
-    if (path == "~")
-        return std::string(getenv("HOME"));
+  if (path == "~") {
+    return std::string(getenv("HOME"));
+  }
 
-    if (path.rfind("~/", 0) == 0) {
-        const char* home = getenv("HOME");
-
-        if (!home)
-            return path;
-
-        return std::string(home) + path.substr(1);
+  if (path.rfind("~/", 0) == 0) {
+    const char* home = getenv("HOME");
+    if (!home) {
+      return path;
     }
-
-    return path;
+    return std::string(home) + path.substr(1);
+  }
+  return path;
 }
-
 
 // ------------------------------------------------------------
 // Config
 // ------------------------------------------------------------
-
 static std::string get_config_directory()
 {
-    const char* home = getenv("HOME");
-
-    if (!home)
-        return "";
-
-    return std::string(home) + "/.config/mew";
+  const char* home = getenv("HOME");
+  if (!home) {
+    return "";
+  }
+  return std::string(home) + "/.config/mew";
 }
-
 
 static void create_config_directory()
 {
-    const char* home = getenv("HOME");
+  const char* home = getenv("HOME");
+  if (!home) {
+    return;
+  }
 
-    if (!home)
-        return;
+  std::string config = std::string(home) + "/.config";
+  std::string mew = config + "/mew";
 
-    std::string config = std::string(home) + "/.config";
-    std::string mew = config + "/mew";
-
-    mkdir(config.c_str(), 0755);
-    mkdir(mew.c_str(), 0755);
+  mkdir(config.c_str(), 0755);
+  mkdir(mew.c_str(), 0755);
 }
-
 
 static bool parse_keybinding(
-    const std::string& line,
-    std::string& key,
-    std::string& command)
+  const std::string& line,
+  std::string& key,
+  std::string& command)
 {
-    /*
-        Expected format:
+  /*
+    Expected format:
+    key="W-q", command="~/power_manager.sh"
+  */
 
-        key="W-q", command="~/power_manager.sh"
-    */
+  size_t key_pos = line.find("key=");
+  if (key_pos == std::string::npos) {
+    return false;
+  }
 
-    size_t key_pos = line.find("key=");
+  size_t key_start = line.find('"', key_pos);
+  if (key_start == std::string::npos) {
+    return false;
+  }
 
-    if (key_pos == std::string::npos)
-        return false;
+  size_t key_end = line.find('"', key_start + 1);
+  if (key_end == std::string::npos) {
+    return false;
+  }
 
-    size_t key_start = line.find('"', key_pos);
+  key = line.substr(key_start + 1, key_end - key_start - 1);
 
-    if (key_start == std::string::npos)
-        return false;
+  size_t command_pos = line.find("command=", key_end);
+  if (command_pos == std::string::npos) {
+    return false;
+  }
 
-    size_t key_end = line.find('"', key_start + 1);
+  size_t command_start = line.find('"', command_pos);
+  if (command_start == std::string::npos) {
+    return false;
+  }
 
-    if (key_end == std::string::npos)
-        return false;
+  size_t command_end = line.find('"', command_start + 1);
+  if (command_end == std::string::npos) {
+    return false;
+  }
 
-    key = line.substr(
-        key_start + 1,
-        key_end - key_start - 1
-    );
-
-
-    size_t command_pos = line.find("command=", key_end);
-
-    if (command_pos == std::string::npos)
-        return false;
-
-    size_t command_start = line.find('"', command_pos);
-
-    if (command_start == std::string::npos)
-        return false;
-
-    size_t command_end = line.find('"', command_start + 1);
-
-    if (command_end == std::string::npos)
-        return false;
-
-    command = line.substr(
-        command_start + 1,
-        command_end - command_start - 1
-    );
-
-    return true;
+  command = line.substr(command_start + 1, command_end - command_start - 1);
+  return true;
 }
-
 
 static bool parse_key(
-    const std::string& key_string,
-    unsigned int& modifiers,
-    std::string& key_name)
+  const std::string& key_string,
+  unsigned int& modifiers,
+  std::string& key_name)
 {
-    modifiers = 0;
+  modifiers = 0;
 
-    std::stringstream ss(key_string);
-    std::string part;
-    std::vector<std::string> parts;
+  std::stringstream ss(key_string);
+  std::string part;
+  std::vector<std::string> parts;
+  while (std::getline(ss, part, '-')) {
+    parts.push_back(part);
+  }
 
-    while (std::getline(ss, part, '-')) {
-        parts.push_back(part);
+  if (parts.empty()) {
+    return false;
+  }
+
+  /*
+    Everything except the last component is considered
+    a modifier.
+
+    Examples:
+
+    W-q
+    A-F4
+    C-S-q
+    W-S-q
+  */
+
+  for (size_t i = 0; i + 1 < parts.size(); ++i) {
+    const std::string& modifier = parts[i];
+
+    if (modifier == "W") {
+        modifiers |= Mod4Mask;
     }
-
-    if (parts.empty())
-        return false;
-
-    /*
-        Everything except the last component is considered
-        a modifier.
-
-        Examples:
-
-        W-q
-        A-F4
-        C-S-q
-        W-S-q
-    */
-
-    for (size_t i = 0; i + 1 < parts.size(); ++i) {
-        const std::string& modifier = parts[i];
-
-        if (modifier == "W") {
-            modifiers |= Mod4Mask;
-        }
-        else if (modifier == "A") {
-            modifiers |= Mod1Mask;
-        }
-        else if (modifier == "C") {
-            modifiers |= ControlMask;
-        }
-        else if (modifier == "S") {
-            modifiers |= ShiftMask;
-        }
-        else {
-            fprintf(
-                stderr,
-                "mew: unknown modifier '%s'\n",
-                modifier.c_str()
-            );
-
-            return false;
-        }
+    else if (modifier == "A") {
+        modifiers |= Mod1Mask;
     }
+    else if (modifier == "C") {
+        modifiers |= ControlMask;
+    }
+    else if (modifier == "S") {
+        modifiers |= ShiftMask;
+    }
+    else {
+      fprintf(stderr, "mew: unknown modifier '%s'\n", modifier.c_str());
+      return false;
+    }
+  }
 
-    key_name = parts.back();
-
-    return true;
+  key_name = parts.back();
+  return true;
 }
-
 
 static void load_keybindings()
 {
-    keybindings.clear();
+  keybindings.clear();
 
-    std::string path =
-        get_config_directory() + "/keybindings";
+  std::string path = get_config_directory() + "/keybindings";
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    fprintf(stderr, "mew: no keybindings file: %s\n", path.c_str());
+    return;
+  }
 
-    std::ifstream file(path);
+  std::string line;
+  while (std::getline(file, line)) {
+    line = trim(line);
 
-    if (!file.is_open()) {
-        fprintf(
-            stderr,
-            "mew: no keybindings file: %s\n",
-            path.c_str()
-        );
-
-        return;
+    if (line.empty()) {
+      continue;
     }
 
-    std::string line;
-
-    while (std::getline(file, line)) {
-
-        line = trim(line);
-
-        if (line.empty())
-            continue;
-
-        if (line[0] == '#')
-            continue;
-
-        std::string key_string;
-        std::string command;
-
-        if (!parse_keybinding(
-                line,
-                key_string,
-                command)) {
-
-            fprintf(
-                stderr,
-                "mew: invalid keybinding: %s\n",
-                line.c_str()
-            );
-
-            continue;
-        }
-
-        unsigned int modifiers;
-        std::string key_name;
-
-        if (!parse_key(
-                key_string,
-                modifiers,
-                key_name)) {
-
-            continue;
-        }
-
-        KeySym keysym = XStringToKeysym(
-            key_name.c_str()
-        );
-
-        if (keysym == NoSymbol) {
-            fprintf(
-                stderr,
-                "mew: unknown key: %s\n",
-                key_name.c_str()
-            );
-
-            continue;
-        }
-
-        KeyCode keycode = XKeysymToKeycode(
-            display,
-            keysym
-        );
-
-        if (keycode == 0) {
-            fprintf(
-                stderr,
-                "mew: cannot find keycode: %s\n",
-                key_name.c_str()
-            );
-
-            continue;
-        }
-
-        KeyBinding binding;
-
-        binding.keycode = keycode;
-        binding.modifiers = modifiers;
-        binding.command = expand_home(command);
-
-        keybindings.push_back(binding);
-
-        printf(
-            "mew: keybinding %s -> %s\n",
-            key_string.c_str(),
-            binding.command.c_str()
-        );
+    if (line[0] == '#') {
+      continue;
     }
+
+    std::string key_string;
+    std::string command;
+
+    if (!parse_keybinding(line, key_string, command)) {
+      fprintf(stderr, "mew: invalid keybinding: %s\n", line.c_str());
+      continue;
+    }
+
+    unsigned int modifiers;
+    std::string key_name;
+
+    if (!parse_key(key_string, modifiers, key_name)) {
+      continue;
+    }
+
+    KeySym keysym = XStringToKeysym(key_name.c_str());
+
+    if (keysym == NoSymbol) {
+      fprintf(stderr, "mew: unknown key: %s\n", key_name.c_str());
+      continue;
+    }
+
+    KeyCode keycode = XKeysymToKeycode(display, keysym);
+    if (keycode == 0) {
+      fprintf(stderr, "mew: cannot find keycode: %s\n", key_name.c_str());
+      continue;
+    }
+
+    KeyBinding binding;
+    binding.keycode = keycode;
+    binding.modifiers = modifiers;
+    binding.command = expand_home(command);
+
+    keybindings.push_back(binding);
+
+    printf("mew: keybinding %s -> %s\n", key_string.c_str(), binding.command.c_str());
+  }
 }
-
 
 static void run_autostart()
 {
-    std::string path =
-        get_config_directory() + "/autostart";
+  std::string path = get_config_directory() + "/autostart";
 
-    std::ifstream file(path);
+  std::ifstream file(path);
 
-    if (!file.is_open()) {
-        fprintf(
-            stderr,
-            "mew: no autostart file: %s\n",
-            path.c_str()
-        );
+  if (!file.is_open()) {
+    fprintf(stderr, "mew: no autostart file: %s\n", path.c_str());
+    return;
+  }
 
-        return;
-    }
+  std::string line;
+  while (std::getline(file, line)) {
+      line = trim(line);
 
-    std::string line;
+      if (line.empty()) {
+        continue;
+      }
 
-    while (std::getline(file, line)) {
+      if (line[0] == '#') {
+        continue;
+      }
 
-        line = trim(line);
+      printf("mew: autostart: %s\n", line.c_str());
 
-        if (line.empty())
-            continue;
+      /*
+        Run asynchronously so one program doesn't block
+        the window manager.
+      */
 
-        if (line[0] == '#')
-            continue;
-
-        printf(
-            "mew: autostart: %s\n",
-            line.c_str()
-        );
-
-        /*
-            Run asynchronously so one program doesn't block
-            the window manager.
-        */
-
-        std::string command =
-            line + " >/dev/null 2>&1 &";
-
-        std::system(command.c_str());
-    }
+      std::string command = line + " >/dev/null 2>&1 &";
+      std::system(command.c_str());
+  }
 }
-
 
 // ------------------------------------------------------------
 // Drawing
 // ------------------------------------------------------------
-
 static void draw_frame(Client* client)
 {
     XSetWindowAttributes attrs;
@@ -704,146 +619,38 @@ static void close_client(Client* client)
     if (!client)
         return;
 
-    /*
-     * client->window is the REAL application window.
-     * client->frame is only mew's decoration.
-     */
-    Window app_window = client->window;
+    Window window = client->window;
 
-    XKillClient(
-        display,
-        app_window
-    );
+    Atom* protocols = nullptr;
+    int count = 0;
+    bool supports_delete = false;
 
-    XSync(
-        display,
-        False
-    );
+    if (XGetWMProtocols(display, window, &protocols, &count)) {
+        for (int i = 0; i < count; ++i) {
+            if (protocols[i] == WM_DELETE_WINDOW) {
+                supports_delete = true;
+                break;
+            }
+        }
+        if (protocols)
+            XFree(protocols);
+    }
+
+    if (supports_delete) {
+        XEvent event{};
+        event.xclient.type         = ClientMessage;
+        event.xclient.window       = window;
+        event.xclient.message_type = WM_PROTOCOLS;
+        event.xclient.format       = 32;
+        event.xclient.data.l[0]    = WM_DELETE_WINDOW;
+        event.xclient.data.l[1]    = CurrentTime;
+
+        XSendEvent(display, window, False, NoEventMask, &event);
+        XFlush(display);
+    } else {
+        XKillClient(display, window);
+    }
 }
-
-
-//static void close_client(Client* client)
-//{
-//    if (!client)
-//        return;
-//
-//    Atom* protocols = nullptr;
-//    int count = 0;
-//
-//    if (XGetWMProtocols(
-//            display,
-//            client->window,
-//            &protocols,
-//            &count)) {
-//
-//        for (int i = 0; i < count; ++i) {
-//
-//            if (protocols[i] ==
-//                WM_DELETE_WINDOW) {
-//
-//                XEvent event{};
-//
-//                event.xclient.type =
-//                    ClientMessage;
-//
-//                event.xclient.window =
-//                    client->window;
-//
-//                event.xclient.message_type =
-//                    WM_PROTOCOLS;
-//
-//                event.xclient.format = 32;
-//
-//                event.xclient.data.l[0] =
-//                    WM_DELETE_WINDOW;
-//
-//                event.xclient.data.l[1] =
-//                    CurrentTime;
-//
-//                XSendEvent(
-//                    display,
-//                    client->window,
-//                    False,
-//                    NoEventMask,
-//                    &event
-//                );
-//
-//                XFree(protocols);
-//                return;
-//            }
-//        }
-//
-//        XFree(protocols);
-//    }
-//
-//    XKillClient(
-//        display,
-//        client->window
-//    );
-//}
-
-//static void close_client(Client* client)
-//{
-//    if (!client)
-//        return;
-//
-//    Window window = client->window;
-//
-//    Atom* protocols = nullptr;
-//    int count = 0;
-//    bool supports_delete = false;
-//
-//    if (XGetWMProtocols(
-//            display,
-//            window,
-//            &protocols,
-//            &count)) {
-//
-//        for (int i = 0; i < count; ++i) {
-//            if (protocols[i] == WM_DELETE_WINDOW) {
-//                supports_delete = true;
-//                break;
-//            }
-//        }
-//
-//        if (protocols)
-//            XFree(protocols);
-//    }
-//
-//    if (supports_delete) {
-//        XEvent event{};
-//
-//        event.xclient.type = ClientMessage;
-//        event.xclient.window = window;
-//        event.xclient.message_type = WM_PROTOCOLS;
-//        event.xclient.format = 32;
-//
-//        event.xclient.data.l[0] = WM_DELETE_WINDOW;
-//        event.xclient.data.l[1] = CurrentTime;
-//
-//        XSendEvent(
-//            display,
-//            window,
-//            False,
-//            NoEventMask,
-//            &event
-//        );
-//
-//        XFlush(display);
-//
-//    } else {
-//        /*
-//         * Forcefully destroy the actual application window.
-//         * Never destroy client->frame here.
-//         */
-//        XDestroyWindow(
-//            display,
-//            window
-//        );
-//
-//        XFlush(display);
-//    }
-//}
 
 static void minimize_client(Client* client)
 {
@@ -1454,6 +1261,7 @@ static void manage(Window window)
     );
 
 
+    XSelectInput(display, window, StructureNotifyMask);
     XReparentWindow(
         display,
         window,
@@ -1980,17 +1788,18 @@ int main()
 
             case DestroyNotify:
             {
-                Client* client =
-                    find_client(
-                        event.xdestroywindow.window
-                    );
-
-                if (client)
-                    unmanage(client);
-
-                break;
+              Client* client = find_client(event.xdestroywindow.window);
+              if (client) {
+                  // Window is already gone – only destroy the frame
+                  XDestroyWindow(display, client->frame);
+                  clients.erase(
+                      std::remove(clients.begin(), clients.end(), client),
+                      clients.end()
+                  );
+                  delete client;
+              }
+              break;
             }
-
 
             case UnmapNotify:
             {
@@ -2094,15 +1903,11 @@ int main()
                     return 0;
                 }
 
-                break;
-            }
-        }
+        break;
+      }
     }
+  }
 
-
-    XCloseDisplay(
-        display
-    );
-
-    return 0;
+  XCloseDisplay(display);
+  return 0;
 }

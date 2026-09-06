@@ -1,0 +1,15 @@
+# apps
+## mpv
+- Enter doesn't maximize the window(it should also hide the all border & icons also)
+- Left/right/bottom resize doesn't work
+
+## tint2
+- it has border & icons. it shoulnd't have it.
+- when i hover over it, the mouse cursor chagned to resize. it shouldn't.
+
+## nemo
+- bottom resize doesn't work.
+- left/right resize sometimes grab internal content, instead of grabbing the frame.
+
+## neovim
+cursor size changed to rectanlgle
