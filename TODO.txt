@@ -6,8 +6,9 @@
   - [ ] reconfigure
   - [+] exit
   - [+] show keybindings
-- [P] change windows title fonts.
-- [ ] change mouse theme.
+- [+] change windows title fonts.
+- [P] change mouse theme.
+  - should read environment variable regarding to icons from ~/.config/mew/env
 - [ ] change window themes.
 - [ ] default background color
 - [ ] ability to snap left/right/bottom/top with a keyboard shortcut

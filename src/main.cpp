@@ -5,6 +5,8 @@
 #include <fontconfig/fcfreetype.h>
 #include "font_data.h"
 
+#include <X11/Xcursor/Xcursor.h>
+
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/keysym.h>
@@ -135,6 +137,36 @@ static void focus_next();
 //static int kb_close_button_x();
 //static void move_keybindings_window();
 //static void keybindings_window_apply_geometry();
+
+static Cursor cursor_default;
+static Cursor cursor_resize_h;
+static Cursor cursor_resize_v;
+static Cursor cursor_resize_tl;
+static Cursor cursor_resize_tr;
+static Cursor cursor_resize_bl;
+static Cursor cursor_resize_br;
+
+static Cursor load_cursor(const char* theme_name, unsigned int fallback_shape)
+{
+  Cursor c = XcursorLibraryLoadCursor(display, theme_name);
+  if (c == None) {
+    // Theme doesn't have this shape (or no theme installed) — fall
+    // back to the old core-font cursor rather than leaving it unset.
+    c = XCreateFontCursor(display, fallback_shape);
+  }
+  return c;
+}
+
+static void load_cursors()
+{
+  cursor_default   = load_cursor("left_ptr",           XC_left_ptr);
+  cursor_resize_h  = load_cursor("sb_h_double_arrow",  XC_sb_h_double_arrow);
+  cursor_resize_v  = load_cursor("sb_v_double_arrow",  XC_sb_v_double_arrow);
+  cursor_resize_tl = load_cursor("top_left_corner",    XC_top_left_corner);
+  cursor_resize_tr = load_cursor("top_right_corner",   XC_top_right_corner);
+  cursor_resize_bl = load_cursor("bottom_left_corner", XC_bottom_left_corner);
+  cursor_resize_br = load_cursor("bottom_right_corner",XC_bottom_right_corner);
+}
 
 static void hide_context_menu()
 {
@@ -1666,30 +1698,53 @@ static ResizeDirection get_resize_direction(
 }
 
 
-static unsigned int cursor_for_direction(
-    ResizeDirection direction)
+static unsigned int cursor_for_direction(ResizeDirection direction)
 {
-    switch (direction) {
+  switch (direction) {
+    case RESIZE_LEFT:
+    case RESIZE_RIGHT:
+      return cursor_resize_h;
 
-        case RESIZE_LEFT:
-        case RESIZE_RIGHT:
-            return XC_sb_h_double_arrow;
+    case RESIZE_TOP:
+    case RESIZE_BOTTOM:
+      return cursor_resize_v;
 
-        case RESIZE_TOP:
-        case RESIZE_BOTTOM:
-            return XC_sb_v_double_arrow;
+    case RESIZE_TOP_LEFT:
+      return cursor_resize_tl;
 
-        case RESIZE_TOP_LEFT:
-        case RESIZE_BOTTOM_RIGHT:
-            return XC_top_left_corner;
+    case RESIZE_TOP_RIGHT:
+      return cursor_resize_tr;
 
-        case RESIZE_TOP_RIGHT:
-        case RESIZE_BOTTOM_LEFT:
-            return XC_top_right_corner;
+    case RESIZE_BOTTOM_LEFT:
+      return cursor_resize_bl;
 
-        default:
-            return XC_left_ptr;
-    }
+    case RESIZE_BOTTOM_RIGHT:
+      return cursor_resize_br;
+
+    default:
+      return cursor_default;
+  }
+    //switch (direction) {
+
+    //    case RESIZE_LEFT:
+    //    case RESIZE_RIGHT:
+    //        return XC_sb_h_double_arrow;
+
+    //    case RESIZE_TOP:
+    //    case RESIZE_BOTTOM:
+    //        return XC_sb_v_double_arrow;
+
+    //    case RESIZE_TOP_LEFT:
+    //    case RESIZE_BOTTOM_RIGHT:
+    //        return XC_top_left_corner;
+
+    //    case RESIZE_TOP_RIGHT:
+    //    case RESIZE_BOTTOM_LEFT:
+    //        return XC_top_right_corner;
+
+    //    default:
+    //        return XC_left_ptr;
+    //}
 }
 
 
@@ -1698,24 +1753,28 @@ static void update_cursor(
     int x,
     int y)
 {
-    ResizeDirection direction =
-        get_resize_direction(client, x, y);
+  ResizeDirection direction = get_resize_direction(client, x, y);
+  Cursor cursor = cursor_for_direction(direction);
+  XDefineCursor(display, client->frame, cursor);
 
-    Cursor cursor = XCreateFontCursor(
-        display,
-        cursor_for_direction(direction)
-    );
+    //ResizeDirection direction =
+    //    get_resize_direction(client, x, y);
 
-    XDefineCursor(
-        display,
-        client->frame,
-        cursor
-    );
+    //Cursor cursor = XCreateFontCursor(
+    //    display,
+    //    cursor_for_direction(direction)
+    //);
 
-    XFreeCursor(
-        display,
-        cursor
-    );
+    //XDefineCursor(
+    //    display,
+    //    client->frame,
+    //    cursor
+    //);
+
+    //XFreeCursor(
+    //    display,
+    //    cursor
+    //);
 }
 
 
@@ -2464,6 +2523,12 @@ int main(int argc, char** argv)
       RootWindow(display, screen);
 
   load_title_font();
+
+  setenv("XCURSOR_THEME", "dmz-white", 0); // 0 = don't override if already set
+  setenv("XCURSOR_SIZE", "24", 0);
+
+  load_cursors();
+  XDefineCursor(display, root, cursor_default);
 
   XSetErrorHandler(
       error_handler
