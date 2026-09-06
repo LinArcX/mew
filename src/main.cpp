@@ -1224,97 +1224,91 @@ static void handle_motion(XMotionEvent* event)
 
 static void manage(Window window)
 {
-    if (find_client(window))
-        return;
+  if (find_client(window)) {
+    return;
+  }
 
-    XWindowAttributes attr;
+  XWindowAttributes attr;
+  if (!XGetWindowAttributes(display, window, &attr)) {
+    return;
+  }
 
-    if (!XGetWindowAttributes(
-            display,
-            window,
-            &attr))
-        return;
+  if (attr.override_redirect) {
+    return;
+  }
 
-    if (attr.override_redirect)
-        return;
+  // Center the window on the screen
+  int screen_w = DisplayWidth(display, screen);
+  int screen_h = DisplayHeight(display, screen);
 
+  int frame_w = attr.width  + BORDER_WIDTH * 2;
+  int frame_h = attr.height + TITLE_HEIGHT + BORDER_WIDTH;
 
-    Client* client =
-        new Client{};
+  int x = (screen_w - frame_w) / 2;
+  int y = (screen_h - frame_h) / 2;
 
-    client->window = window;
-    client->frame = XCreateSimpleWindow(
-        display,
-        root,
-        attr.x,
-        attr.y,
-        attr.width + BORDER_WIDTH * 2,
-        attr.height + TITLE_HEIGHT + BORDER_WIDTH,
-        0,
-        COLOR_BORDER,
-        COLOR_TITLE
-    );
+  // Keep it on-screen if the window is larger than the display
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
 
-    client->x = attr.x;
-    client->y = attr.y;
+  Client* client = new Client{};
+  client->window = window;
+  client->frame = XCreateSimpleWindow(
+      display,
+      root,
+      x,
+      y,
+      frame_w,
+      frame_h,
+      0,
+      COLOR_BORDER,
+      COLOR_TITLE
+  );
 
-    client->width = attr.width;
-    client->height = attr.height;
+  client->x = x;
+  client->y = y;
 
-    client->old_x = attr.x;
-    client->old_y = attr.y;
+  client->width = attr.width;
+  client->height = attr.height;
 
-    client->old_width = attr.width;
-    client->old_height = attr.height;
+  client->old_x = x;
+  client->old_y = y;
 
-    client->maximized = false;
-    client->minimized = false;
+  client->old_width = attr.width;
+  client->old_height = attr.height;
 
-    client->last_title_click = 0;
+  client->maximized = false;
+  client->minimized = false;
 
+  client->last_title_click = 0;
 
-    XSelectInput(
-        display,
-        client->frame,
-        ExposureMask |
-        ButtonPressMask |
-        ButtonReleaseMask |
-        PointerMotionMask
-    );
-
-
-    XAddToSaveSet(
-        display,
-        window
-    );
-
-
-    XSelectInput(display, window, StructureNotifyMask);
-    XReparentWindow(
-        display,
-        window,
-        client->frame,
-        BORDER_WIDTH,
-        TITLE_HEIGHT
-    );
+  XSelectInput(
+    display,
+    client->frame,
+    ExposureMask |
+    ButtonPressMask |
+    ButtonReleaseMask |
+    PointerMotionMask
+  );
 
 
-    XMapWindow(
-        display,
-        client->frame
-    );
+  XAddToSaveSet(display, window);
 
-    XMapWindow(
-        display,
-        window
-    );
+  XSelectInput(display, window, StructureNotifyMask);
+  XReparentWindow(
+    display,
+    window,
+    client->frame,
+    BORDER_WIDTH,
+    TITLE_HEIGHT
+  );
 
+  XMapWindow(display, client->frame);
+  XMapWindow(display, window);
 
-    clients.push_back(client);
-
-    resize_client(client);
-
-    focus_client(client);
+  clients.push_back(client);
+  resize_client(client);
+  focus_client(client);
 }
 
 
