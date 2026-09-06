@@ -3,6 +3,10 @@
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
 
+#include <csignal>
+#include <cstring>
+#include <unistd.h>
+
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -72,6 +76,13 @@ static Atom WM_PROTOCOLS;
 
 static void focus_next();
 
+static volatile sig_atomic_t need_reconfigure = 0;
+
+static void sighup_handler(int)
+{
+    need_reconfigure = 1;
+}
+
 // ------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------
@@ -133,6 +144,23 @@ static std::string get_config_directory()
     return "";
   }
   return std::string(home) + "/.config/mew";
+}
+
+static std::string get_pidfile()
+{
+    return get_config_directory() + "/mew.pid";
+}
+
+static void write_pidfile()
+{
+    std::ofstream f(get_pidfile());
+    if (f)
+        f << getpid() << '\n';
+}
+
+static void remove_pidfile()
+{
+    unlink(get_pidfile().c_str());
 }
 
 static void create_config_directory()
@@ -1509,8 +1537,53 @@ static int error_handler(
 // Main
 // ------------------------------------------------------------
 
-int main()
+int main(int argc, char** argv)
 {
+  bool do_reconfigure = false;
+
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--reconfigure") == 0) {
+            do_reconfigure = true;
+        } else if (std::strcmp(argv[i], "--help") == 0 ||
+                   std::strcmp(argv[i], "-h") == 0) {
+            printf("Usage: mew [--reconfigure]\n");
+            return 0;
+        }
+    }
+
+    if (do_reconfigure) {
+        std::ifstream f(get_pidfile());
+        pid_t pid = 0;
+        if (f >> pid && pid > 1) {
+            if (kill(pid, SIGHUP) == 0) {
+                printf("mew: reconfigure sent to pid %d\n", (int)pid);
+                return 0;
+            }
+            fprintf(stderr, "mew: failed to signal pid %d\n", (int)pid);
+            return 1;
+        }
+        fprintf(stderr, "mew: no running instance found\n");
+        return 1;
+    }
+
+    // ---------- normal startup ----------
+    display = XOpenDisplay(nullptr);
+    if (!display) {
+        fprintf(stderr, "mew: cannot open display\n");
+        return 1;
+    }
+
+    // install SIGHUP handler
+    struct sigaction sa{};
+    sa.sa_handler = sighup_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    sigaction(SIGHUP, &sa, nullptr);
+
+    screen = DefaultScreen(display);
+    root   = RootWindow(display, screen);
+
+
     display = XOpenDisplay(nullptr);
 
     if (!display) {
@@ -1585,6 +1658,8 @@ int main()
     grab_keys();
 
 
+    write_pidfile();
+
     /*
         Manage existing windows
     */
@@ -1647,267 +1722,271 @@ int main()
     */
 
     while (true) {
+      if (need_reconfigure) {
+        need_reconfigure = 0;
+        printf("mew: reconfiguring...\n");
 
-        XEvent event;
+        // drop every previous grab
+        XUngrabKey(display, AnyKey, AnyModifier, root);
 
-        XNextEvent(
-            display,
-            &event
-        );
+        // reload keybindings from disk
+        load_keybindings();
 
+        // re-grab everything (built-in + new config)
+        grab_keys();
+      }
 
-        switch (event.type) {
+      XEvent event;
+      XNextEvent(display, &event);
 
-            case MapRequest:
-            {
-                manage(
-                    event.xmaprequest.window
-                );
-
-                break;
-            }
-
-
-            case ConfigureRequest:
-            {
-                Client* client =
-                    find_client(
-                        event.xconfigurerequest.window
-                    );
-
-                if (!client) {
-
-                    XWindowChanges changes;
-
-                    changes.x =
-                        event.xconfigurerequest.x;
-
-                    changes.y =
-                        event.xconfigurerequest.y;
-
-                    changes.width =
-                        event.xconfigurerequest.width;
-
-                    changes.height =
-                        event.xconfigurerequest.height;
-
-                    changes.border_width =
-                        event.xconfigurerequest.border_width;
-
-                    changes.sibling =
-                        event.xconfigurerequest.above;
-
-                    changes.stack_mode =
-                        event.xconfigurerequest.detail;
-
-                    XConfigureWindow(
-                        display,
-                        event.xconfigurerequest.window,
-                        event.xconfigurerequest.value_mask,
-                        &changes
-                    );
-
-                    break;
-                }
-
-
-                if (client->maximized)
-                    break;
-
-
-                if (event.xconfigurerequest.value_mask &
-                    CWX)
-
-                    client->x =
-                        event.xconfigurerequest.x;
-
-                if (event.xconfigurerequest.value_mask &
-                    CWY)
-
-                    client->y =
-                        event.xconfigurerequest.y;
-
-                if (event.xconfigurerequest.value_mask &
-                    CWWidth)
-
-                    client->width =
-                        std::max(
-                            MIN_WIDTH,
-                            event.xconfigurerequest.width
-                        );
-
-                if (event.xconfigurerequest.value_mask &
-                    CWHeight)
-
-                    client->height =
-                        std::max(
-                            MIN_HEIGHT,
-                            event.xconfigurerequest.height
-                        );
-
-
-                resize_client(client);
-
-                break;
-            }
-
-
-            case ButtonPress:
-            {
-                handle_button_press(
-                    &event.xbutton
-                );
-
-                break;
-            }
-
-
-            case MotionNotify:
-            {
-                handle_motion(
-                    &event.xmotion
-                );
-
-                break;
-            }
-
-
-            case Expose:
-            {
-                Client* client =
-                    find_client(
-                        event.xexpose.window
-                    );
-
-                if (client)
-                    draw_frame(client);
-
-                break;
-            }
-
-
-            case DestroyNotify:
-            {
-              Client* client = find_client(event.xdestroywindow.window);
-              if (client) {
-                  // Window is already gone – only destroy the frame
-                  XDestroyWindow(display, client->frame);
-                  clients.erase(
-                      std::remove(clients.begin(), clients.end(), client),
-                      clients.end()
-                  );
-                  delete client;
-              }
+      switch (event.type) {
+          case MapRequest:
+          {
+              manage(event.xmaprequest.window);
               break;
+          }
+
+          case ConfigureRequest:
+          {
+              Client* client =
+                  find_client(
+                      event.xconfigurerequest.window
+                  );
+
+              if (!client) {
+
+                  XWindowChanges changes;
+
+                  changes.x =
+                      event.xconfigurerequest.x;
+
+                  changes.y =
+                      event.xconfigurerequest.y;
+
+                  changes.width =
+                      event.xconfigurerequest.width;
+
+                  changes.height =
+                      event.xconfigurerequest.height;
+
+                  changes.border_width =
+                      event.xconfigurerequest.border_width;
+
+                  changes.sibling =
+                      event.xconfigurerequest.above;
+
+                  changes.stack_mode =
+                      event.xconfigurerequest.detail;
+
+                  XConfigureWindow(
+                      display,
+                      event.xconfigurerequest.window,
+                      event.xconfigurerequest.value_mask,
+                      &changes
+                  );
+
+                  break;
+              }
+
+
+              if (client->maximized)
+                  break;
+
+
+              if (event.xconfigurerequest.value_mask &
+                  CWX)
+
+                  client->x =
+                      event.xconfigurerequest.x;
+
+              if (event.xconfigurerequest.value_mask &
+                  CWY)
+
+                  client->y =
+                      event.xconfigurerequest.y;
+
+              if (event.xconfigurerequest.value_mask &
+                  CWWidth)
+
+                  client->width =
+                      std::max(
+                          MIN_WIDTH,
+                          event.xconfigurerequest.width
+                      );
+
+              if (event.xconfigurerequest.value_mask &
+                  CWHeight)
+
+                  client->height =
+                      std::max(
+                          MIN_HEIGHT,
+                          event.xconfigurerequest.height
+                      );
+
+
+              resize_client(client);
+
+              break;
+          }
+
+
+          case ButtonPress:
+          {
+              handle_button_press(
+                  &event.xbutton
+              );
+
+              break;
+          }
+
+
+          case MotionNotify:
+          {
+              handle_motion(
+                  &event.xmotion
+              );
+
+              break;
+          }
+
+
+          case Expose:
+          {
+              Client* client =
+                  find_client(
+                      event.xexpose.window
+                  );
+
+              if (client)
+                  draw_frame(client);
+
+              break;
+          }
+
+
+          case DestroyNotify:
+          {
+            Client* client = find_client(event.xdestroywindow.window);
+            if (client) {
+                // Window is already gone – only destroy the frame
+                XDestroyWindow(display, client->frame);
+                clients.erase(
+                    std::remove(clients.begin(), clients.end(), client),
+                    clients.end()
+                );
+                delete client;
             }
+            break;
+          }
 
-            case UnmapNotify:
-            {
-                Client* client =
-                    find_client(
-                        event.xunmap.window
-                    );
+          case UnmapNotify:
+          {
+              Client* client =
+                  find_client(
+                      event.xunmap.window
+                  );
 
-                if (client &&
-                    event.xunmap.window ==
-                        client->window) {
+              if (client &&
+                  event.xunmap.window ==
+                      client->window) {
 
-                    unmanage(client);
-                }
+                  unmanage(client);
+              }
 
-                break;
-            }
-
-
-            case KeyPress:
-            {
-                XKeyEvent* key =
-                    &event.xkey;
+              break;
+          }
 
 
-                /*
-                    First check user configuration.
-                */
-
-                if (handle_custom_keybinding(key))
-                    break;
+          case KeyPress:
+          {
+              XKeyEvent* key =
+                  &event.xkey;
 
 
-                unsigned int state =
-                    key->state &
-                    ~(LockMask | Mod2Mask);
+              /*
+                  First check user configuration.
+              */
+
+              if (handle_custom_keybinding(key))
+                  break;
 
 
-                KeySym keysym =
-                    XLookupKeysym(
-                        key,
-                        0
-                    );
+              unsigned int state =
+                  key->state &
+                  ~(LockMask | Mod2Mask);
 
 
-                /*
-                    Alt+Tab
-                */
-
-                if (state == Mod1Mask &&
-                    keysym == XK_Tab) {
-
-                    focus_next();
-                    break;
-                }
+              KeySym keysym =
+                  XLookupKeysym(
+                      key,
+                      0
+                  );
 
 
-                /*
-                    Alt+F4
-                */
+              /*
+                  Alt+Tab
+              */
 
-                if (state == Mod1Mask &&
-                    keysym == XK_F4) {
+              if (state == Mod1Mask &&
+                  keysym == XK_Tab) {
 
-                    Client* client =
-                        get_focused_client();
-
-                    if (client)
-                        close_client(client);
-
-                    break;
-                }
+                  focus_next();
+                  break;
+              }
 
 
-                /*
-                    Alt+F1
-                */
+              /*
+                  Alt+F4
+              */
 
-                if (state == Mod1Mask &&
-                    keysym == XK_F1) {
+              if (state == Mod1Mask &&
+                  keysym == XK_F4) {
 
-                    std::system(
-                        "wezterm start >/dev/null 2>&1 &"
-                    );
+                  Client* client =
+                      get_focused_client();
 
-                    break;
-                }
+                  if (client)
+                      close_client(client);
+
+                  break;
+              }
 
 
-                /*
-                    Alt+Shift+Q
-                    Quit mew
-                */
+              /*
+                  Alt+F1
+              */
 
-                if (state ==
-                        (Mod1Mask | ShiftMask) &&
-                    keysym == XK_q) {
+              if (state == Mod1Mask &&
+                  keysym == XK_F1) {
 
-                    XCloseDisplay(display);
+                  std::system(
+                      "wezterm start >/dev/null 2>&1 &"
+                  );
 
-                    return 0;
-                }
+                  break;
+              }
 
-        break;
+
+              /*
+                  Alt+Shift+Q
+                  Quit mew
+              */
+
+              //if (state ==
+              //        (Mod1Mask | ShiftMask) &&
+              //    keysym == XK_q) {
+
+              //    XCloseDisplay(display);
+
+              //    return 0;
+              //}
+
+      break;
       }
     }
   }
 
+  remove_pidfile();
   XCloseDisplay(display);
   return 0;
 }

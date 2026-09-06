@@ -1,11 +1,37 @@
+# general
+-[ ] open window in center of screen
+-[P] mew --reconfigure
+-[ ] mew --restart
+-[ ] right click for mew with these options:
+ [ ] reconfigure
+ [ ] exit
+ [ ] show keybindings
+-[ ] when do alt+tab, it shoud shows all windows in a pop-up window. so i can switch between them.
+-[ ] default background color
+-[ ] ability to reconfigure mew without log out from it.
+-[ ] change font of titles.
+-[ ] change mouse theme.
+-[ ] change window themes.
+-[ ] ability to maximize/minimize with keyboard shortcut
+-[ ] ability to snap left/right/bottom/top with a keyboard shortcut
+-[ ] config file in: ~/.config/mew/config:
+  background_color
+  background_image
+  login_sound
+  logout_sound
+  theme
+  mouse_theme
+
 # apps
+## tint2
+-[ ] it should be on top of other windows.
+-[ ] it should be part of mew whole screen and rest of screen size should be use for other apps. 
+-[ ] it has border & icons. it shoulnd't have it.
+-[ ] when i hover over it, the mouse cursor chagned to resize. it shouldn't.
+
 ## mpv
 - Enter doesn't maximize the window(it should also hide the all border & icons also)
 - Left/right/bottom resize doesn't work
-
-## tint2
-- it has border & icons. it shoulnd't have it.
-- when i hover over it, the mouse cursor chagned to resize. it shouldn't.
 
 ## nemo
 - bottom resize doesn't work.
