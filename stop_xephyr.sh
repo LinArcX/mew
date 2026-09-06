@@ -1,3 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
-pkill -9 Xephyr
+pkill mew
+pkill Xephyr

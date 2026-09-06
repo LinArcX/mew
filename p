@@ -219,7 +219,10 @@ menu () {
       ;;
 
     "start xephyr")
-      ./start_xephyr.sh 
+      #./start_xephyr.sh 
+      Xephyr :1 -screen 1280x800 -ac &
+      DISPLAY=:1 ./build/debug/mew &
+      DISPLAY=:1 wezterm start &
       ;;
     "stop xephyr")
       ./stop_xephyr.sh
