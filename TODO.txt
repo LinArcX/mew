@@ -1,12 +1,11 @@
 # general
 - [+] open window in center of screen
-- [P] mew --reconfigure
-- [ ] mew --restart
+- [+] when do alt+tab and when i hold this key combination, it should shows all open windows in a pop-up window.
+  So i can cycle through them.(Alt+tab and Alt+Shift+tab for reverse cycle)
 - [ ] right click for mew with these options:
-  [ ] reconfigure
-  [ ] exit
-  [ ] show keybindings
-- [ ] when do alt+tab, it shoud shows all windows in a pop-up window. so i can switch between them.
+  - reconfigure
+  - exit
+  - show keybindings
 - [ ] default background color
 - [ ] ability to reconfigure mew without log out from it.
 - [ ] change font of titles.
@@ -15,13 +14,15 @@
 - [ ] ability to maximize/minimize with keyboard shortcut
 - [ ] ability to snap left/right/bottom/top with a keyboard shortcut
 - [ ] config file in: ~/.config/mew/config:
-  background_color
-  background_image
-  login_sound
-  logout_sound
-  theme
-  mouse_theme
+  - background_color
+  - background_image
+  - login_sound
+  - logout_sound
+  - theme
+  - mouse_theme
 - [ ] add a setting in config file to assign for each window, the size/position of it when it starts.
+- [P] mew --reconfigure
+- [ ] mew --restart
 
 # apps
 ## tint2

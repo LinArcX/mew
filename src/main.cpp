@@ -1,7 +1,8 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
-#include <X11/cursorfont.h>
 #include <X11/keysym.h>
+#include <X11/Xutil.h>
+#include <X11/cursorfont.h>
 
 #include <csignal>
 #include <cstring>
@@ -74,18 +75,147 @@ static const unsigned long COLOR_TEXT   = 0xffffff;
 static Atom WM_DELETE_WINDOW;
 static Atom WM_PROTOCOLS;
 
-static void focus_next();
+// Switcher
+static Window switcher = None;
+static bool switcher_active = false;
+static size_t switcher_index = 0;
+static std::vector<Client*> switcher_list;
 
-static volatile sig_atomic_t need_reconfigure = 0;
+static const int SWITCHER_WIDTH = 420;
+static const int SWITCHER_LINE_H = 30;
+static const int SWITCHER_PAD = 12;
+static const unsigned long COLOR_SWITCHER_BG     = 0x1e1e1e;
+static const unsigned long COLOR_SWITCHER_BORDER = 0x555555;
+static const unsigned long COLOR_SWITCHER_HL     = 0x0a64c8;
+static const unsigned long COLOR_SWITCHER_TEXT   = 0xffffff;
 
-static void sighup_handler(int)
+static bool is_alt_held()
 {
-    need_reconfigure = 1;
+    char keys[32];
+    XQueryKeymap(display, keys);
+
+    auto key_pressed = [&](KeySym sym) -> bool {
+        KeyCode code = XKeysymToKeycode(display, sym);
+        if (code == 0) return false;
+        return keys[code / 8] & (1 << (code % 8));
+    };
+
+    return key_pressed(XK_Alt_L) || key_pressed(XK_Alt_R);
 }
 
-// ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
+static std::string get_window_title(Window window)
+{
+    char* name = nullptr;
+    if (XFetchName(display, window, &name) && name) {
+        std::string title(name);
+        XFree(name);
+        return title.empty() ? "Untitled" : title;
+    }
+
+    XTextProperty prop;
+    if (XGetWMName(display, window, &prop) && prop.value) {
+        std::string title(reinterpret_cast<char*>(prop.value));
+        XFree(prop.value);
+        return title.empty() ? "Untitled" : title;
+    }
+    return "Untitled";
+}
+
+static void hide_switcher()
+{
+    if (switcher != None && switcher_active) {
+        XUnmapWindow(display, switcher);
+    }
+
+    // NEW: release the keyboard grab we took in show_switcher()
+    if (switcher_active) {
+        XUngrabKeyboard(display, CurrentTime);
+    }
+
+    switcher_active = false;
+    switcher_list.clear();
+}
+
+static void draw_switcher()
+{
+    if (switcher == None || !switcher_active || switcher_list.empty())
+        return;
+
+    int height = SWITCHER_PAD * 2 + (int)switcher_list.size() * SWITCHER_LINE_H;
+
+    GC gc = XCreateGC(display, switcher, 0, nullptr);
+
+    // Background
+    XSetForeground(display, gc, COLOR_SWITCHER_BG);
+    XFillRectangle(display, switcher, gc, 0, 0, SWITCHER_WIDTH, height);
+
+    // Border
+    XSetForeground(display, gc, COLOR_SWITCHER_BORDER);
+    XDrawRectangle(display, switcher, gc, 0, 0, SWITCHER_WIDTH - 1, height - 1);
+
+    for (size_t i = 0; i < switcher_list.size(); ++i) {
+        int y = SWITCHER_PAD + (int)i * SWITCHER_LINE_H;
+
+        if (i == switcher_index) {
+            XSetForeground(display, gc, COLOR_SWITCHER_HL);
+            XFillRectangle(display, switcher, gc,
+                           4, y,
+                           SWITCHER_WIDTH - 8, SWITCHER_LINE_H);
+        }
+
+        std::string title = get_window_title(switcher_list[i]->window);
+        if (title.size() > 48)
+            title = title.substr(0, 45) + "...";
+
+        XSetForeground(display, gc, COLOR_SWITCHER_TEXT);
+        XDrawString(display, switcher, gc,
+                    SWITCHER_PAD + 6, y + 20,
+                    title.c_str(), (int)title.size());
+    }
+
+    XFreeGC(display, gc);
+}
+
+static void show_switcher()
+{
+    if (switcher_list.empty())
+        return;
+
+    int height = SWITCHER_PAD * 2 + (int)switcher_list.size() * SWITCHER_LINE_H;
+    int screen_w = DisplayWidth(display, screen);
+    int screen_h = DisplayHeight(display, screen);
+    int x = (screen_w - SWITCHER_WIDTH) / 2;
+    int y = (screen_h - height) / 2;
+
+    if (switcher == None) {
+        XSetWindowAttributes attrs{};
+        attrs.override_redirect = True;
+        attrs.background_pixel  = COLOR_SWITCHER_BG;
+        attrs.border_pixel      = COLOR_SWITCHER_BORDER;
+        attrs.event_mask        = ExposureMask;
+
+        switcher = XCreateWindow(
+            display, root,
+            x, y, SWITCHER_WIDTH, height,
+            1,  // border width
+            CopyFromParent, InputOutput, CopyFromParent,
+            CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask,
+            &attrs
+        );
+    } else {
+        XMoveResizeWindow(display, switcher, x, y, SWITCHER_WIDTH, height);
+    }
+
+    XMapRaised(display, switcher);
+
+    // NEW: grab the keyboard so we reliably see the Alt release
+    // regardless of which window has input focus.
+    XGrabKeyboard(display, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+
+    switcher_active = true;
+    draw_switcher();
+}
+
 static Client* find_client(Window window)
 {
   for (Client* client : clients) {
@@ -106,6 +236,95 @@ static Client* get_focused_client()
 
   return find_client(focused);
 }
+
+static void cycle_switcher(bool reverse)
+{
+  // Include ALL clients (minimized ones too)
+  switcher_list.clear();
+  for (Client* c : clients) {
+    switcher_list.push_back(c);
+  }
+
+  if (switcher_list.empty()) {
+    hide_switcher();
+    return;
+  }
+
+  if (!switcher_active) {
+    // First Alt+Tab: start after the currently focused window
+    Client* current = get_focused_client();
+    size_t start = 0;
+    if (current) {
+      auto it = std::find(switcher_list.begin(), switcher_list.end(), current);
+      if (it != switcher_list.end()) {
+        start = (it - switcher_list.begin() + 1) % switcher_list.size();
+      }
+    }
+    switcher_index = start;
+    show_switcher();
+  }
+  else {
+    if (reverse) {
+      switcher_index = (switcher_index == 0)
+                           ? switcher_list.size() - 1
+                           : switcher_index - 1;
+    }
+    else {
+      switcher_index = (switcher_index + 1) % switcher_list.size();
+    }
+    draw_switcher();
+  }
+
+  //  // Build / refresh the list of visible windows
+  //  switcher_list.clear();
+  //  for (Client* c : clients) {
+  //      if (!c->minimized)
+  //          switcher_list.push_back(c);
+  //  }
+
+  //  if (switcher_list.empty()) {
+  //      hide_switcher();
+  //      return;
+  //  }
+
+  //  if (!switcher_active) {
+  //      // First press: start switcher and select the next window
+  //      Client* current = get_focused_client();
+  //      size_t start = 0;
+  //      if (current) {
+  //          auto it = std::find(switcher_list.begin(), switcher_list.end(), current);
+  //          if (it != switcher_list.end())
+  //              start = (it - switcher_list.begin() + 1) % switcher_list.size();
+  //      }
+  //      switcher_index = start;
+  //      show_switcher();
+  //  } else {
+  //      // Subsequent presses: cycle
+  //      if (reverse) {
+  //          if (switcher_index == 0)
+  //              switcher_index = switcher_list.size() - 1;
+  //          else
+  //              --switcher_index;
+  //      } else {
+  //          switcher_index = (switcher_index + 1) % switcher_list.size();
+  //      }
+  //      draw_switcher();
+  //  }
+}
+
+static void focus_next();
+
+static volatile sig_atomic_t need_reconfigure = 0;
+
+static void sighup_handler(int)
+{
+    need_reconfigure = 1;
+}
+
+// ------------------------------------------------------------
+// Helpers
+// ------------------------------------------------------------
+
 
 static std::string trim(const std::string& str)
 {
@@ -624,22 +843,35 @@ static void resize_client(Client* client)
 
 static void focus_client(Client* client)
 {
-    if (!client || client->minimized)
-        return;
+  if (!client) {
+    return;
+  }
 
-    XRaiseWindow(
-        display,
-        client->frame
-    );
+  if (client->minimized) {
+    client->minimized = false;
+    XMapWindow(display, client->frame);
+  }
 
-    XSetInputFocus(
-        display,
-        client->window,
-        RevertToPointerRoot,
-        CurrentTime
-    );
+  XRaiseWindow(display, client->frame);
+  XSetInputFocus(display, client->window, RevertToPointerRoot, CurrentTime);
+  draw_frame(client);
 
-    draw_frame(client);
+  //if (!client || client->minimized)
+  //    return;
+
+  //XRaiseWindow(
+  //    display,
+  //    client->frame
+  //);
+
+  //XSetInputFocus(
+  //    display,
+  //    client->window,
+  //    RevertToPointerRoot,
+  //    CurrentTime
+  //);
+
+  //draw_frame(client);
 }
 
 static void close_client(Client* client)
@@ -1429,56 +1661,18 @@ static void grab_key(
 
 static void grab_keys()
 {
-    /*
-        Built-in shortcuts
-    */
+  // Built-in shortcuts
+  grab_key(XKeysymToKeycode(display, XK_Tab), Mod1Mask);                  // Alt+Tab
+  grab_key(XKeysymToKeycode(display, XK_Tab), Mod1Mask | ShiftMask);      // Alt+Shift+Tab
+  grab_key(XKeysymToKeycode(display, XK_F4), Mod1Mask);
+  grab_key(XKeysymToKeycode(display, XK_F1), Mod1Mask);
+  grab_key(XKeysymToKeycode(display, XK_q), Mod1Mask | ShiftMask);
 
-    grab_key(
-        XKeysymToKeycode(
-            display,
-            XK_Tab
-        ),
-        Mod1Mask
-    );
-
-    grab_key(
-        XKeysymToKeycode(
-            display,
-            XK_F4
-        ),
-        Mod1Mask
-    );
-
-    grab_key(
-        XKeysymToKeycode(
-            display,
-            XK_F1
-        ),
-        Mod1Mask
-    );
-
-    grab_key(
-        XKeysymToKeycode(
-            display,
-            XK_q
-        ),
-        Mod1Mask | ShiftMask
-    );
-
-
-    /*
-        User-configured shortcuts
-    */
-
-    for (const KeyBinding& binding : keybindings) {
-
-        grab_key(
-            binding.keycode,
-            binding.modifiers
-        );
-    }
+  // User-configured shortcuts
+  for (const KeyBinding& binding : keybindings) {
+    grab_key(binding.keycode, binding.modifiers);
+  }
 }
-
 
 static bool handle_custom_keybinding(
     XKeyEvent* event)
@@ -1535,447 +1729,444 @@ int main(int argc, char** argv)
 {
   bool do_reconfigure = false;
 
-    for (int i = 1; i < argc; ++i) {
-        if (std::strcmp(argv[i], "--reconfigure") == 0) {
-            do_reconfigure = true;
-        } else if (std::strcmp(argv[i], "--help") == 0 ||
-                   std::strcmp(argv[i], "-h") == 0) {
-            printf("Usage: mew [--reconfigure]\n");
-            return 0;
-        }
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--reconfigure") == 0) {
+      do_reconfigure = true;
     }
-
-    if (do_reconfigure) {
-        std::ifstream f(get_pidfile());
-        pid_t pid = 0;
-        if (f >> pid && pid > 1) {
-            if (kill(pid, SIGHUP) == 0) {
-                printf("mew: reconfigure sent to pid %d\n", (int)pid);
-                return 0;
-            }
-            fprintf(stderr, "mew: failed to signal pid %d\n", (int)pid);
-            return 1;
-        }
-        fprintf(stderr, "mew: no running instance found\n");
-        return 1;
+    else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
+      printf("Usage: mew [--reconfigure]\n");
+      return 0;
     }
+  }
 
-    // ---------- normal startup ----------
-    display = XOpenDisplay(nullptr);
-    if (!display) {
-        fprintf(stderr, "mew: cannot open display\n");
-        return 1;
+  if (do_reconfigure) {
+    std::ifstream f(get_pidfile());
+    pid_t pid = 0;
+    if (f >> pid && pid > 1) {
+      if (kill(pid, SIGHUP) == 0) {
+        printf("mew: reconfigure sent to pid %d\n", (int)pid);
+        return 0;
+      }
+      fprintf(stderr, "mew: failed to signal pid %d\n", (int)pid);
+      return 1;
     }
+    fprintf(stderr, "mew: no running instance found\n");
+    return 1;
+  }
 
-    // install SIGHUP handler
-    struct sigaction sa{};
-    sa.sa_handler = sighup_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    sigaction(SIGHUP, &sa, nullptr);
+  // ---------- normal startup ----------
+  display = XOpenDisplay(nullptr);
+  if (!display) {
+    fprintf(stderr, "mew: cannot open display\n");
+    return 1;
+  }
 
-    screen = DefaultScreen(display);
-    root   = RootWindow(display, screen);
+  // install SIGHUP handler
+  struct sigaction sa{};
+  sa.sa_handler = sighup_handler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART;
+  sigaction(SIGHUP, &sa, nullptr);
 
-
-    display = XOpenDisplay(nullptr);
-
-    if (!display) {
-
-        fprintf(
-            stderr,
-            "mew: cannot open display\n"
-        );
-
-        return 1;
-    }
-
-    screen =
-        DefaultScreen(display);
-
-    root =
-        RootWindow(display, screen);
+  screen = DefaultScreen(display);
+  root   = RootWindow(display, screen);
 
 
-    XSetErrorHandler(
-        error_handler
-    );
+  display = XOpenDisplay(nullptr);
+
+  if (!display) {
+
+      fprintf(
+          stderr,
+          "mew: cannot open display\n"
+      );
+
+      return 1;
+  }
+
+  screen =
+      DefaultScreen(display);
+
+  root =
+      RootWindow(display, screen);
 
 
-    WM_DELETE_WINDOW =
-        XInternAtom(
-            display,
-            "WM_DELETE_WINDOW",
-            False
-        );
-
-    WM_PROTOCOLS =
-        XInternAtom(
-            display,
-            "WM_PROTOCOLS",
-            False
-        );
+  XSetErrorHandler(
+      error_handler
+  );
 
 
-    /*
-        Create ~/.config/mew
-    */
+  WM_DELETE_WINDOW =
+      XInternAtom(
+          display,
+          "WM_DELETE_WINDOW",
+          False
+      );
 
-    create_config_directory();
+  WM_PROTOCOLS =
+      XInternAtom(
+          display,
+          "WM_PROTOCOLS",
+          False
+      );
 
+  /*
+      Create ~/.config/mew
+  */
+  create_config_directory();
 
-    /*
-        Load configuration
-    */
+  /*
+      Load configuration
+  */
+  load_keybindings();
 
-    load_keybindings();
+  /*
+      Become the window manager
+  */
 
-
-    /*
-        Become the window manager
-    */
-
-    XSelectInput(
-        display,
-        root,
-        SubstructureRedirectMask |
-        SubstructureNotifyMask |
-        ButtonPressMask |
-        PropertyChangeMask
-    );
-
-
-    /*
-        Grab keyboard shortcuts
-    */
-
-    grab_keys();
-
-
-    write_pidfile();
-
-    /*
-        Manage existing windows
-    */
-
-    Window root_return;
-    Window parent_return;
-
-    Window* children = nullptr;
-    unsigned int child_count = 0;
-
-    if (XQueryTree(
-            display,
-            root,
-            &root_return,
-            &parent_return,
-            &children,
-            &child_count)) {
-
-        for (unsigned int i = 0;
-             i < child_count;
-             ++i) {
-
-            XWindowAttributes attr;
-
-            if (!XGetWindowAttributes(
-                    display,
-                    children[i],
-                    &attr))
-                continue;
-
-            if (attr.map_state ==
-                    IsViewable &&
-                !attr.override_redirect) {
-
-                manage(children[i]);
-            }
-        }
-
-        if (children)
-            XFree(children);
-    }
+  XSelectInput(
+      display,
+      root,
+      SubstructureRedirectMask |
+      SubstructureNotifyMask |
+      ButtonPressMask |
+      KeyReleaseMask |
+      PropertyChangeMask
+  );
 
 
-    /*
-        Start autostart programs AFTER
-        the window manager is initialized.
-    */
+  /*
+      Grab keyboard shortcuts
+  */
 
-    run_autostart();
-
-
-    XSync(
-        display,
-        False
-    );
+  grab_keys();
 
 
-    /*
-        Main event loop
-    */
+  write_pidfile();
 
-    while (true) {
-      if (need_reconfigure) {
-        need_reconfigure = 0;
-        printf("mew: reconfiguring...\n");
+  /*
+      Manage existing windows
+  */
 
-        // drop every previous grab
-        XUngrabKey(display, AnyKey, AnyModifier, root);
+  Window root_return;
+  Window parent_return;
 
-        // reload keybindings from disk
-        load_keybindings();
+  Window* children = nullptr;
+  unsigned int child_count = 0;
 
-        // re-grab everything (built-in + new config)
-        grab_keys();
+  if (XQueryTree(
+          display,
+          root,
+          &root_return,
+          &parent_return,
+          &children,
+          &child_count)) {
+
+      for (unsigned int i = 0;
+           i < child_count;
+           ++i) {
+
+          XWindowAttributes attr;
+
+          if (!XGetWindowAttributes(
+                  display,
+                  children[i],
+                  &attr))
+              continue;
+
+          if (attr.map_state ==
+                  IsViewable &&
+              !attr.override_redirect) {
+
+              manage(children[i]);
+          }
       }
 
-      XEvent event;
-      XNextEvent(display, &event);
-
-      switch (event.type) {
-          case MapRequest:
-          {
-              manage(event.xmaprequest.window);
-              break;
-          }
-
-          case ConfigureRequest:
-          {
-              Client* client =
-                  find_client(
-                      event.xconfigurerequest.window
-                  );
-
-              if (!client) {
-
-                  XWindowChanges changes;
-
-                  changes.x =
-                      event.xconfigurerequest.x;
-
-                  changes.y =
-                      event.xconfigurerequest.y;
-
-                  changes.width =
-                      event.xconfigurerequest.width;
-
-                  changes.height =
-                      event.xconfigurerequest.height;
-
-                  changes.border_width =
-                      event.xconfigurerequest.border_width;
-
-                  changes.sibling =
-                      event.xconfigurerequest.above;
-
-                  changes.stack_mode =
-                      event.xconfigurerequest.detail;
-
-                  XConfigureWindow(
-                      display,
-                      event.xconfigurerequest.window,
-                      event.xconfigurerequest.value_mask,
-                      &changes
-                  );
-
-                  break;
-              }
+      if (children)
+          XFree(children);
+  }
 
 
-              if (client->maximized)
-                  break;
+  /*
+      Start autostart programs AFTER
+      the window manager is initialized.
+  */
+
+  run_autostart();
 
 
-              if (event.xconfigurerequest.value_mask &
-                  CWX)
-
-                  client->x =
-                      event.xconfigurerequest.x;
-
-              if (event.xconfigurerequest.value_mask &
-                  CWY)
-
-                  client->y =
-                      event.xconfigurerequest.y;
-
-              if (event.xconfigurerequest.value_mask &
-                  CWWidth)
-
-                  client->width =
-                      std::max(
-                          MIN_WIDTH,
-                          event.xconfigurerequest.width
-                      );
-
-              if (event.xconfigurerequest.value_mask &
-                  CWHeight)
-
-                  client->height =
-                      std::max(
-                          MIN_HEIGHT,
-                          event.xconfigurerequest.height
-                      );
+  XSync(
+      display,
+      False
+  );
 
 
-              resize_client(client);
+  /*
+      Main event loop
+  */
 
-              break;
-          }
+  while (true) {
+    if (need_reconfigure) {
+      need_reconfigure = 0;
+      printf("mew: reconfiguring...\n");
 
+      // drop every previous grab
+      XUngrabKey(display, AnyKey, AnyModifier, root);
 
-          case ButtonPress:
-          {
-              handle_button_press(
-                  &event.xbutton
-              );
+      // reload keybindings from disk
+      load_keybindings();
 
-              break;
-          }
+      // re-grab everything (built-in + new config)
+      grab_keys();
+    }
 
+    // Safety net: if Alt is no longer held, force-close the switcher
+    if (switcher_active && !is_alt_held()) {
+      if (!switcher_list.empty() && switcher_index < switcher_list.size()) {
+        focus_client(switcher_list[switcher_index]);
+      }
+      hide_switcher();
+    }
 
-          case MotionNotify:
-          {
-              handle_motion(
-                  &event.xmotion
-              );
+    XEvent event;
+    XNextEvent(display, &event);
 
-              break;
-          }
+    switch (event.type) {
+        case MapRequest:
+        {
+            manage(event.xmaprequest.window);
+            break;
+        }
 
-
-          case Expose:
-          {
-              Client* client =
-                  find_client(
-                      event.xexpose.window
-                  );
-
-              if (client)
-                  draw_frame(client);
-
-              break;
-          }
-
-
-          case DestroyNotify:
-          {
-            Client* client = find_client(event.xdestroywindow.window);
-            if (client) {
-                // Window is already gone – only destroy the frame
-                XDestroyWindow(display, client->frame);
-                clients.erase(
-                    std::remove(clients.begin(), clients.end(), client),
-                    clients.end()
+        case ConfigureRequest:
+        {
+            Client* client =
+                find_client(
+                    event.xconfigurerequest.window
                 );
-                delete client;
+
+            if (!client) {
+
+                XWindowChanges changes;
+
+                changes.x =
+                    event.xconfigurerequest.x;
+
+                changes.y =
+                    event.xconfigurerequest.y;
+
+                changes.width =
+                    event.xconfigurerequest.width;
+
+                changes.height =
+                    event.xconfigurerequest.height;
+
+                changes.border_width =
+                    event.xconfigurerequest.border_width;
+
+                changes.sibling =
+                    event.xconfigurerequest.above;
+
+                changes.stack_mode =
+                    event.xconfigurerequest.detail;
+
+                XConfigureWindow(
+                    display,
+                    event.xconfigurerequest.window,
+                    event.xconfigurerequest.value_mask,
+                    &changes
+                );
+
+                break;
+            }
+
+
+            if (client->maximized)
+                break;
+
+
+            if (event.xconfigurerequest.value_mask &
+                CWX)
+
+                client->x =
+                    event.xconfigurerequest.x;
+
+            if (event.xconfigurerequest.value_mask &
+                CWY)
+
+                client->y =
+                    event.xconfigurerequest.y;
+
+            if (event.xconfigurerequest.value_mask &
+                CWWidth)
+
+                client->width =
+                    std::max(
+                        MIN_WIDTH,
+                        event.xconfigurerequest.width
+                    );
+
+            if (event.xconfigurerequest.value_mask &
+                CWHeight)
+
+                client->height =
+                    std::max(
+                        MIN_HEIGHT,
+                        event.xconfigurerequest.height
+                    );
+
+
+            resize_client(client);
+
+            break;
+        }
+
+
+        case ButtonPress:
+        {
+            handle_button_press(
+                &event.xbutton
+            );
+
+            break;
+        }
+
+
+        case MotionNotify:
+        {
+            handle_motion(
+                &event.xmotion
+            );
+
+            break;
+        }
+
+
+        case Expose:
+        {
+          if (event.xexpose.window == switcher) {
+            draw_switcher();
+            break;
+          }
+
+          Client* client = find_client(event.xexpose.window);
+          if (client) {
+            draw_frame(client);
+          }
+          break;
+        }
+
+
+        case DestroyNotify:
+        {
+          Client* client = find_client(event.xdestroywindow.window);
+          if (client) {
+              // Window is already gone – only destroy the frame
+              XDestroyWindow(display, client->frame);
+              clients.erase(
+                  std::remove(clients.begin(), clients.end(), client),
+                  clients.end()
+              );
+              delete client;
+          }
+          break;
+        }
+
+        case UnmapNotify:
+        {
+            Client* client =
+                find_client(
+                    event.xunmap.window
+                );
+
+            if (client &&
+                event.xunmap.window ==
+                    client->window) {
+
+                unmanage(client);
+            }
+
+            break;
+        }
+
+
+        case KeyPress:
+        {
+          XKeyEvent* key = &event.xkey;
+
+          // First check user configuration.
+          if (handle_custom_keybinding(key)) {
+            break;
+          }
+          unsigned int state = key->state & ~(LockMask | Mod2Mask);
+          KeySym keysym = XLookupKeysym(key, 0);
+
+          // Alt+Tab / Alt+Shift+Tab
+          if (keysym == XK_Tab && (state == Mod1Mask || state == (Mod1Mask | ShiftMask))) {
+              bool reverse = (state & ShiftMask);
+              cycle_switcher(reverse);
+              break;
+          }
+
+          //// Alt+Tab
+          //if (state == Mod1Mask && keysym == XK_Tab) {
+          //  focus_next();
+          //  break;
+          //}
+
+          // Alt+F4
+          if (state == Mod1Mask && keysym == XK_F4) {
+            Client* client = get_focused_client();
+            if (client) {
+              close_client(client);
             }
             break;
           }
 
-          case UnmapNotify:
-          {
-              Client* client =
-                  find_client(
-                      event.xunmap.window
-                  );
-
-              if (client &&
-                  event.xunmap.window ==
-                      client->window) {
-
-                  unmanage(client);
-              }
-
-              break;
+          // Alt+F1
+          if (state == Mod1Mask && keysym == XK_F1) {
+            std::system("wezterm start >/dev/null 2>&1 &");
+            break;
           }
 
+          // Alt+Shift+Q (Quit mew)
+          //if (state == (Mod1Mask | ShiftMask) && keysym == XK_q) {
+          //  XCloseDisplay(display);
+          //  return 0;
+          //}
+        break;
+      }
+      case KeyRelease:
+      {
+        if (!switcher_active) {
+          break;
+        }
 
-          case KeyPress:
-          {
-              XKeyEvent* key =
-                  &event.xkey;
+        KeySym keysym = XLookupKeysym(&event.xkey, 0);
+        // Close the switcher as soon as Alt is no longer held
+        // (works no matter the order you release Tab / Alt)
+        if (keysym == XK_Alt_L || keysym == XK_Alt_R ||
+          keysym == XK_Tab    || !is_alt_held()) {
 
+          if (!is_alt_held()) {
+            if (!switcher_list.empty() && switcher_index < switcher_list.size()) {
+              focus_client(switcher_list[switcher_index]);
+            }
+            hide_switcher();
+          }
+        }
+        break;
 
-              /*
-                  First check user configuration.
-              */
+        //KeySym keysym = XLookupKeysym(&event.xkey, 0);
 
-              if (handle_custom_keybinding(key))
-                  break;
-
-
-              unsigned int state =
-                  key->state &
-                  ~(LockMask | Mod2Mask);
-
-
-              KeySym keysym =
-                  XLookupKeysym(
-                      key,
-                      0
-                  );
-
-
-              /*
-                  Alt+Tab
-              */
-
-              if (state == Mod1Mask &&
-                  keysym == XK_Tab) {
-
-                  focus_next();
-                  break;
-              }
-
-
-              /*
-                  Alt+F4
-              */
-
-              if (state == Mod1Mask &&
-                  keysym == XK_F4) {
-
-                  Client* client =
-                      get_focused_client();
-
-                  if (client)
-                      close_client(client);
-
-                  break;
-              }
-
-
-              /*
-                  Alt+F1
-              */
-
-              if (state == Mod1Mask &&
-                  keysym == XK_F1) {
-
-                  std::system(
-                      "wezterm start >/dev/null 2>&1 &"
-                  );
-
-                  break;
-              }
-
-
-              /*
-                  Alt+Shift+Q
-                  Quit mew
-              */
-
-              //if (state ==
-              //        (Mod1Mask | ShiftMask) &&
-              //    keysym == XK_q) {
-
-              //    XCloseDisplay(display);
-
-              //    return 0;
-              //}
-
-      break;
+        //// Release of Alt commits the switch
+        //if ((keysym == XK_Alt_L || keysym == XK_Alt_R) && switcher_active) {
+        //  if (!switcher_list.empty() && switcher_index < switcher_list.size()) {
+        //    focus_client(switcher_list[switcher_index]);
+        //  }
+        //  hide_switcher();
+        //}
+        //break;
       }
     }
   }
