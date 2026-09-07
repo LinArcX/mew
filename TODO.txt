@@ -59,12 +59,12 @@
     width = 2/3 width of screen, height = 2/3 height of screen.
 
 ## ~/.config/mew/keybindings
-- [ ] define shortcut for fullscreen windows
-- [ ] i should be able to define a keybinding to bring back windows to center.
+- [+] define shortcut for fullscreen windows
 
 ## panel
 - [ ] time doesn't update.
-- [ ] when i click on desktop menu, it should show me desktop and minimze everything. if i click it again, it should bring back all windows into their previous positions.
+- [ ] when i click on desktop menu, it should show me desktop and minimze everything.
+  if i click it again, it should bring back all windows into their previous positions.
 - [ ] logout currently doesn't logout when i click on it. when i click on time and date, it will logout.
 - [ ] put Desktop at right corner.
 - [ ] put logout at left corner.
@@ -88,3 +88,9 @@
 ### neovim
 - [ ] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
   but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
+
+# v3
+- [ ] i should be able to define a keybinding to bring back windows to center. center means:
+        width = 2/3 width of screen, height = 2/3 height of screen.
+
+

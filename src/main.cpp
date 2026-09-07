@@ -2640,6 +2640,26 @@ static bool handle_custom_keybinding(
               minimize_client(client);
               return true;
             }
+            if (cmd == "fullscreen") {
+              if (client)
+                set_fullscreen(client, !client->fullscreen);
+              return true;
+            }
+            if (cmd == "center") {
+              if (client && !client->maximized && !client->fullscreen) {
+                int screen_w = DisplayWidth(display, screen);
+                int screen_h = DisplayHeight(display, screen);
+                int frame_w = client->width + BORDER_WIDTH * 2;
+                int frame_h = client->height + TITLE_HEIGHT + BORDER_WIDTH;
+                client->x = (screen_w - frame_w) / 2;
+                client->y = (screen_h - frame_h) / 2;
+                if (client->x < 0) client->x = 0;
+                if (client->y < 0) client->y = 0;
+                resize_client(client);
+                focus_client(client);
+              }
+              return true;
+            }
 
             // External command
             std::string command =
