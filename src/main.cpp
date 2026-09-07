@@ -63,24 +63,8 @@ enum ResizeDirection {
   RESIZE_BOTTOM_RIGHT
 };
 
-// Context menu
-static Window context_menu = None;
-static bool context_menu_active = false;
-
-
 static FT_Library ft_library = nullptr;
 static FT_Face ft_face = nullptr;
-
-static const int MENU_WIDTH = 180;
-static const int MENU_ITEM_HEIGHT = 28;
-static const unsigned long COLOR_MENU_BG     = 0x1e1e1e;
-static const unsigned long COLOR_MENU_BORDER = 0x555555;
-static const unsigned long COLOR_MENU_TEXT   = 0xffffff;
-
-static const std::vector<std::string> context_menu_items = {
-    "Show Keybindings",
-    "Exit",
-};
 
 static XftFont* title_font = nullptr;
 static XftColor title_text_color;
@@ -196,72 +180,6 @@ static void load_cursors()
   cursor_resize_tr = load_cursor("top_right_corner",   XC_top_right_corner);
   cursor_resize_bl = load_cursor("bottom_left_corner", XC_bottom_left_corner);
   cursor_resize_br = load_cursor("bottom_right_corner",XC_bottom_right_corner);
-}
-
-static void hide_context_menu()
-{
-    if (context_menu != None && context_menu_active) {
-        XUnmapWindow(display, context_menu);
-    }
-    context_menu_active = false;
-}
-
-static void draw_context_menu()
-{
-    if (context_menu == None || !context_menu_active)
-        return;
-
-    int height = (int)context_menu_items.size() * MENU_ITEM_HEIGHT;
-
-    GC gc = XCreateGC(display, context_menu, 0, nullptr);
-
-    XSetForeground(display, gc, COLOR_MENU_BG);
-    XFillRectangle(display, context_menu, gc, 0, 0, MENU_WIDTH, height);
-
-    XSetForeground(display, gc, COLOR_MENU_BORDER);
-    XDrawRectangle(display, context_menu, gc, 0, 0, MENU_WIDTH - 1, height - 1);
-
-    for (size_t i = 0; i < context_menu_items.size(); ++i) {
-        int y = (int)i * MENU_ITEM_HEIGHT;
-        int baseline = y + (MENU_ITEM_HEIGHT + (title_font ? title_font->ascent : 10)) / 2 - 2;
-        draw_title_text(context_menu, 12, baseline, context_menu_items[i]);
-    }
-
-    XFreeGC(display, gc);
-}
-
-static void show_context_menu(int x, int y)
-{
-    int height = (int)context_menu_items.size() * MENU_ITEM_HEIGHT;
-
-    int screen_w = DisplayWidth(display, screen);
-    int screen_h = DisplayHeight(display, screen);
-
-    if (x + MENU_WIDTH > screen_w) x = screen_w - MENU_WIDTH;
-    if (y + height > screen_h)     y = screen_h - height;
-
-    if (context_menu == None) {
-        XSetWindowAttributes attrs{};
-        attrs.override_redirect = True;
-        attrs.background_pixel  = COLOR_MENU_BG;
-        attrs.border_pixel      = COLOR_MENU_BORDER;
-        attrs.event_mask        = ExposureMask | ButtonPressMask;
-
-        context_menu = XCreateWindow(
-            display, root,
-            x, y, MENU_WIDTH, height,
-            1,
-            CopyFromParent, InputOutput, CopyFromParent,
-            CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask,
-            &attrs
-        );
-    } else {
-        XMoveResizeWindow(display, context_menu, x, y, MENU_WIDTH, height);
-    }
-
-    XMapRaised(display, context_menu);
-    context_menu_active = true;
-    draw_context_menu();
 }
 
 static int kb_win_x, kb_win_y;
@@ -673,21 +591,6 @@ static void show_keybindings_window()
     XMapRaised(display, keybindings_window);
     keybindings_window_active = true;
     draw_keybindings_window();
-}
-
-static void handle_context_menu_selection(int index)
-{
-    if (index < 0 || index >= (int)context_menu_items.size())
-        return;
-
-    const std::string& label = context_menu_items[index];
-
-    if (label == "Exit") {
-        should_quit = true;
-    }
-    else if (label == "Show Keybindings") {
-        show_keybindings_window();
-    }
 }
 
 static bool is_alt_held()
@@ -2481,8 +2384,17 @@ static void manage(Window window)
   int screen_w = DisplayWidth(display, screen);
   int screen_h = DisplayHeight(display, screen);
 
-  int frame_w = attr.width  + BORDER_WIDTH * 2;
-  int frame_h = attr.height + TITLE_HEIGHT + BORDER_WIDTH;
+  // Minimum size = 2/3 of usable screen
+  int min_w = (screen_w * 2) / 3;
+  int min_h = (screen_h * 2) / 3;
+
+  int w = attr.width;
+  int h = attr.height;
+  if (w < min_w) w = min_w;
+  if (h < min_h) h = min_h;
+
+  int frame_w = w + BORDER_WIDTH * 2;
+  int frame_h = h + TITLE_HEIGHT + BORDER_WIDTH;
 
   int x = (screen_w - frame_w) / 2;
   int y = (screen_h - frame_h) / 2;
@@ -2508,14 +2420,14 @@ static void manage(Window window)
   client->x = x;
   client->y = y;
 
-  client->width = attr.width;
-  client->height = attr.height;
+  client->width = w;
+  client->height = h;
 
   client->old_x = x;
   client->old_y = y;
 
-  client->old_width = attr.width;
-  client->old_height = attr.height;
+  client->old_width = w;
+  client->old_height = h;
 
   client->maximized = false;
   client->minimized = false;
@@ -3163,25 +3075,6 @@ int main(int argc, char** argv)
               break;
           }
 
-          // Click landed on an open context menu -> select the item.
-          if (context_menu_active && w == context_menu) {
-              int index = event.xbutton.y / MENU_ITEM_HEIGHT;
-              hide_context_menu();
-              handle_context_menu_selection(index);
-              break;
-          }
-
-          // Any other click dismisses an open menu.
-          if (context_menu_active) {
-              hide_context_menu();
-          }
-
-          // Right-click on empty desktop space -> open the menu.
-          if (w == root && event.xbutton.button == Button3) {
-              show_context_menu(event.xbutton.x_root, event.xbutton.y_root);
-              break;
-          }
-
           handle_button_press(&event.xbutton);
           break;
         }
@@ -3201,10 +3094,6 @@ int main(int argc, char** argv)
         {
           if (event.xexpose.window == switcher) {
             draw_switcher();
-            break;
-          }
-          if (event.xexpose.window == context_menu) {
-            draw_context_menu();
             break;
           }
           if (event.xexpose.window == keybindings_window) {

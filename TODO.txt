@@ -54,12 +54,12 @@
 
 # v2
 ## general
-- [ ] remove entriely context menu.
-- [ ] some windows are really small when you open them. put minimim size for all windows:
+- [+] remove entriely context menu.
+- [+] some windows are really small when you open them. put minimim size for all windows:
     width = 2/3 width of screen, height = 2/3 height of screen.
 
 ## ~/.config/mew/keybindings
-- [] define shortcut for fullscreen windows
+- [ ] define shortcut for fullscreen windows
 - [ ] i should be able to define a keybinding to bring back windows to center.
 
 ## panel
