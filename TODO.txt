@@ -73,7 +73,11 @@
 # v4
 ## general
 - [+] when i do fullscreen, if i then press W-c to bring window to center, it won't work. (but snapping works, W-Left, W-Right, W-Up, W-Down)
-- [P] right corner of panel should have this order(from right): first put "Desktop" icon, then put time/date
+- [+] right corner of panel should have this order(from right): first put "Desktop" icon, then put time/date
+- [+] "Desktop" icon is on top of time/date. put some space between them. (bring time/data a little to the left to have more space between them)
+- [+] in switcher, show the icons of applications. not just their text.
+- [+] i can't see real icons in start menu and other places that should show the icon. fix it, if you can't at least tell me what should i do? 
+  should i use another font?
 
 ## ~/.config/mew/config
 - [ ] background image
@@ -121,9 +125,4 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 
 ---------------------------------------------------------------------------------
 # v5
-- [P] "Desktop" icon is on top of time/date. put some space between them. (bring time/data a little to the left to have more space between them)
-- [ ] in switcher, show the icons of applications. not just their text.
-- [ ] i can't see real icons in start menu and other places that should show the icon. fix it, if you can't at least tell me what should i do? 
-  should i use another font?
-
 

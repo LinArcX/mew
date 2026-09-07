@@ -3,7 +3,10 @@
 #include FT_FREETYPE_H
 #include <fontconfig/fontconfig.h>
 #include <fontconfig/fcfreetype.h>
-#include "font_data.h"
+
+#include "hurmit_font_data.h"
+//#include "jetbrains_font_data.h"
+//#include "sofia_sans_font_data.h"
 
 #include <X11/Xcursor/Xcursor.h>
 
@@ -227,8 +230,8 @@ static void load_title_font()
 
   if (FT_New_Memory_Face(
         ft_library,
-        mew_font_ttf,
-        (FT_Long)mew_font_ttf_len,
+        hurmit_ttf,
+        (FT_Long)hurmit_ttf_len,
         0,
         &ft_face) != 0) {
     fprintf(stderr, "mew: FT_New_Memory_Face failed to parse embedded font\n");
@@ -1273,7 +1276,7 @@ static void draw_panel()
   struct tm* tm = localtime(&now);
   char buf[64];
   // Full month name, e.g. "2026-September-07  23:57:01"
-  strftime(buf, sizeof(buf), "%Y-%B-%d  %H:%M:%S", tm);
+  strftime(buf, sizeof(buf), " %Y-%B-%d  %H:%M:%S", tm);
 
   int text_h = title_font ? (title_font->ascent + title_font->descent) : 12;
   int baseline = (PANEL_HEIGHT + text_h) / 2 - (title_font ? title_font->descent : 2);
@@ -1281,11 +1284,11 @@ static void draw_panel()
   //draw_title_text(panel, screen_w - clock_w - 16, baseline, buf);
 
   // Left: Start button
-  draw_title_text(panel, 12, baseline, "☰");
+  draw_title_text(panel, 10, baseline, " ");
 
   // Right corner order (from right): Desktop, then time/date
-  draw_title_text(panel, screen_w - 36, baseline, "");
-  draw_title_text(panel, screen_w - 240, baseline, buf);
+  draw_title_text(panel, screen_w - 20, baseline, "");
+  draw_title_text(panel, screen_w - 308, baseline, buf);
 
   XFreeGC(display, gc);
   panel_last_time = now;
