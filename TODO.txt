@@ -1,3 +1,4 @@
+---------------------------------------------------------------------------------
 # v1
 ## general
 - [+] open window in center of screen
@@ -9,9 +10,7 @@
 - [P] keybinding file in: ~/.config/mew/keybindings
   - [+] define snap windows to left/right/bottom/top
   - [+] define maximize/minimize windows
-- [ ] config file in: ~/.config/mew/config
-  - [ ] background image
-  - [ ] windows theme
+- [+] config file in: ~/.config/mew/config
   - [+] background color
   - [+] login_sound
   - [+] logout_sound
@@ -19,25 +18,10 @@
     currently it's hard-coded. finally it should read from conf file.
   - [P] mouse theme
     currently it's hard-coded. finally it should read from conf file.
-- [ ] implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
+- [+] panel:
   - [+] show desktop (mandatory)
   - [+] time and date (mandatory)
-  - [ ] network manager (mandatory)
-  - [ ] volume icon (mandatory)
-  - [ ] language switcher (mandatory)
-  - [ ] app launcher (mandatory)
-    it shows .desktop files from ~/.local/share/apps
-    you can also make simple apps using extension system of mew. they will appear hear automatically
-    - [P] show keybindings (mandatory)
-      currently, it's part of context menu. it should be a mandatory plugin of panel.
-    - [ ] power manager (mandatory)
-      reboot
-      poweroff
-      - [P] logout (exit from mew)
-        currently, it's part of context menu. it should be a mandatory plugin of panel.
-      - [ ] mew --restart
-      - [P] mew --reconfigure
-        - [ ] put mew.pid in /tmp
+
 ## apps
 ### mpv
 - [+] Left/right/bottom resize doesn't work
@@ -46,14 +30,7 @@
 - [+] bottom resize doesn't work.
 - [+] left/right resize sometimes grab internal content, instead of grabbing the frame.
 
-### tint2
-- [ ] it should be on top of other windows.
-- [ ] it should be part of mew whole screen and rest of screen size should be use for other apps. 
-- [ ] it has border & icons. it shoulnd't have it.
-- [ ] when i hover over it, the mouse cursor chagned to resize. it shouldn't.
-
 ---------------------------------------------------------------------------------
-
 # v2
 ## general
 - [+] remove entriely context menu.
@@ -77,22 +54,8 @@
 - [+] ability to define panel color.
 - [+] for login_sound and logout_sound, remove dependency from mpg123 and play audio internally.
   if you want to use any library, it should be minimal and inform me before.
-- [ ] ability to define applications windows size or position. for example:
-    mpv.pos.x = 0
-    mpv.pos.y = 0
-    mpv.width = 200
-    mpv.height = 300
-
-## apps
-### mpv
-- [ ] Pressing Enter doesn't maximize the whole window (i expect when i press ENTER in neovim, it becomes a full screen window)
-
-### neovim
-- [ ] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
-  but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
 
 ---------------------------------------------------------------------------------
-
 # v3
 - [+] create a start menu at left coerner. (Remove Logout and Keys from left of panel also)
   The start menu should be like in xfce or windows. but very minimal.
@@ -107,10 +70,60 @@
 
 
 ---------------------------------------------------------------------------------
-
 # v4
+## general
+- [+] when i do fullscreen, if i then press W-c to bring window to center, it won't work. (but snapping works, W-Left, W-Right, W-Up, W-Down)
+- [P] right corner of panel should have this order(from right): first put "Desktop" icon, then put time/date
+
+## ~/.config/mew/config
+- [ ] background image
+  choose a minimal approach. if you need extra libary to be use, just tell me know.
+- [ ] windows theme
+- [ ] ability to define applications windows size or position. for example:
+    mpv.pos.x = 0
+    mpv.pos.y = 0
+    mpv.width = 200
+    mpv.height = 300
+
+## panel
+re-implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
+  - [ ] currently start menu closes only when i click on it. but i want it to be close  also whenever i clicked on other applications or another part of mew desktop.
+  - [ ] network manager (mandatory)
+  - [ ] volume icon (mandatory)
+  - [ ] language switcher (mandatory)
+  - [ ] add another entry in Start menu called: apps.
+    when i click on it, a pop up window (in center of screen) should pops-up and it should shows all apps installed on my machine.
+      (by searching .desktop files)
+    it should have a search input text on top of itself. So i can type the name of the app.
+    it should look like rofi.
+  - [ ] rename ShortKeys to KeyBindings (mandatory)
+  - [ ] power manager (mandatory)
+    - [ ] reboot
+    - [ ] poweroff
+    - [+] logout (exit from mew)
+    - [ ] mew --restart
+    - [P] mew --reconfigure
+      - [ ] put mew.pid in /tmp
+
+## apps
+### mpv
+- [ ] Pressing Enter doesn't maximize the whole window (i expect when i press ENTER in neovim, it becomes a full screen window)
+
+### neovim
+- [ ] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
+  but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
+
+### tint2
+- [ ] it should be on top of other windows.
+- [ ] it should be part of mew whole screen and rest of screen size should be use for other apps. 
+- [ ] it has border & icons. it shoulnd't have it.
+- [ ] when i hover over it, the mouse cursor chagned to resize. it shouldn't.
+
+---------------------------------------------------------------------------------
+# v5
+- [P] "Desktop" icon is on top of time/date. put some space between them. (bring time/data a little to the left to have more space between them)
+- [ ] in switcher, show the icons of applications. not just their text.
 - [ ] i can't see real icons in start menu and other places that should show the icon. fix it, if you can't at least tell me what should i do? 
   should i use another font?
-- [ ] when i do fullscreen, if i then press W-c to bring window to center, it won't work. (but snapping works, W-Left, W-Right, W-Up, W-Down)
 
-- [] right corner of panel should have this order: from right first put "Desktop" icon, then put time/date
+

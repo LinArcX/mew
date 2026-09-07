@@ -153,7 +153,7 @@ static const int START_MENU_WIDTH = 160;
 static const int START_MENU_ITEM_H = 32;
 static const std::vector<std::string> start_menu_items = {
   "󰗼  Logout",
-  "  ShortKeys"
+  "  KeyBindings"
 };
 
 static void focus_next();
@@ -978,7 +978,7 @@ static std::string expand_home(const std::string& path)
 
 static std::string get_pidfile()
 {
-    return get_config_directory() + "/mew.pid";
+    return "/tmp/mew.pid";
 }
 
 static void write_pidfile()
@@ -1283,9 +1283,9 @@ static void draw_panel()
   // Left: Start button
   draw_title_text(panel, 12, baseline, "☰");
 
-  // Right: Desktop icon then clock
-  draw_title_text(panel, screen_w - 220, baseline, "");
-  draw_title_text(panel, screen_w - 190, baseline, buf);
+  // Right corner order (from right): Desktop, then time/date
+  draw_title_text(panel, screen_w - 36, baseline, "");
+  draw_title_text(panel, screen_w - 240, baseline, buf);
 
   XFreeGC(display, gc);
   panel_last_time = now;
@@ -1376,8 +1376,8 @@ static void handle_panel_click(int x)
     return;
   }
 
-  // Right: Desktop icon (~30px wide)
-  if (x > screen_w - 230 && x < screen_w - 195) {
+  // Right: Desktop icon (far right)
+  if (x > screen_w - 50) {
     if (!desktop_showing) {
       for (Client* c : clients) {
         if (!c->minimized)
@@ -2857,7 +2857,11 @@ static bool handle_custom_keybinding(
               return true;
             }
             if (cmd == "center") {
-              if (client && !client->maximized && !client->fullscreen) {
+              if (client) {
+                if (client->fullscreen)
+                  set_fullscreen(client, false);
+                if (client->maximized)
+                  maximize_client(client); // restore from maximized
                 int screen_w = DisplayWidth(display, screen);
                 int screen_h = usable_height();
                 client->width = (screen_w * 2) / 3;
