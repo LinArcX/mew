@@ -137,15 +137,24 @@ static const unsigned long COLOR_SWITCHER_TEXT   = 0xffffff;
 // Panel
 static Window panel = None;
 static const int PANEL_HEIGHT = 28;
-static const unsigned long COLOR_PANEL_BG = 0x222222;
+static unsigned long COLOR_PANEL_BG = 0x222222;
 static const unsigned long COLOR_PANEL_TEXT = 0xffffff;
 static time_t panel_last_time = 0;
+static bool desktop_showing = false; // true when all windows are minimized by "Desktop"
 
 static void focus_next();
 static void draw_title_text(Window window, int x, int y, const std::string& text);
 static void draw_panel();
 static void create_panel();
 static void handle_panel_click(int x);
+static void draw_frame(Client* client);
+
+
+// Usable area excludes the bottom panel
+static int usable_height()
+{
+  return DisplayHeight(display, screen) - PANEL_HEIGHT;
+}
 
 // NEW forward declarations
 //static int kb_close_button_x();
@@ -1076,25 +1085,28 @@ static void draw_panel()
   XSetForeground(display, gc, COLOR_PANEL_BG);
   XFillRectangle(display, panel, gc, 0, 0, screen_w, PANEL_HEIGHT);
 
-  // Clock (right side)
   time_t now = time(nullptr);
   struct tm* tm = localtime(&now);
   char buf[64];
-  strftime(buf, sizeof(buf), "%Y-%m-%d  %H:%M", tm);
+  strftime(buf, sizeof(buf), "%Y-%m-%d  %H:%M:%S", tm);
 
   int text_h = title_font ? (title_font->ascent + title_font->descent) : 12;
   int baseline = (PANEL_HEIGHT + text_h) / 2 - (title_font ? title_font->descent : 2);
-  int clock_w = title_font ? (int)(strlen(buf) * title_font->max_advance_width / 2) : 120; // rough
-  draw_title_text(panel, screen_w - clock_w - 16, baseline, buf);
+  //int clock_w = title_font ? (int)(strlen(buf) * title_font->max_advance_width / 2) : 120; // rough
+  //draw_title_text(panel, screen_w - clock_w - 16, baseline, buf);
 
-  // Power / Logout button (far right-ish)
-  draw_title_text(panel, screen_w - clock_w - 100, baseline, "Logout");
+  // Left: Logout
+  draw_title_text(panel, 12, baseline, "Logout");
 
-  // Keybindings button
-  draw_title_text(panel, 12, baseline, "Keys");
+  // Center-ish: Keys
+  draw_title_text(panel, 100, baseline, "Keys");
 
-  // Show desktop
-  draw_title_text(panel, 70, baseline, "Desktop");
+  // Clock (center-right)
+  int clock_x = screen_w / 2 - 60;
+  draw_title_text(panel, clock_x, baseline, buf);
+
+  // Right: Desktop
+  draw_title_text(panel, screen_w - 90, baseline, "Desktop");
 
   XFreeGC(display, gc);
   panel_last_time = now;
@@ -1138,22 +1150,77 @@ static void minimize_client(Client* client)
     focus_next();
 }
 
+static void focus_client(Client* client)
+{
+  if (!client) {
+    return;
+  }
+
+  if (client->minimized) {
+    client->minimized = false;
+    XMapWindow(display, client->frame);
+  }
+
+  XRaiseWindow(display, client->frame);
+  raise_keybindings_window_if_active();
+  XSetInputFocus(display, client->window, RevertToPointerRoot, CurrentTime);
+  draw_frame(client);
+
+  //if (!client || client->minimized)
+  //    return;
+
+  //XRaiseWindow(
+  //    display,
+  //    client->frame
+  //);
+
+  //XSetInputFocus(
+  //    display,
+  //    client->window,
+  //    RevertToPointerRoot,
+  //    CurrentTime
+  //);
+
+  //draw_frame(client);
+}
+
 static void handle_panel_click(int x)
 {
   int screen_w = DisplayWidth(display, screen);
-  // Rough hit testing (left buttons, right buttons)
-  if (x < 60) {
+
+  // Left corner: Logout
+  if (x < 80) {
+    should_quit = true;
+    return;
+  }
+
+  // Keys
+  if (x >= 90 && x < 160) {
     show_keybindings_window();
+    return;
   }
-  else if (x < 140) {
-    // Show desktop: minimize all
-    for (Client* c : clients) {
-      if (!c->minimized)
-        minimize_client(c);
+
+  // Right corner: Desktop toggle
+  if (x > screen_w - 100) {
+    if (!desktop_showing) {
+      for (Client* c : clients) {
+        if (!c->minimized)
+          minimize_client(c);
+      }
+      desktop_showing = true;
     }
-  }
-  else if (x > screen_w - 180 && x < screen_w - 90) {
-    should_quit = true; // Logout
+    else {
+      for (Client* c : clients) {
+        if (c->minimized) {
+          c->minimized = false;
+          XMapWindow(display, c->frame);
+        }
+      }
+      desktop_showing = false;
+      if (!clients.empty())
+        focus_client(clients.back());
+    }
+    return;
   }
 }
 
@@ -1613,39 +1680,7 @@ static void resize_client(Client* client)
 }
 
 
-static void focus_client(Client* client)
-{
-  if (!client) {
-    return;
-  }
 
-  if (client->minimized) {
-    client->minimized = false;
-    XMapWindow(display, client->frame);
-  }
-
-  XRaiseWindow(display, client->frame);
-  raise_keybindings_window_if_active();
-  XSetInputFocus(display, client->window, RevertToPointerRoot, CurrentTime);
-  draw_frame(client);
-
-  //if (!client || client->minimized)
-  //    return;
-
-  //XRaiseWindow(
-  //    display,
-  //    client->frame
-  //);
-
-  //XSetInputFocus(
-  //    display,
-  //    client->window,
-  //    RevertToPointerRoot,
-  //    CurrentTime
-  //);
-
-  //draw_frame(client);
-}
 
 static void close_client(Client* client)
 {
@@ -1709,7 +1744,7 @@ static void maximize_client(Client* client)
             - BORDER_WIDTH * 2;
 
         client->height =
-            DisplayHeight(display, screen)
+            usable_height()
             - TITLE_HEIGHT
             - BORDER_WIDTH;
 
@@ -1774,7 +1809,7 @@ static void snap_client(Client* client, const std::string& edge)
     return;
 
   int screen_w = DisplayWidth(display, screen);
-  int screen_h = DisplayHeight(display, screen);
+  int screen_h = usable_height();
 
   // Save current geometry so maximize can restore later if needed
   if (!client->maximized) {
@@ -2382,7 +2417,7 @@ static void manage(Window window)
 
   // Center the window on the screen
   int screen_w = DisplayWidth(display, screen);
-  int screen_h = DisplayHeight(display, screen);
+  int screen_h = usable_height();
 
   // Minimum size = 2/3 of usable screen
   int min_w = (screen_w * 2) / 3;
@@ -2648,7 +2683,7 @@ static bool handle_custom_keybinding(
             if (cmd == "center") {
               if (client && !client->maximized && !client->fullscreen) {
                 int screen_w = DisplayWidth(display, screen);
-                int screen_h = DisplayHeight(display, screen);
+                int screen_h = usable_height();
                 int frame_w = client->width + BORDER_WIDTH * 2;
                 int frame_h = client->height + TITLE_HEIGHT + BORDER_WIDTH;
                 client->x = (screen_w - frame_w) / 2;

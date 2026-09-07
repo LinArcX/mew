@@ -52,6 +52,8 @@
 - [ ] it has border & icons. it shoulnd't have it.
 - [ ] when i hover over it, the mouse cursor chagned to resize. it shouldn't.
 
+---------------------------------------------------------------------------------
+
 # v2
 ## general
 - [+] remove entriely context menu.
@@ -62,13 +64,13 @@
 - [+] define shortcut for fullscreen windows
 
 ## panel
-- [ ] time doesn't update.
-- [ ] when i click on desktop menu, it should show me desktop and minimze everything.
+- [+] time doesn't update.
+- [+] when i click on desktop menu, it should show me desktop and minimze everything.
   if i click it again, it should bring back all windows into their previous positions.
-- [ ] logout currently doesn't logout when i click on it. when i click on time and date, it will logout.
-- [ ] put Desktop at right corner.
-- [ ] put logout at left corner.
-- [ ] currently when i maximize the windows, the panel goes on top ot them. and i can't see the bottom of my windows. i don't want this behavriour.
+- [+] logout currently doesn't logout when i click on it. when i click on time and date, it will logout.
+- [+] put Desktop at right corner.
+- [+] put logout at left corner.
+- [+] currently when i maximize the windows, the panel goes on top ot them. and i can't see the bottom of my windows. i don't want this behavriour.
   panel should be reduce from whole screen size. every other window should calculate it's size and position based on remaining space in the screen(screen size should be minus panel size)
 
 ## ~/.config/mew/config
@@ -89,8 +91,10 @@
 - [ ] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
   but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
 
+---------------------------------------------------------------------------------
+
 # v3
 - [ ] i should be able to define a keybinding to bring back windows to center. center means:
         width = 2/3 width of screen, height = 2/3 height of screen.
-
-
+- [ ] use this icon:  instead of writing "Desktop" on panel.
+- [ ] use this icon: 󰗼 instead of wriging "logout" on panel.
