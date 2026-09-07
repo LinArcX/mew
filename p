@@ -113,7 +113,7 @@ menu () {
 
       echo ">>> compiling (debug mode)"
       bear -- g++ -std=c++23 -g -pg -O0 -DDEBUG --coverage \
-        src/*.cpp $(pkg-config --cflags --libs x11 xft fontconfig freetype2 xcursor) -o build/debug/mew
+        src/*.cpp $(pkg-config --cflags --libs x11 xft fontconfig freetype2 xcursor) -lasound -o build/debug/mew
 
       xxd -i -n mew_font_ttf ./assets/fonts/SofiaSans-Regular.ttf > src/font_data.h
 

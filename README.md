@@ -44,3 +44,6 @@ configuration files reside here:
   key="XF86AudioRaiseVolume", command="amixer set PCM 5%+" # pi5: amixer -D default set Master 5%+
   key="XF86AudioLowerVolume", command="amixer set PCM 5%-" # pi5: amixer -D default set Master 5%-
   key="XF86AudioMute", command="amixer -D pulse set Master toggle" # amixer -D pulse set Master toggle
+
+Note: mew only supports .wav audio files. you can convert any format to .wav with ffmpeg:
+  ffmpeg -i xp_shutdown.mp3 xp_shutdown.wav

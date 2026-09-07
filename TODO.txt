@@ -74,8 +74,8 @@
   panel should be reduce from whole screen size. every other window should calculate it's size and position based on remaining space in the screen(screen size should be minus panel size)
 
 ## ~/.config/mew/config
-- [ ] ability to define panel color.
-- [ ] for login_sound and logout_sound, remove dependency from mpg123 and play audio internally.
+- [+] ability to define panel color.
+- [+] for login_sound and logout_sound, remove dependency from mpg123 and play audio internally.
   if you want to use any library, it should be minimal and inform me before.
 - [ ] ability to define applications windows size or position. for example:
     mpv.pos.x = 0
@@ -94,7 +94,13 @@
 ---------------------------------------------------------------------------------
 
 # v3
+- [ ] create a start menu at left coerner. (Remove Logout and Keys from left of panel also)
+  The start menu should be like in xfce or windows. but very minimal.
+  what i want is that when i click on it, a pop up window should show. for the moment, it contains in vertical order.
+   - Logout (use this icon: 󰗼 instead of wriging "Logout")
+   - ShortKeys (use this icon:  instead of wriging "Keys")
 - [ ] i should be able to define a keybinding to bring back windows to center. center means:
         width = 2/3 width of screen, height = 2/3 height of screen.
 - [ ] use this icon:  instead of writing "Desktop" on panel.
-- [ ] use this icon: 󰗼 instead of wriging "logout" on panel.
+- [ ] put time after Desktop at right corner.
+  for month, use the month name. for example instad of 09 you should write september.
