@@ -107,7 +107,8 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
     - [+] logout (exit from mew)
     - [ ] mew --restart
     - [P] mew --reconfigure
-      - [ ] put mew.pid in /tmp
+      not working as expected. need to test it again.
+      - [+] put mew.pid in /tmp
 
 ## apps
 ### mpv
@@ -126,3 +127,8 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 ---------------------------------------------------------------------------------
 # v5
 
+## panel
+- [ ] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
+
+## config
+- [ ] ability to set panel items color + panel item hover color in config file.
