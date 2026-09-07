@@ -2,41 +2,44 @@
 - [+] open window in center of screen
 - [+] when do alt+tab and when i hold this key combination, it should shows all open windows in a pop-up window.
   So i can cycle through them.(Alt+tab and Alt+Shift+tab for reverse cycle)
+- [+] font should be high quiality everywhere.
 - [+] right click for mew with these options:
-  - [ ] reconfigure
   - [+] exit
-  - [+] show keybindings
-- [+] change windows title fonts.
-- [P] change mouse theme.
-  - should read environment variable regarding to icons from ~/.config/mew/env
-- [ ] change window themes.
-- [ ] default background color
-- [ ] ability to snap left/right/bottom/top with a keyboard shortcut
-- [ ] ability to maximize/minimize with keyboard shortcut
-- add panel
-  - [ ] language switcher
-  - [ ] volume icon
-  - [ ] app launcher
-  - [ ] network manager
-- [ ] config file in: ~/.config/mew/config:
-  - background_color
-  - background_image
-  - login_sound
-  - logout_sound
-  - theme
-  - mouse_theme
-- [ ] add a setting in config file to assign for each window, the size/position of it when it starts.
-- [P] mew --reconfigure
-  - [ ] put mew.pid in /tmp
-- [ ] mew --restart
+- [P] keybinding file in: ~/.config/mew/keybindings
+  - [ ] define snap windows to left/right/bottom/top
+  - [ ] define maximize/minimize windows
+- [ ] config file in: ~/.config/mew/config
+  - [ ] size/position of windows.
+  - [ ] background image
+  - [ ] background color
+  - [ ] login_sound
+  - [ ] logout_sound
+  - [ ] windows theme
+  - [P] windows title fonts
+    currently it's hard-coded. finally it should read from conf file.
+  - [P] mouse theme
+    currently it's hard-coded. finally it should read from conf file.
+- [ ] implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
+  - [ ] show desktop (mandatory)
+  - [ ] time and date (mandatory)
+  - [ ] network manager (mandatory)
+  - [ ] volume icon (mandatory)
+  - [ ] language switcher (mandatory)
+  - [ ] app launcher (mandatory)
+    it shows .desktop files from ~/.local/share/apps
+    you can also make simple apps using extension system of mew. they will appear hear automatically
+    - [P] show keybindings (mandatory)
+      currently, it's part of context menu. it should be a mandatory plugin of panel.
+    - [ ] power manager (mandatory)
+      reboot
+      poweroff
+      - [P] logout (exit from mew)
+        currently, it's part of context menu. it should be a mandatory plugin of panel.
+      - [ ] mew --restart
+      - [P] mew --reconfigure
+        - [ ] put mew.pid in /tmp
 
 # apps
-## tint2
-- [ ] it should be on top of other windows.
-- [ ] it should be part of mew whole screen and rest of screen size should be use for other apps. 
-- [ ] it has border & icons. it shoulnd't have it.
-- [ ] when i hover over it, the mouse cursor chagned to resize. it shouldn't.
-
 ## mpv
 - [ ] Enter doesn't maximize the window(it should also hide the all border & icons also)
 - [ ] Left/right/bottom resize doesn't work
@@ -47,3 +50,9 @@
 
 ## neovim
 - [ ] cursor size changed to rectanlgle
+
+## tint2
+- [ ] it should be on top of other windows.
+- [ ] it should be part of mew whole screen and rest of screen size should be use for other apps. 
+- [ ] it has border & icons. it shoulnd't have it.
+- [ ] when i hover over it, the mouse cursor chagned to resize. it shouldn't.

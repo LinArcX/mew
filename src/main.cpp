@@ -132,6 +132,7 @@ static const unsigned long COLOR_SWITCHER_HL     = 0x0a64c8;
 static const unsigned long COLOR_SWITCHER_TEXT   = 0xffffff;
 
 static void focus_next();
+static void draw_title_text(Window window, int x, int y, const std::string& text);
 
 // NEW forward declarations
 //static int kb_close_button_x();
@@ -193,12 +194,8 @@ static void draw_context_menu()
 
     for (size_t i = 0; i < context_menu_items.size(); ++i) {
         int y = (int)i * MENU_ITEM_HEIGHT;
-
-        XSetForeground(display, gc, COLOR_MENU_TEXT);
-        XDrawString(display, context_menu, gc,
-                    12, y + MENU_ITEM_HEIGHT - 9,
-                    context_menu_items[i].c_str(),
-                    (int)context_menu_items[i].size());
+        int baseline = y + (MENU_ITEM_HEIGHT + (title_font ? title_font->ascent : 10)) / 2 - 2;
+        draw_title_text(context_menu, 12, baseline, context_menu_items[i]);
     }
 
     XFreeGC(display, gc);
@@ -425,8 +422,11 @@ static void draw_keybindings_window()
     XDrawLine(display, keybindings_window, gc, close_x + BUTTON_WIDTH - 9, 8, close_x + 9, TITLE_HEIGHT - 9);
 
     // Title text
-    static const char* title_text = "Keybindings";
-    XDrawString(display, keybindings_window, gc, BORDER_WIDTH + 8, TITLE_HEIGHT - 9, title_text, (int)strlen(title_text));
+    int text_height = title_font ? (title_font->ascent + title_font->descent) : 10;
+    int title_baseline = BORDER_WIDTH
+      + (TITLE_HEIGHT - BORDER_WIDTH - text_height) / 2
+      + (title_font ? title_font->ascent : 10);
+    draw_title_text(keybindings_window, BORDER_WIDTH + 8, title_baseline, "Keybindings");
 
     // Content area background
     XSetForeground(display, gc, COLOR_SWITCHER_BG);
@@ -436,13 +436,10 @@ static void draw_keybindings_window()
                    kb_win_height - TITLE_HEIGHT - BORDER_WIDTH);
 
     // Content text
-    XSetForeground(display, gc, COLOR_SWITCHER_TEXT);
-    int y = TITLE_HEIGHT + KB_PADDING + 12;
+    int y = TITLE_HEIGHT + KB_PADDING + (title_font ? title_font->ascent : 12);
     for (const std::string& line : kb_display_lines) {
         if (!line.empty()) {
-            XDrawString(display, keybindings_window, gc,
-                        BORDER_WIDTH + KB_PADDING, y,
-                        line.c_str(), (int)line.size());
+            draw_title_text(keybindings_window, BORDER_WIDTH + KB_PADDING, y, line);
         }
         y += KB_LINE_HEIGHT;
         if (y > kb_win_height - BORDER_WIDTH - 4)
@@ -739,10 +736,8 @@ static void draw_switcher()
         if (title.size() > 48)
             title = title.substr(0, 45) + "...";
 
-        XSetForeground(display, gc, COLOR_SWITCHER_TEXT);
-        XDrawString(display, switcher, gc,
-                    SWITCHER_PAD + 6, y + 20,
-                    title.c_str(), (int)title.size());
+        int baseline = y + (SWITCHER_LINE_H + (title_font ? title_font->ascent : 10)) / 2 - 2;
+        draw_title_text(switcher, SWITCHER_PAD + 6, baseline, title);
     }
 
     XFreeGC(display, gc);
