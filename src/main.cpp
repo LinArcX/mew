@@ -39,6 +39,7 @@ struct Client {
 
   bool maximized;
   bool minimized;
+  bool fullscreen;
 
   Time last_title_click;
 };
@@ -114,7 +115,7 @@ struct Config {
 static Config config;
 
 static const int TITLE_HEIGHT = 28;
-static const int BORDER_WIDTH = 2;
+static const int BORDER_WIDTH = 6;   // must be >= RESIZE_BORDER so edges stay on the frame
 static const int RESIZE_BORDER = 6;
 
 static const int BUTTON_WIDTH = 30;
@@ -130,6 +131,10 @@ static const unsigned long COLOR_TEXT   = 0xffffff;
 static Atom WM_DELETE_WINDOW;
 static Atom WM_PROTOCOLS;
 static Atom NET_WM_NAME;
+static Atom NET_WM_STATE;
+static Atom NET_WM_STATE_FULLSCREEN;
+static Atom NET_WM_STATE_MAXIMIZED_VERT;
+static Atom NET_WM_STATE_MAXIMIZED_HORZ;
 
 // Switcher
 static Window switcher = None;
@@ -1822,6 +1827,44 @@ static void maximize_client(Client* client)
     focus_client(client);
 }
 
+static void set_fullscreen(Client* client, bool enable)
+{
+  if (!client)
+    return;
+
+  if (enable && !client->fullscreen) {
+    if (!client->maximized) {
+      client->old_x = client->x;
+      client->old_y = client->y;
+      client->old_width = client->width;
+      client->old_height = client->height;
+    }
+    client->fullscreen = true;
+    client->maximized = true;
+    client->x = 0;
+    client->y = 0;
+    client->width = DisplayWidth(display, screen);
+    client->height = DisplayHeight(display, screen);
+
+    // Borderless: move client to 0,0 inside frame and make frame cover whole screen
+    XMoveResizeWindow(display, client->frame, 0, 0,
+                      client->width, client->height);
+    XMoveResizeWindow(display, client->window, 0, 0,
+                      client->width, client->height);
+    // Skip normal draw_frame (no decorations)
+  }
+  else if (!enable && client->fullscreen) {
+    client->fullscreen = false;
+    client->maximized = false;
+    client->x = client->old_x;
+    client->y = client->old_y;
+    client->width = client->old_width;
+    client->height = client->old_height;
+    resize_client(client);
+  }
+  focus_client(client);
+}
+
 static void snap_client(Client* client, const std::string& edge)
 {
   if (!client)
@@ -2476,6 +2519,7 @@ static void manage(Window window)
 
   client->maximized = false;
   client->minimized = false;
+  client->fullscreen = false;
 
   client->last_title_click = 0;
 
@@ -2824,6 +2868,15 @@ int main(int argc, char** argv)
           False
       );
 
+  NET_WM_STATE =
+      XInternAtom(display, "_NET_WM_STATE", False);
+  NET_WM_STATE_FULLSCREEN =
+      XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
+  NET_WM_STATE_MAXIMIZED_VERT =
+      XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+  NET_WM_STATE_MAXIMIZED_HORZ =
+      XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+
   /*
       Become the window manager
   */
@@ -2961,6 +3014,44 @@ int main(int argc, char** argv)
           Client* client = find_client(event.xproperty.window);
           if (client) {
             draw_frame(client);
+          }
+        }
+        break;
+      }
+
+      case ClientMessage:
+      {
+        XClientMessageEvent* cm = &event.xclient;
+        if (cm->message_type == NET_WM_STATE) {
+          Client* client = find_client(cm->window);
+          if (!client)
+            break;
+
+          // data.l[0]: 0=remove, 1=add, 2=toggle
+          // data.l[1], data.l[2]: properties
+          long action = cm->data.l[0];
+          Atom a1 = (Atom)cm->data.l[1];
+          Atom a2 = (Atom)cm->data.l[2];
+
+          bool want_fs = (a1 == NET_WM_STATE_FULLSCREEN || a2 == NET_WM_STATE_FULLSCREEN);
+          bool want_max = (a1 == NET_WM_STATE_MAXIMIZED_VERT || a1 == NET_WM_STATE_MAXIMIZED_HORZ ||
+                           a2 == NET_WM_STATE_MAXIMIZED_VERT || a2 == NET_WM_STATE_MAXIMIZED_HORZ);
+
+          if (want_fs) {
+            if (action == 1 || (action == 2 && !client->fullscreen))
+              set_fullscreen(client, true);
+            else if (action == 0 || (action == 2 && client->fullscreen))
+              set_fullscreen(client, false);
+          }
+          else if (want_max) {
+            if (action == 1 || (action == 2 && !client->maximized)) {
+              if (!client->maximized)
+                maximize_client(client);
+            }
+            else if (action == 0 || (action == 2 && client->maximized)) {
+              if (client->maximized)
+                maximize_client(client);
+            }
           }
         }
         break;

@@ -40,15 +40,11 @@
         - [ ] put mew.pid in /tmp
 ## apps
 ### mpv
-- [ ] Enter doesn't maximize the window(it should also hide the all border & icons also)
-- [ ] Left/right/bottom resize doesn't work
+- [+] Left/right/bottom resize doesn't work
 
 ### nemo
-- [ ] bottom resize doesn't work.
-- [ ] left/right resize sometimes grab internal content, instead of grabbing the frame.
-
-### neovim
-- [ ] cursor size changed to rectanlgle
+- [+] bottom resize doesn't work.
+- [+] left/right resize sometimes grab internal content, instead of grabbing the frame.
 
 ### tint2
 - [ ] it should be on top of other windows.
@@ -63,6 +59,7 @@
     width = 2/3 width of screen, height = 2/3 height of screen.
 
 ## ~/.config/mew/keybindings
+- [] define shortcut for fullscreen windows
 - [ ] i should be able to define a keybinding to bring back windows to center.
 
 ## panel
@@ -83,3 +80,11 @@
     mpv.pos.y = 0
     mpv.width = 200
     mpv.height = 300
+
+## apps
+### mpv
+- [ ] Pressing Enter doesn't maximize the whole window (i expect when i press ENTER in neovim, it becomes a full screen window)
+
+### neovim
+- [ ] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
+  but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
