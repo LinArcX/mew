@@ -15,6 +15,7 @@
 
 #include <csignal>
 #include <cstring>
+#include <ctime>
 #include <unistd.h>
 
 #include <algorithm>
@@ -144,8 +145,18 @@ static const unsigned long COLOR_SWITCHER_BORDER = 0x555555;
 static const unsigned long COLOR_SWITCHER_HL     = 0x0a64c8;
 static const unsigned long COLOR_SWITCHER_TEXT   = 0xffffff;
 
+// Panel
+static Window panel = None;
+static const int PANEL_HEIGHT = 28;
+static const unsigned long COLOR_PANEL_BG = 0x222222;
+static const unsigned long COLOR_PANEL_TEXT = 0xffffff;
+static time_t panel_last_time = 0;
+
 static void focus_next();
 static void draw_title_text(Window window, int x, int y, const std::string& text);
+static void draw_panel();
+static void create_panel();
+static void handle_panel_click(int x);
 
 // NEW forward declarations
 //static int kb_close_button_x();
@@ -366,6 +377,9 @@ static void raise_keybindings_window_if_active()
 {
   if (keybindings_window != None && keybindings_window_active) {
     XRaiseWindow(display, keybindings_window);
+  }
+  if (panel != None) {
+    XRaiseWindow(display, panel);
   }
 }
 
@@ -1143,6 +1157,98 @@ static void apply_background()
   // TODO: background_image support (requires image loader)
 }
 
+static void draw_panel()
+{
+  if (panel == None)
+    return;
+
+  int screen_w = DisplayWidth(display, screen);
+  GC gc = XCreateGC(display, panel, 0, nullptr);
+
+  XSetForeground(display, gc, COLOR_PANEL_BG);
+  XFillRectangle(display, panel, gc, 0, 0, screen_w, PANEL_HEIGHT);
+
+  // Clock (right side)
+  time_t now = time(nullptr);
+  struct tm* tm = localtime(&now);
+  char buf[64];
+  strftime(buf, sizeof(buf), "%Y-%m-%d  %H:%M", tm);
+
+  int text_h = title_font ? (title_font->ascent + title_font->descent) : 12;
+  int baseline = (PANEL_HEIGHT + text_h) / 2 - (title_font ? title_font->descent : 2);
+  int clock_w = title_font ? (int)(strlen(buf) * title_font->max_advance_width / 2) : 120; // rough
+  draw_title_text(panel, screen_w - clock_w - 16, baseline, buf);
+
+  // Power / Logout button (far right-ish)
+  draw_title_text(panel, screen_w - clock_w - 100, baseline, "Logout");
+
+  // Keybindings button
+  draw_title_text(panel, 12, baseline, "Keys");
+
+  // Show desktop
+  draw_title_text(panel, 70, baseline, "Desktop");
+
+  XFreeGC(display, gc);
+  panel_last_time = now;
+}
+
+static void create_panel()
+{
+  int screen_w = DisplayWidth(display, screen);
+  int screen_h = DisplayHeight(display, screen);
+
+  XSetWindowAttributes attrs{};
+  attrs.override_redirect = True;
+  attrs.background_pixel = COLOR_PANEL_BG;
+  attrs.event_mask = ExposureMask | ButtonPressMask;
+
+  panel = XCreateWindow(
+    display, root,
+    0, screen_h - PANEL_HEIGHT, screen_w, PANEL_HEIGHT,
+    0,
+    CopyFromParent, InputOutput, CopyFromParent,
+    CWOverrideRedirect | CWBackPixel | CWEventMask,
+    &attrs
+  );
+
+  XMapRaised(display, panel);
+  draw_panel();
+}
+
+static void minimize_client(Client* client)
+{
+    if (!client)
+        return;
+
+    client->minimized = true;
+
+    XUnmapWindow(
+        display,
+        client->frame
+    );
+
+    focus_next();
+}
+
+static void handle_panel_click(int x)
+{
+  int screen_w = DisplayWidth(display, screen);
+  // Rough hit testing (left buttons, right buttons)
+  if (x < 60) {
+    show_keybindings_window();
+  }
+  else if (x < 140) {
+    // Show desktop: minimize all
+    for (Client* c : clients) {
+      if (!c->minimized)
+        minimize_client(c);
+    }
+  }
+  else if (x > screen_w - 180 && x < screen_w - 90) {
+    should_quit = true; // Logout
+  }
+}
+
 static bool parse_keybinding(
   const std::string& line,
   std::string& key,
@@ -1671,20 +1777,7 @@ static void close_client(Client* client)
     }
 }
 
-static void minimize_client(Client* client)
-{
-    if (!client)
-        return;
 
-    client->minimized = true;
-
-    XUnmapWindow(
-        display,
-        client->frame
-    );
-
-    focus_next();
-}
 
 
 static void maximize_client(Client* client)
@@ -2752,7 +2845,7 @@ int main(int argc, char** argv)
 
   grab_keys();
 
-
+  create_panel();
   write_pidfile();
 
   /*
@@ -2841,7 +2934,19 @@ int main(int argc, char** argv)
       hide_switcher();
     }
 
+    // Update panel clock once per second
+    time_t now = time(nullptr);
+    if (now != panel_last_time) {
+      draw_panel();
+    }
+
     XEvent event;
+    if (XPending(display) == 0) {
+      // Sleep a bit so we don't busy-loop; still responsive
+      struct timespec ts = {0, 50 * 1000 * 1000}; // 50 ms
+      nanosleep(&ts, nullptr);
+      continue;
+    }
     XNextEvent(display, &event);
 
     switch (event.type) {
@@ -2961,6 +3066,12 @@ int main(int argc, char** argv)
               break;
           }
 
+          // Panel click
+          if (w == panel) {
+              handle_panel_click(event.xbutton.x);
+              break;
+          }
+
           // Click landed on an open context menu -> select the item.
           if (context_menu_active && w == context_menu) {
               int index = event.xbutton.y / MENU_ITEM_HEIGHT;
@@ -3007,6 +3118,10 @@ int main(int argc, char** argv)
           }
           if (event.xexpose.window == keybindings_window) {
             draw_keybindings_window();
+            break;
+          }
+          if (event.xexpose.window == panel) {
+            draw_panel();
             break;
           }
 
