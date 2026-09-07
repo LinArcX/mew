@@ -3,10 +3,8 @@
 #include FT_FREETYPE_H
 #include <fontconfig/fontconfig.h>
 #include <fontconfig/fcfreetype.h>
-
 #include "hurmit_font_data.h"
-//#include "jetbrains_font_data.h"
-//#include "sofia_sans_font_data.h"
+
 
 #include <X11/Xcursor/Xcursor.h>
 
@@ -32,6 +30,9 @@
 #include <vector>
 #include <sys/stat.h>
 #include <sys/wait.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 struct Client {
   Window window;
@@ -95,15 +96,17 @@ struct Config {
   double titleFontSize = 17.0;
   std::string mouseTheme = "";
   int mouseSize = 24;
-  unsigned long backgroundColor = 0x4E4F4E;
+  unsigned long backgroundColor = 0x3B3C3C;
   unsigned long panelColor = 0x222222;
   std::string backgroundImage;
+  bool useBackgroundImage = false; // last of color/image in config wins
   std::string loginSound;
   std::string logoutSound;
   std::string windowTheme; // reserved
 };
 
 static Config config;
+static Pixmap backgroundPixmap = None;
 
 static const int TITLE_HEIGHT = 28;
 static const int BORDER_WIDTH = 6;   // must be >= RESIZE_BORDER so edges stay on the frame
@@ -1012,6 +1015,11 @@ static void create_config_directory()
 
 static void load_config()
 {
+  // Reset to defaults before reading (last entry in file wins for bg)
+  config.backgroundColor = 0x3B3C3C;
+  config.backgroundImage.clear();
+  config.useBackgroundImage = false;
+
   std::string path = get_config_directory() + "/config";
   std::ifstream file(path);
   if (!file.is_open()) {
@@ -1053,6 +1061,7 @@ static void load_config()
       if (!val.empty() && val[0] == '#')
         val = "0x" + val.substr(1);
       config.backgroundColor = std::strtoul(val.c_str(), nullptr, 0);
+      config.useBackgroundImage = false; // last wins
     }
     else if (key == "panel_color") {
       if (!val.empty() && val[0] == '#')
@@ -1062,6 +1071,7 @@ static void load_config()
     }
     else if (key == "background_image") {
       config.backgroundImage = expand_home(val);
+      config.useBackgroundImage = true; // last wins
     }
     else if (key == "login_sound") {
       config.loginSound = expand_home(val);
@@ -1183,9 +1193,84 @@ static void play_sound(const std::string& path)
 
 static void apply_background()
 {
+  // Free previous pixmap if any
+  if (backgroundPixmap != None) {
+    XFreePixmap(display, backgroundPixmap);
+    backgroundPixmap = None;
+  }
+
+  int screen_w = DisplayWidth(display, screen);
+  int screen_h = DisplayHeight(display, screen);
+
+  if (config.useBackgroundImage && !config.backgroundImage.empty()) {
+    int img_w = 0, img_h = 0, channels = 0;
+    unsigned char* data = stbi_load(
+      config.backgroundImage.c_str(),
+      &img_w, &img_h, &channels, 4 // force RGBA
+    );
+
+    if (data && img_w > 0 && img_h > 0) {
+      backgroundPixmap = XCreatePixmap(
+        display, root, screen_w, screen_h,
+        DefaultDepth(display, screen)
+      );
+
+      // Build XImage from stretched pixels (nearest-neighbor)
+      Visual* visual = DefaultVisual(display, screen);
+      int depth = DefaultDepth(display, screen);
+
+      // Create 32-bit ZPixmap buffer
+      size_t bufSize = (size_t)screen_w * screen_h * 4;
+      char* xdata = (char*)malloc(bufSize);
+      if (xdata) {
+        for (int y = 0; y < screen_h; ++y) {
+          int sy = y * img_h / screen_h;
+          for (int x = 0; x < screen_w; ++x) {
+            int sx = x * img_w / screen_w;
+            unsigned char* src = data + (sy * img_w + sx) * 4;
+            // X11 typically wants BGRX on little-endian
+            char* dst = xdata + (y * screen_w + x) * 4;
+            dst[0] = (char)src[2]; // B
+            dst[1] = (char)src[1]; // G
+            dst[2] = (char)src[0]; // R
+            dst[3] = 0;
+          }
+        }
+
+        XImage* image = XCreateImage(
+          display, visual, depth, ZPixmap, 0,
+          xdata, screen_w, screen_h, 32, 0
+        );
+
+        if (image) {
+          GC gc = XCreateGC(display, backgroundPixmap, 0, nullptr);
+          XPutImage(display, backgroundPixmap, gc, image,
+                    0, 0, 0, 0, screen_w, screen_h);
+          XFreeGC(display, gc);
+          // XDestroyImage frees xdata
+          XDestroyImage(image);
+        } else {
+          free(xdata);
+        }
+      }
+
+      stbi_image_free(data);
+
+      XSetWindowBackgroundPixmap(display, root, backgroundPixmap);
+      XClearWindow(display, root);
+      printf("mew: background image set: %s\n", config.backgroundImage.c_str());
+      return;
+    }
+
+    if (data)
+      stbi_image_free(data);
+    fprintf(stderr, "mew: failed to load background image: %s\n",
+            config.backgroundImage.c_str());
+  }
+
+  // Solid color fallback / explicit color
   XSetWindowBackground(display, root, config.backgroundColor);
   XClearWindow(display, root);
-  // TODO: background_image support (requires image loader)
 }
 
 static void hide_start_menu()

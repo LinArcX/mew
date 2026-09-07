@@ -80,7 +80,7 @@
   should i use another font?
 
 ## ~/.config/mew/config
-- [ ] background image
+- [+] background image
   choose a minimal approach. if you need extra libary to be use, just tell me know.
 - [ ] windows theme
 - [ ] ability to define applications windows size or position. for example:
