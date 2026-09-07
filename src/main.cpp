@@ -144,7 +144,17 @@ static const int PANEL_HEIGHT = 28;
 static unsigned long COLOR_PANEL_BG = 0x222222;
 static const unsigned long COLOR_PANEL_TEXT = 0xffffff;
 static time_t panel_last_time = 0;
-static bool desktop_showing = false; // true when all windows are minimized by "Desktop"
+static bool desktop_showing = false;
+
+// Start menu
+static Window start_menu = None;
+static bool start_menu_active = false;
+static const int START_MENU_WIDTH = 160;
+static const int START_MENU_ITEM_H = 32;
+static const std::vector<std::string> start_menu_items = {
+  "󰗼  Logout",
+  "  ShortKeys"
+};
 
 static void focus_next();
 static void draw_title_text(Window window, int x, int y, const std::string& text);
@@ -1175,6 +1185,79 @@ static void apply_background()
   // TODO: background_image support (requires image loader)
 }
 
+static void hide_start_menu()
+{
+  if (start_menu != None && start_menu_active) {
+    XUnmapWindow(display, start_menu);
+  }
+  start_menu_active = false;
+}
+
+static void draw_start_menu()
+{
+  if (start_menu == None || !start_menu_active)
+    return;
+
+  int height = (int)start_menu_items.size() * START_MENU_ITEM_H;
+  GC gc = XCreateGC(display, start_menu, 0, nullptr);
+
+  XSetForeground(display, gc, COLOR_PANEL_BG);
+  XFillRectangle(display, start_menu, gc, 0, 0, START_MENU_WIDTH, height);
+
+  XSetForeground(display, gc, 0x555555);
+  XDrawRectangle(display, start_menu, gc, 0, 0, START_MENU_WIDTH - 1, height - 1);
+
+  for (size_t i = 0; i < start_menu_items.size(); ++i) {
+    int y = (int)i * START_MENU_ITEM_H;
+    int baseline = y + (START_MENU_ITEM_H + (title_font ? title_font->ascent : 10)) / 2 - 2;
+    draw_title_text(start_menu, 12, baseline, start_menu_items[i]);
+  }
+
+  XFreeGC(display, gc);
+}
+
+static void show_start_menu()
+{
+  int height = (int)start_menu_items.size() * START_MENU_ITEM_H;
+  int screen_h = DisplayHeight(display, screen);
+  int x = 0;
+  int y = screen_h - PANEL_HEIGHT - height;
+
+  if (start_menu == None) {
+    XSetWindowAttributes attrs{};
+    attrs.override_redirect = True;
+    attrs.background_pixel = COLOR_PANEL_BG;
+    attrs.event_mask = ExposureMask | ButtonPressMask;
+
+    start_menu = XCreateWindow(
+      display, root,
+      x, y, START_MENU_WIDTH, height,
+      1,
+      CopyFromParent, InputOutput, CopyFromParent,
+      CWOverrideRedirect | CWBackPixel | CWEventMask,
+      &attrs
+    );
+  } else {
+    XMoveResizeWindow(display, start_menu, x, y, START_MENU_WIDTH, height);
+  }
+
+  XMapRaised(display, start_menu);
+  start_menu_active = true;
+  draw_start_menu();
+}
+
+static void handle_start_menu_click(int y)
+{
+  int index = y / START_MENU_ITEM_H;
+  hide_start_menu();
+  if (index == 0) {
+    should_quit = true;
+  }
+  else if (index == 1) {
+    show_keybindings_window();
+  }
+}
+
 static void draw_panel()
 {
   if (panel == None)
@@ -1189,25 +1272,20 @@ static void draw_panel()
   time_t now = time(nullptr);
   struct tm* tm = localtime(&now);
   char buf[64];
-  strftime(buf, sizeof(buf), "%Y-%m-%d  %H:%M:%S", tm);
+  // Full month name, e.g. "2026-September-07  23:57:01"
+  strftime(buf, sizeof(buf), "%Y-%B-%d  %H:%M:%S", tm);
 
   int text_h = title_font ? (title_font->ascent + title_font->descent) : 12;
   int baseline = (PANEL_HEIGHT + text_h) / 2 - (title_font ? title_font->descent : 2);
   //int clock_w = title_font ? (int)(strlen(buf) * title_font->max_advance_width / 2) : 120; // rough
   //draw_title_text(panel, screen_w - clock_w - 16, baseline, buf);
 
-  // Left: Logout
-  draw_title_text(panel, 12, baseline, "Logout");
+  // Left: Start button
+  draw_title_text(panel, 12, baseline, "☰");
 
-  // Center-ish: Keys
-  draw_title_text(panel, 100, baseline, "Keys");
-
-  // Clock (center-right)
-  int clock_x = screen_w / 2 - 60;
-  draw_title_text(panel, clock_x, baseline, buf);
-
-  // Right: Desktop
-  draw_title_text(panel, screen_w - 90, baseline, "Desktop");
+  // Right: Desktop icon then clock
+  draw_title_text(panel, screen_w - 220, baseline, "");
+  draw_title_text(panel, screen_w - 190, baseline, buf);
 
   XFreeGC(display, gc);
   panel_last_time = now;
@@ -1289,20 +1367,17 @@ static void handle_panel_click(int x)
 {
   int screen_w = DisplayWidth(display, screen);
 
-  // Left corner: Logout
-  if (x < 80) {
-    should_quit = true;
+  // Left: Start menu
+  if (x < 40) {
+    if (start_menu_active)
+      hide_start_menu();
+    else
+      show_start_menu();
     return;
   }
 
-  // Keys
-  if (x >= 90 && x < 160) {
-    show_keybindings_window();
-    return;
-  }
-
-  // Right corner: Desktop toggle
-  if (x > screen_w - 100) {
+  // Right: Desktop icon (~30px wide)
+  if (x > screen_w - 230 && x < screen_w - 195) {
     if (!desktop_showing) {
       for (Client* c : clients) {
         if (!c->minimized)
@@ -2785,6 +2860,8 @@ static bool handle_custom_keybinding(
               if (client && !client->maximized && !client->fullscreen) {
                 int screen_w = DisplayWidth(display, screen);
                 int screen_h = usable_height();
+                client->width = (screen_w * 2) / 3;
+                client->height = (screen_h * 2) / 3;
                 int frame_w = client->width + BORDER_WIDTH * 2;
                 int frame_h = client->height + TITLE_HEIGHT + BORDER_WIDTH;
                 client->x = (screen_w - frame_w) / 2;
@@ -3235,6 +3312,17 @@ int main(int argc, char** argv)
               break;
           }
 
+          // Start menu click
+          if (start_menu_active && w == start_menu) {
+              handle_start_menu_click(event.xbutton.y);
+              break;
+          }
+
+          // Click elsewhere closes start menu
+          if (start_menu_active) {
+              hide_start_menu();
+          }
+
           handle_button_press(&event.xbutton);
           break;
         }
@@ -3262,6 +3350,10 @@ int main(int argc, char** argv)
           }
           if (event.xexpose.window == panel) {
             draw_panel();
+            break;
+          }
+          if (event.xexpose.window == start_menu) {
+            draw_start_menu();
             break;
           }
 

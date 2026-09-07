@@ -94,13 +94,23 @@
 ---------------------------------------------------------------------------------
 
 # v3
-- [ ] create a start menu at left coerner. (Remove Logout and Keys from left of panel also)
+- [+] create a start menu at left coerner. (Remove Logout and Keys from left of panel also)
   The start menu should be like in xfce or windows. but very minimal.
   what i want is that when i click on it, a pop up window should show. for the moment, it contains in vertical order.
    - Logout (use this icon: 󰗼 instead of wriging "Logout")
    - ShortKeys (use this icon:  instead of wriging "Keys")
-- [ ] i should be able to define a keybinding to bring back windows to center. center means:
+- [+] i should be able to define a keybinding to bring back windows to center. center means:
         width = 2/3 width of screen, height = 2/3 height of screen.
-- [ ] use this icon:  instead of writing "Desktop" on panel.
-- [ ] put time after Desktop at right corner.
+- [+] use this icon:  instead of writing "Desktop" on panel.
+- [+] put time after Desktop at right corner.
   for month, use the month name. for example instad of 09 you should write september.
+
+
+---------------------------------------------------------------------------------
+
+# v4
+- [ ] i can't see real icons in start menu and other places that should show the icon. fix it, if you can't at least tell me what should i do? 
+  should i use another font?
+- [ ] when i do fullscreen, if i then press W-c to bring window to center, it won't work. (but snapping works, W-Left, W-Right, W-Up, W-Down)
+
+- [] right corner of panel should have this order: from right first put "Desktop" icon, then put time/date
