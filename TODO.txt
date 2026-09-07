@@ -6,8 +6,9 @@
 - [+] right click for mew with these options:
   - [+] exit
 - [P] keybinding file in: ~/.config/mew/keybindings
-  - [ ] define snap windows to left/right/bottom/top
-  - [ ] define maximize/minimize windows
+  - [+] define snap windows to left/right/bottom/top
+  - [+] define maximize/minimize windows
+  - [ ] define key to bring back window to center.
 - [ ] config file in: ~/.config/mew/config
   - [ ] size/position of windows.
   - [ ] background image

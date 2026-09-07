@@ -1635,6 +1635,60 @@ static void maximize_client(Client* client)
     focus_client(client);
 }
 
+static void snap_client(Client* client, const std::string& edge)
+{
+  if (!client)
+    return;
+
+  int screen_w = DisplayWidth(display, screen);
+  int screen_h = DisplayHeight(display, screen);
+
+  // Save current geometry so maximize can restore later if needed
+  if (!client->maximized) {
+    client->old_x = client->x;
+    client->old_y = client->y;
+    client->old_width = client->width;
+    client->old_height = client->height;
+  }
+  client->maximized = false;
+
+  if (edge == "left") {
+    client->x = 0;
+    client->y = 0;
+    client->width = screen_w / 2 - BORDER_WIDTH * 2;
+    client->height = screen_h - TITLE_HEIGHT - BORDER_WIDTH;
+  }
+  else if (edge == "right") {
+    client->x = screen_w / 2;
+    client->y = 0;
+    client->width = screen_w / 2 - BORDER_WIDTH * 2;
+    client->height = screen_h - TITLE_HEIGHT - BORDER_WIDTH;
+  }
+  else if (edge == "top") {
+    client->x = 0;
+    client->y = 0;
+    client->width = screen_w - BORDER_WIDTH * 2;
+    client->height = screen_h / 2 - TITLE_HEIGHT - BORDER_WIDTH;
+  }
+  else if (edge == "bottom") {
+    client->x = 0;
+    client->y = screen_h / 2;
+    client->width = screen_w - BORDER_WIDTH * 2;
+    client->height = screen_h / 2 - TITLE_HEIGHT - BORDER_WIDTH;
+  }
+  else {
+    return;
+  }
+
+  if (client->width < MIN_WIDTH)
+    client->width = MIN_WIDTH;
+  if (client->height < MIN_HEIGHT)
+    client->height = MIN_HEIGHT;
+
+  resize_client(client);
+  focus_client(client);
+}
+
 
 // ------------------------------------------------------------
 // Resize
@@ -2415,13 +2469,43 @@ static bool handle_custom_keybinding(
             state ==
                 binding.modifiers) {
 
+            const std::string& cmd = binding.command;
+            Client* client = get_focused_client();
+
+            // Internal window-manager actions
+            if (cmd == "snap-left") {
+              snap_client(client, "left");
+              return true;
+            }
+            if (cmd == "snap-right") {
+              snap_client(client, "right");
+              return true;
+            }
+            if (cmd == "snap-top") {
+              snap_client(client, "top");
+              return true;
+            }
+            if (cmd == "snap-bottom") {
+              snap_client(client, "bottom");
+              return true;
+            }
+            if (cmd == "maximize") {
+              maximize_client(client);
+              return true;
+            }
+            if (cmd == "minimize") {
+              minimize_client(client);
+              return true;
+            }
+
+            // External command
             std::string command =
-                binding.command +
+                cmd +
                 " >/dev/null 2>&1 &";
 
             printf(
                 "mew: running: %s\n",
-                binding.command.c_str()
+                cmd.c_str()
             );
 
             std::system(
