@@ -99,6 +99,19 @@ static int screen;
 static std::vector<Client*> clients;
 static std::vector<KeyBinding> keybindings;
 
+struct Config {
+  double titleFontSize = 17.0;
+  std::string mouseTheme = "";
+  int mouseSize = 24;
+  unsigned long backgroundColor = 0x4E4F4E;
+  std::string backgroundImage;
+  std::string loginSound;
+  std::string logoutSound;
+  std::string windowTheme; // reserved
+};
+
+static Config config;
+
 static const int TITLE_HEIGHT = 28;
 static const int BORDER_WIDTH = 2;
 static const int RESIZE_BORDER = 6;
@@ -274,7 +287,7 @@ static void load_title_font()
 
   FcPattern* pattern = FcPatternCreate();
   FcPatternAddFTFace(pattern, FC_FT_FACE, ft_face);
-  FcPatternAddDouble(pattern, FC_PIXEL_SIZE, 17.0);
+  FcPatternAddDouble(pattern, FC_PIXEL_SIZE, config.titleFontSize);
 
   // Force good rendering defaults explicitly — don't rely on Xft.*
   // X resources, since a minimal WM setup like this usually has none set.
@@ -1047,6 +1060,87 @@ static void create_config_directory()
 
   mkdir(config.c_str(), 0755);
   mkdir(mew.c_str(), 0755);
+}
+
+static void load_config()
+{
+  std::string path = get_config_directory() + "/config";
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    fprintf(stderr, "mew: no config file: %s (using defaults)\n", path.c_str());
+    return;
+  }
+
+  std::string line;
+  while (std::getline(file, line)) {
+    line = trim(line);
+    if (line.empty() || line[0] == '#')
+      continue;
+
+    size_t eq = line.find('=');
+    if (eq == std::string::npos)
+      continue;
+
+    std::string key = trim(line.substr(0, eq));
+    std::string val = trim(line.substr(eq + 1));
+
+    // strip optional quotes
+    if (val.size() >= 2 && val.front() == '"' && val.back() == '"')
+      val = val.substr(1, val.size() - 2);
+
+    if (key == "title_font_size") {
+      config.titleFontSize = std::atof(val.c_str());
+      if (config.titleFontSize < 8.0)
+        config.titleFontSize = 8.0;
+    }
+    else if (key == "mouse_theme") {
+      config.mouseTheme = val;
+    }
+    else if (key == "mouse_size") {
+      config.mouseSize = std::atoi(val.c_str());
+      if (config.mouseSize < 8)
+        config.mouseSize = 8;
+    }
+    else if (key == "background_color") {
+      // accept 0xRRGGBB or #RRGGBB
+      if (val[0] == '#')
+        val = "0x" + val.substr(1);
+      config.backgroundColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "background_image") {
+      config.backgroundImage = expand_home(val);
+    }
+    else if (key == "login_sound") {
+      config.loginSound = expand_home(val);
+    }
+    else if (key == "logout_sound") {
+      config.logoutSound = expand_home(val);
+    }
+    else if (key == "window_theme") {
+      config.windowTheme = val;
+    }
+  }
+
+  //printf("mew: config loaded (font=%.1f, mouse=%s/%d, bg=0x%06lx)\n",
+  //       config.titleFontSize,
+  //       config.mouseTheme.c_str(),
+  //       config.mouseSize,
+  //       config.backgroundColor);
+}
+
+static void play_sound(const std::string& path)
+{
+  if (path.empty())
+    return;
+  std::string cmd = "mpg123 \"" + path + "\" >/dev/null 2>&1 &";
+  std::system(cmd.c_str());
+}
+
+static void apply_background()
+{
+  XSetWindowBackground(display, root, config.backgroundColor);
+  XClearWindow(display, root);
+  // TODO: background_image support (requires image loader)
 }
 
 static bool parse_keybinding(
@@ -2601,13 +2695,22 @@ int main(int argc, char** argv)
   root =
       RootWindow(display, screen);
 
+  create_config_directory();
+  load_config();
+  load_keybindings();
+
   load_title_font();
 
-  setenv("XCURSOR_THEME", "dmz-white", 0); // 0 = don't override if already set
-  setenv("XCURSOR_SIZE", "24", 0);
+  setenv("XCURSOR_THEME", config.mouseTheme.c_str(), 0);
+  char size_buf[16];
+  snprintf(size_buf, sizeof(size_buf), "%d", config.mouseSize);
+  setenv("XCURSOR_SIZE", size_buf, 0);
 
   load_cursors();
   XDefineCursor(display, root, cursor_default);
+
+  apply_background();
+  play_sound(config.loginSound);
 
   XSetErrorHandler(
       error_handler
@@ -2627,16 +2730,6 @@ int main(int argc, char** argv)
           "WM_PROTOCOLS",
           False
       );
-
-  /*
-      Create ~/.config/mew
-  */
-  create_config_directory();
-
-  /*
-      Load configuration
-  */
-  load_keybindings();
 
   /*
       Become the window manager
@@ -2731,8 +2824,10 @@ int main(int argc, char** argv)
       // drop every previous grab
       XUngrabKey(display, AnyKey, AnyModifier, root);
 
-      // reload keybindings from disk
+      // reload config + keybindings
+      load_config();
       load_keybindings();
+      apply_background();
 
       // re-grab everything (built-in + new config)
       grab_keys();
@@ -3040,6 +3135,7 @@ int main(int argc, char** argv)
     }
   }
 
+  play_sound(config.logoutSound);
   remove_pidfile();
   XCloseDisplay(display);
   return 0;

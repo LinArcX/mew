@@ -12,10 +12,12 @@
 - [ ] config file in: ~/.config/mew/config
   - [ ] size/position of windows.
   - [ ] background image
-  - [ ] background color
-  - [ ] login_sound
-  - [ ] logout_sound
   - [ ] windows theme
+  - [+] background color
+  - [+] login_sound
+    - [ ] remove dependency from mpg123 and play internally.
+  - [+] logout_sound
+    - [ ] remove dependency from mpg123 and play internally.
   - [P] windows title fonts
     currently it's hard-coded. finally it should read from conf file.
   - [P] mouse theme

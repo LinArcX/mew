@@ -1,9 +1,12 @@
 # mew
 a wm for x
 
-# libs
+# dependencies
+## libs
   libXft-devel
   freetype-devel
+## runtime
+  mpg123
 
 # run
 ## xephyr
