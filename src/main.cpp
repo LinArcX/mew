@@ -30,6 +30,7 @@
 #include <vector>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <dirent.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -158,9 +159,26 @@ static bool start_menu_active = false;
 static const int START_MENU_WIDTH = 160;
 static const int START_MENU_ITEM_H = 32;
 static const std::vector<std::string> start_menu_items = {
-  "󰗼  Logout",
-  "  KeyBindings"
+  "󰀻  Apps",
+  "  KeyBindings",
+  "󰗼  Logout"
 };
+
+struct DesktopApp {
+  std::string name;
+  std::string exec;
+};
+
+static std::vector<DesktopApp> desktopApps;
+static std::vector<int> launcherFiltered; // indices into desktopApps
+static Window launcher = None;
+static bool launcher_active = false;
+static std::string launcherQuery;
+static size_t launcherIndex = 0;
+static const int LAUNCHER_WIDTH = 480;
+static const int LAUNCHER_LINE_H = 28;
+static const int LAUNCHER_PAD = 10;
+static const int LAUNCHER_MAX_VISIBLE = 12;
 
 static void focus_next();
 static void draw_title_text(Window window, int x, int y, const std::string& text);
@@ -168,6 +186,11 @@ static void draw_panel();
 static void create_panel();
 static void handle_panel_click(int x);
 static void draw_frame(Client* client);
+static void show_launcher();
+static void hide_launcher();
+static void draw_launcher();
+static void filter_launcher();
+static void scan_desktop_apps();
 
 
 // Usable area excludes the bottom panel
@@ -1339,10 +1362,268 @@ static void handle_start_menu_click(int y)
   int index = y / START_MENU_ITEM_H;
   hide_start_menu();
   if (index == 0) {
-    should_quit = true;
+    show_launcher();
   }
   else if (index == 1) {
     show_keybindings_window();
+  }
+  else if (index == 2) {
+    should_quit = true;
+  }
+}
+
+static std::string desktop_field(const std::string& content, const std::string& key)
+{
+  std::string prefix = key + "=";
+  std::istringstream ss(content);
+  std::string line;
+  while (std::getline(ss, line)) {
+    line = trim(line);
+    if (line.rfind(prefix, 0) == 0)
+      return line.substr(prefix.size());
+  }
+  return "";
+}
+
+static void scan_desktop_dir(const std::string& dir)
+{
+  DIR* d = opendir(dir.c_str());
+  if (!d)
+    return;
+
+  struct dirent* ent;
+  while ((ent = readdir(d)) != nullptr) {
+    std::string name = ent->d_name;
+    if (name.size() < 9 || name.substr(name.size() - 8) != ".desktop")
+      continue;
+
+    std::string path = dir + "/" + name;
+    std::ifstream f(path);
+    if (!f.is_open())
+      continue;
+
+    std::ostringstream oss;
+    oss << f.rdbuf();
+    std::string content = oss.str();
+
+    // Skip hidden / NoDisplay
+    if (content.find("NoDisplay=true") != std::string::npos)
+      continue;
+    if (content.find("Hidden=true") != std::string::npos)
+      continue;
+
+    std::string appName = desktop_field(content, "Name");
+    std::string exec = desktop_field(content, "Exec");
+    if (appName.empty() || exec.empty())
+      continue;
+
+    // Strip field codes %f %F %u %U %i %c %k
+    std::string cleaned;
+    for (size_t i = 0; i < exec.size(); ++i) {
+      if (exec[i] == '%' && i + 1 < exec.size()) {
+        ++i;
+        continue;
+      }
+      cleaned.push_back(exec[i]);
+    }
+    exec = trim(cleaned);
+
+    DesktopApp app;
+    app.name = appName;
+    app.exec = exec;
+    desktopApps.push_back(app);
+  }
+  closedir(d);
+}
+
+static void scan_desktop_apps()
+{
+  desktopApps.clear();
+  const char* home = getenv("HOME");
+  if (home) {
+    scan_desktop_dir(std::string(home) + "/.local/share/applications");
+  }
+  scan_desktop_dir("/usr/share/applications");
+  scan_desktop_dir("/usr/local/share/applications");
+
+  // Sort by name
+  std::sort(desktopApps.begin(), desktopApps.end(),
+    [](const DesktopApp& a, const DesktopApp& b) {
+      return a.name < b.name;
+    });
+}
+
+static void filter_launcher()
+{
+  launcherFiltered.clear();
+  std::string q = launcherQuery;
+  // lowercase query
+  for (char& c : q) {
+    if (c >= 'A' && c <= 'Z')
+      c = (char)(c + 32);
+  }
+
+  for (size_t i = 0; i < desktopApps.size(); ++i) {
+    std::string n = desktopApps[i].name;
+    for (char& c : n) {
+      if (c >= 'A' && c <= 'Z')
+        c = (char)(c + 32);
+    }
+    if (q.empty() || n.find(q) != std::string::npos)
+      launcherFiltered.push_back((int)i);
+  }
+
+  if (launcherIndex >= launcherFiltered.size())
+    launcherIndex = launcherFiltered.empty() ? 0 : launcherFiltered.size() - 1;
+}
+
+static void hide_launcher()
+{
+  if (launcher != None && launcher_active) {
+    XUnmapWindow(display, launcher);
+    XUngrabKeyboard(display, CurrentTime);
+  }
+  launcher_active = false;
+  launcherQuery.clear();
+  launcherIndex = 0;
+}
+
+static void draw_launcher()
+{
+  if (launcher == None || !launcher_active)
+    return;
+
+  int visible = (int)std::min(launcherFiltered.size(), (size_t)LAUNCHER_MAX_VISIBLE);
+  int height = LAUNCHER_PAD * 2 + LAUNCHER_LINE_H + visible * LAUNCHER_LINE_H + 8;
+
+  GC gc = XCreateGC(display, launcher, 0, nullptr);
+
+  // Background
+  XSetForeground(display, gc, 0x1e1e1e);
+  XFillRectangle(display, launcher, gc, 0, 0, LAUNCHER_WIDTH, height);
+
+  // Border
+  XSetForeground(display, gc, 0x555555);
+  XDrawRectangle(display, launcher, gc, 0, 0, LAUNCHER_WIDTH - 1, height - 1);
+
+  // Search box
+  XSetForeground(display, gc, 0x2a2a2a);
+  XFillRectangle(display, launcher, gc, LAUNCHER_PAD, LAUNCHER_PAD,
+                 LAUNCHER_WIDTH - LAUNCHER_PAD * 2, LAUNCHER_LINE_H);
+
+  std::string prompt = "> " + launcherQuery + "_";
+  int baseline = LAUNCHER_PAD + (LAUNCHER_LINE_H + (title_font ? title_font->ascent : 10)) / 2 - 2;
+  draw_title_text(launcher, LAUNCHER_PAD + 8, baseline, prompt);
+
+  // Results
+  int y0 = LAUNCHER_PAD + LAUNCHER_LINE_H + 4;
+  for (int i = 0; i < visible; ++i) {
+    int y = y0 + i * LAUNCHER_LINE_H;
+    if ((size_t)i == launcherIndex) {
+      XSetForeground(display, gc, 0x0a64c8);
+      XFillRectangle(display, launcher, gc, 4, y, LAUNCHER_WIDTH - 8, LAUNCHER_LINE_H);
+    }
+    int appIdx = launcherFiltered[i];
+    int bl = y + (LAUNCHER_LINE_H + (title_font ? title_font->ascent : 10)) / 2 - 2;
+    draw_title_text(launcher, LAUNCHER_PAD + 8, bl, desktopApps[appIdx].name);
+  }
+
+  XFreeGC(display, gc);
+}
+
+static void show_launcher()
+{
+  if (desktopApps.empty())
+    scan_desktop_apps();
+
+  launcherQuery.clear();
+  launcherIndex = 0;
+  filter_launcher();
+
+  int visible = (int)std::min(launcherFiltered.size(), (size_t)LAUNCHER_MAX_VISIBLE);
+  int height = LAUNCHER_PAD * 2 + LAUNCHER_LINE_H + visible * LAUNCHER_LINE_H + 8;
+  int screen_w = DisplayWidth(display, screen);
+  int screen_h = DisplayHeight(display, screen);
+  int x = (screen_w - LAUNCHER_WIDTH) / 2;
+  int y = (screen_h - height) / 3;
+
+  if (launcher == None) {
+    XSetWindowAttributes attrs{};
+    attrs.override_redirect = True;
+    attrs.background_pixel = 0x1e1e1e;
+    attrs.event_mask = ExposureMask | KeyPressMask | ButtonPressMask;
+
+    launcher = XCreateWindow(
+      display, root,
+      x, y, LAUNCHER_WIDTH, height,
+      1,
+      CopyFromParent, InputOutput, CopyFromParent,
+      CWOverrideRedirect | CWBackPixel | CWEventMask,
+      &attrs
+    );
+  } else {
+    XMoveResizeWindow(display, launcher, x, y, LAUNCHER_WIDTH, height);
+  }
+
+  XMapRaised(display, launcher);
+  XGrabKeyboard(display, launcher, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+  launcher_active = true;
+  draw_launcher();
+}
+
+static void launch_selected()
+{
+  if (launcherFiltered.empty() || launcherIndex >= launcherFiltered.size())
+    return;
+  int appIdx = launcherFiltered[launcherIndex];
+  std::string cmd = desktopApps[appIdx].exec + " >/dev/null 2>&1 &";
+  std::system(cmd.c_str());
+  hide_launcher();
+}
+
+static void handle_launcher_key(XKeyEvent* event)
+{
+  KeySym sym = XLookupKeysym(event, 0);
+  char buf[8] = {};
+  XLookupString(event, buf, sizeof(buf) - 1, &sym, nullptr);
+
+  if (sym == XK_Escape) {
+    hide_launcher();
+    return;
+  }
+  if (sym == XK_Return) {
+    launch_selected();
+    return;
+  }
+  if (sym == XK_Up || sym == XK_KP_Up) {
+    if (launcherIndex > 0)
+      --launcherIndex;
+    draw_launcher();
+    return;
+  }
+  if (sym == XK_Down || sym == XK_KP_Down) {
+    if (!launcherFiltered.empty() && launcherIndex + 1 < launcherFiltered.size()
+        && launcherIndex + 1 < (size_t)LAUNCHER_MAX_VISIBLE)
+      ++launcherIndex;
+    draw_launcher();
+    return;
+  }
+  if (sym == XK_BackSpace) {
+    if (!launcherQuery.empty()) {
+      launcherQuery.pop_back();
+      launcherIndex = 0;
+      filter_launcher();
+      draw_launcher();
+    }
+    return;
+  }
+
+  // Printable character
+  if (buf[0] >= 32 && buf[0] < 127) {
+    launcherQuery.push_back(buf[0]);
+    launcherIndex = 0;
+    filter_launcher();
+    draw_launcher();
   }
 }
 
@@ -3410,10 +3691,25 @@ int main(int argc, char** argv)
               break;
           }
 
-          // Click elsewhere closes start menu
-          if (start_menu_active) {
-              hide_start_menu();
+          // Launcher click (select item)
+          if (launcher_active && w == launcher) {
+              int y = event.xbutton.y;
+              int y0 = LAUNCHER_PAD + LAUNCHER_LINE_H + 4;
+              if (y >= y0) {
+                size_t idx = (size_t)((y - y0) / LAUNCHER_LINE_H);
+                if (idx < launcherFiltered.size() && idx < (size_t)LAUNCHER_MAX_VISIBLE) {
+                  launcherIndex = idx;
+                  launch_selected();
+                }
+              }
+              break;
           }
+
+          // Click elsewhere closes menus
+          if (start_menu_active)
+              hide_start_menu();
+          if (launcher_active)
+              hide_launcher();
 
           handle_button_press(&event.xbutton);
           break;
@@ -3442,6 +3738,10 @@ int main(int argc, char** argv)
           }
           if (event.xexpose.window == panel) {
             draw_panel();
+            break;
+          }
+          if (event.xexpose.window == launcher) {
+            draw_launcher();
             break;
           }
           if (event.xexpose.window == start_menu) {
@@ -3493,6 +3793,12 @@ int main(int argc, char** argv)
         case KeyPress:
         {
           XKeyEvent* key = &event.xkey;
+
+          // Launcher takes all keys while open
+          if (launcher_active) {
+            handle_launcher_key(key);
+            break;
+          }
 
           // First check user configuration.
           if (handle_custom_keybinding(key)) {
