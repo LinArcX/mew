@@ -1,3 +1,35 @@
+// C Headers
+#include <ctime>
+#include <cstdio>
+#include <csignal>
+#include <cstring>
+#include <cstdint>
+#include <cstdlib>
+#include <unistd.h>
+#include <dirent.h>
+
+// C++ Headers
+#include <string>
+#include <vector>
+#include <sstream>
+#include <fstream>
+#include <algorithm>
+
+// X11 Headers
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <X11/keysym.h>
+#include <X11/Xutil.h>
+#include <X11/cursorfont.h>
+#include <X11/Xcursor/Xcursor.h>
+
+// Linux headers
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/reboot.h>
+#include <linux/reboot.h>
+
+// Font headers
 #include <X11/Xft/Xft.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -5,111 +37,27 @@
 #include <fontconfig/fcfreetype.h>
 #include "hurmit_font_data.h"
 
-
-#include <X11/Xcursor/Xcursor.h>
-
-#include <X11/Xlib.h>
-#include <X11/Xatom.h>
-#include <X11/keysym.h>
-#include <X11/Xutil.h>
-#include <X11/cursorfont.h>
-
-#include <csignal>
-#include <cstring>
-#include <ctime>
-#include <unistd.h>
-#include <alsa/asoundlib.h>
-
-#include <algorithm>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <sys/reboot.h>
-#include <linux/reboot.h>
-#include <dirent.h>
-
+// Image headers
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-struct Client {
-  Window window;
-  Window frame;
+// Internal Classes
+#include "audio.h"
 
-  int x, y;
-  int width, height;
-
-  int old_x, old_y;
-  int old_width, old_height;
-
-  bool maximized;
-  bool minimized;
-  bool fullscreen;
-
-  Time last_title_click;
-};
-
-struct KeyBinding {
-  KeyCode keycode;
-  unsigned int modifiers;
-  std::string command;
-  std::string display;   // human-readable form, e.g. "Win-q"
-};
-
-enum ResizeDirection {
-  RESIZE_NONE,
-  RESIZE_LEFT,
-  RESIZE_RIGHT,
-  RESIZE_TOP,
-  RESIZE_BOTTOM,
-  RESIZE_TOP_LEFT,
-  RESIZE_TOP_RIGHT,
-  RESIZE_BOTTOM_LEFT,
-  RESIZE_BOTTOM_RIGHT
-};
-
-static FT_Library ft_library = nullptr;
 static FT_Face ft_face = nullptr;
-
-static XftFont* title_font = nullptr;
-static XftColor title_text_color;
-static bool title_text_color_ready = false;
+static FT_Library ft_library = nullptr;
+static std::vector<std::string> kb_display_lines;
 
 // Keybindings viewer window
 static Window keybindings_window = None;
 static bool keybindings_window_active = false;
-//static bool keybindings_window_maximized = false;
 
 // Set by the "Exit" menu item, checked in the main loop.
 static volatile bool should_quit = false;
 
-static Display* display = nullptr;
-static Window root;
 static int screen;
-
-static std::vector<Client*> clients;
-static std::vector<KeyBinding> keybindings;
-
-struct Config {
-  double titleFontSize = 17.0;
-  std::string mouseTheme = "";
-  int mouseSize = 24;
-  unsigned long backgroundColor = 0x3B3C3C;
-  unsigned long panelColor = 0x222222;
-  std::string backgroundImage;
-  bool useBackgroundImage = false; // last of color/image in config wins
-  std::string loginSound;
-  std::string logoutSound;
-  std::string windowTheme; // reserved
-};
-
-static Config config;
-static Pixmap backgroundPixmap = None;
+static Window root;
+static Display* display = nullptr;
 
 static const int TITLE_HEIGHT = 28;
 static const int BORDER_WIDTH = 6;   // must be >= RESIZE_BORDER so edges stay on the frame
@@ -120,11 +68,6 @@ static const int BUTTON_WIDTH = 30;
 static const int MIN_WIDTH = 120;
 static const int MIN_HEIGHT = 60;
 
-static const unsigned long COLOR_BORDER = 0x333333;
-static const unsigned long COLOR_TITLE  = 0x444444;
-static const unsigned long COLOR_BUTTON = 0x555555;
-static const unsigned long COLOR_TEXT   = 0xffffff;
-
 static Atom WM_DELETE_WINDOW;
 static Atom WM_PROTOCOLS;
 static Atom NET_WM_NAME;
@@ -132,30 +75,6 @@ static Atom NET_WM_STATE;
 static Atom NET_WM_STATE_FULLSCREEN;
 static Atom NET_WM_STATE_MAXIMIZED_VERT;
 static Atom NET_WM_STATE_MAXIMIZED_HORZ;
-
-// Switcher
-static Window switcher = None;
-static bool switcher_active = false;
-static size_t switcher_index = 0;
-static std::vector<Client*> switcher_list;
-
-static const int SWITCHER_WIDTH = 420;
-static const int SWITCHER_LINE_H = 30;
-static const int SWITCHER_PAD = 12;
-static const unsigned long COLOR_SWITCHER_BG     = 0x1e1e1e;
-static const unsigned long COLOR_SWITCHER_BORDER = 0x555555;
-static const unsigned long COLOR_SWITCHER_HL     = 0x0a64c8;
-static const unsigned long COLOR_SWITCHER_TEXT   = 0xffffff;
-
-// Panel
-static Window panel = None;
-static const int PANEL_HEIGHT = 28;
-static unsigned long COLOR_PANEL_BG = 0x222222;
-static const unsigned long COLOR_PANEL_TEXT = 0xffffff;
-static time_t panel_last_time = 0;
-static bool desktop_showing = false;
-static int volumePercent = -1;  // 0-100, -1 = unknown
-static bool volumeMuted = false;
 
 // Start menu
 static Window start_menu = None;
@@ -196,10 +115,6 @@ static const int LAUNCHER_PAD = 10;
 static const int LAUNCHER_MAX_VISIBLE = 12;
 
 static void focus_next();
-static void draw_title_text(Window window, int x, int y, const std::string& text);
-static void draw_panel();
-static void create_panel();
-static void handle_panel_click(int x);
 static void draw_frame(Client* client);
 static void show_launcher();
 static void hide_launcher();
@@ -213,11 +128,6 @@ static int usable_height()
 {
   return DisplayHeight(display, screen) - PANEL_HEIGHT;
 }
-
-// NEW forward declarations
-//static int kb_close_button_x();
-//static void move_keybindings_window();
-//static void keybindings_window_apply_geometry();
 
 static Cursor cursor_default;
 static Cursor cursor_resize_h;
@@ -251,8 +161,6 @@ static void load_cursors()
 
 static int kb_win_x, kb_win_y;
 static int kb_win_width, kb_win_height;
-//static int kb_win_old_x, kb_win_old_y, kb_win_old_width, kb_win_old_height;
-
 static const int KB_LINE_HEIGHT = 20;
 static const int KB_PADDING = 12;
 static const int KB_DEFAULT_WIDTH = 560;
@@ -262,7 +170,7 @@ static void kb_button_geometry(int& close_x, int& max_x, int& min_x)
     close_x = kb_win_width - BUTTON_WIDTH;
 }
 
-static void load_title_font()
+static void loadTitleFont()
 {
   if (FT_Init_FreeType(&ft_library) != 0) {
     fprintf(stderr, "mew: FT_Init_FreeType failed\n");
@@ -307,61 +215,16 @@ static void load_title_font()
   // XftFontOpenPattern wraps our FT_Face directly and does NOT run
   // FcFontMatch against the system font database, so it can't get
   // silently substituted the way XftFontOpen did.
-  title_font = XftFontOpenPattern(display, pattern);
+  titleFont = XftFontOpenPattern(display, pattern);
 
   // Note: on success or failure, XftFontOpenPattern takes ownership of
   // `pattern` internally (frees it on failure, stores it on success) —
   // do not call FcPatternDestroy(pattern) yourself either way.
 
-  if (!title_font) {
+  if (!titleFont) {
     fprintf(stderr, "mew: XftFontOpenPattern failed for embedded font\n");
   }
 }
-
-//static void load_title_font()
-//{
-//  int fd = memfd_create("mew-font", 0);
-//  if (fd < 0) {
-//    fprintf(stderr, "mew: memfd_create failed for embedded font\n");
-//    return;
-//  }
-//
-//  ssize_t written = write(fd, mew_font_ttf, mew_font_ttf_len);
-//  if (written != (ssize_t)mew_font_ttf_len) {
-//    fprintf(stderr, "mew: failed to write embedded font to memfd\n");
-//    close(fd);
-//    return;
-//  }
-//
-//  char path[64];
-//  snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
-//
-//  title_font = XftFontOpen(
-//    display, screen,
-//    XFT_FILE, XftTypeString, path,
-//    XFT_INDEX, XftTypeInteger, 0,
-//    XFT_SIZE, XftTypeDouble, 12.0,
-//    nullptr
-//  );
-//
-//  // Deliberately leaked: FreeType may lazily re-read the stream for
-//  // the font's lifetime, so the memfd must stay alive for as long as
-//  // mew runs. Cost is a few KB, reclaimed automatically on exit.
-//
-//  if (!title_font) {
-//    fprintf(stderr, "mew: failed to open embedded font\n");
-//  }
-//}
-
-static std::string get_config_directory()
-{
-  const char* home = getenv("HOME");
-  if (!home) {
-    return "";
-  }
-  return std::string(home) + "/.config/mew";
-}
-
 
 static void raise_keybindings_window_if_active()
 {
@@ -373,12 +236,11 @@ static void raise_keybindings_window_if_active()
   }
 }
 
-static std::vector<std::string> kb_display_lines;
 
 static void build_keybindings_display()
 {
     kb_display_lines.clear();
-    kb_display_lines.push_back(get_config_directory() + "/keybindings");
+    kb_display_lines.push_back(configs.getConfigDirectory() + "/keybindings");
     kb_display_lines.push_back(""); // spacer
 
     int i = 1;
@@ -421,29 +283,16 @@ static void draw_keybindings_window()
     // Icons
     XSetForeground(display, gc, COLOR_TEXT);
 
-    //// Minimize
-    //XDrawLine(display, keybindings_window, gc,
-    //          min_x + 9, TITLE_HEIGHT / 2 + 4,
-    //          min_x + BUTTON_WIDTH - 9, TITLE_HEIGHT / 2 + 4);
-
-    // Maximize / restore
-    //if (keybindings_window_maximized) {
-    //    XDrawRectangle(display, keybindings_window, gc, max_x + 9, 8, 10, 9);
-    //    XDrawRectangle(display, keybindings_window, gc, max_x + 12, 11, 10, 9);
-    //} else {
-    //    XDrawRectangle(display, keybindings_window, gc, max_x + 9, 8, 11, 10);
-    //}
-
     // Close
     XDrawLine(display, keybindings_window, gc, close_x + 9, 8, close_x + BUTTON_WIDTH - 9, TITLE_HEIGHT - 9);
     XDrawLine(display, keybindings_window, gc, close_x + BUTTON_WIDTH - 9, 8, close_x + 9, TITLE_HEIGHT - 9);
 
     // Title text
-    int text_height = title_font ? (title_font->ascent + title_font->descent) : 10;
+    int text_height = titleFont ? (titleFont->ascent + titleFont->descent) : 10;
     int title_baseline = BORDER_WIDTH
       + (TITLE_HEIGHT - BORDER_WIDTH - text_height) / 2
-      + (title_font ? title_font->ascent : 10);
-    draw_title_text(keybindings_window, BORDER_WIDTH + 8, title_baseline, "Keybindings");
+      + (titleFont ? titleFont->ascent : 10);
+    windows.drawTitleText(keybindings_window, BORDER_WIDTH + 8, title_baseline, "Keybindings");
 
     // Content area background
     XSetForeground(display, gc, COLOR_SWITCHER_BG);
@@ -453,10 +302,10 @@ static void draw_keybindings_window()
                    kb_win_height - TITLE_HEIGHT - BORDER_WIDTH);
 
     // Content text
-    int y = TITLE_HEIGHT + KB_PADDING + (title_font ? title_font->ascent : 12);
+    int y = TITLE_HEIGHT + KB_PADDING + (titleFont ? titleFont->ascent : 12);
     for (const std::string& line : kb_display_lines) {
         if (!line.empty()) {
-            draw_title_text(keybindings_window, BORDER_WIDTH + KB_PADDING, y, line);
+            windows.drawTitleText(keybindings_window, BORDER_WIDTH + KB_PADDING, y, line);
         }
         y += KB_LINE_HEIGHT;
         if (y > kb_win_height - BORDER_WIDTH - 4)
@@ -475,54 +324,6 @@ static void keybindings_window_apply_geometry()
 {
     XMoveResizeWindow(display, keybindings_window, kb_win_x, kb_win_y, kb_win_width, kb_win_height);
     draw_keybindings_window();
-}
-
-static void ensure_title_text_color()
-{
-  if (title_text_color_ready)
-    return;
-
-  XRenderColor render_color;
-  render_color.red   = 0xffff;
-  render_color.green = 0xffff;
-  render_color.blue  = 0xffff;
-  render_color.alpha = 0xffff;
-
-  XftColorAllocValue(
-    display, DefaultVisual(display, screen),
-    DefaultColormap(display, screen),
-    &render_color, &title_text_color
-  );
-
-  title_text_color_ready = true;
-}
-
-static void draw_title_text(Window window, int x, int y, const std::string& text)
-{
-  if (!title_font) {
-    // Fallback so a load failure doesn't leave titles blank.
-    GC gc = XCreateGC(display, window, 0, nullptr);
-    XSetForeground(display, gc, COLOR_TEXT);
-    XDrawString(display, window, gc, x, y, text.c_str(), (int)text.size());
-    XFreeGC(display, gc);
-    return;
-  }
-
-  ensure_title_text_color();
-
-  XftDraw* draw = XftDrawCreate(
-    display, window,
-    DefaultVisual(display, screen),
-    DefaultColormap(display, screen)
-  );
-
-  XftDrawStringUtf8(
-    draw, &title_text_color, title_font,
-    x, y,
-    (const FcChar8*)text.c_str(), (int)text.size()
-  );
-
-  XftDrawDestroy(draw);
 }
 
 static void move_keybindings_window()
@@ -564,57 +365,6 @@ static void move_keybindings_window()
 
     XUngrabPointer(display, CurrentTime);
 }
-
-//static void draw_keybindings_window()
-//{
-//    if (keybindings_window == None || !keybindings_window_active)
-//        return;
-//
-//    GC gc = XCreateGC(display, keybindings_window, 0, nullptr);
-//
-//    XSetForeground(display, gc, COLOR_SWITCHER_BG);
-//    XFillRectangle(display, keybindings_window, gc, 0, 0, 400, 300);
-//
-//    XSetForeground(display, gc, COLOR_SWITCHER_BORDER);
-//    XDrawRectangle(display, keybindings_window, gc, 0, 0, 399, 299);
-//
-//    XSetForeground(display, gc, COLOR_SWITCHER_TEXT);
-//    XDrawString(display, keybindings_window, gc, 12, 24, "Keybindings", 11);
-//
-//    XFreeGC(display, gc);
-//}
-
-//static void show_keybindings_window()
-//{
-//    int width = 400, height = 300;
-//    int screen_w = DisplayWidth(display, screen);
-//    int screen_h = DisplayHeight(display, screen);
-//    int x = (screen_w - width) / 2;
-//    int y = (screen_h - height) / 2;
-//
-//    if (keybindings_window == None) {
-//        XSetWindowAttributes attrs{};
-//        attrs.override_redirect = True;
-//        attrs.background_pixel  = COLOR_SWITCHER_BG;
-//        attrs.border_pixel      = COLOR_SWITCHER_BORDER;
-//        attrs.event_mask        = ExposureMask;
-//
-//        keybindings_window = XCreateWindow(
-//            display, root,
-//            x, y, width, height,
-//            1,
-//            CopyFromParent, InputOutput, CopyFromParent,
-//            CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask,
-//            &attrs
-//        );
-//    } else {
-//        XMoveResizeWindow(display, keybindings_window, x, y, width, height);
-//    }
-//
-//    XMapRaised(display, keybindings_window);
-//    keybindings_window_active = true;
-//    draw_keybindings_window();
-//}
 
 static void show_keybindings_window()
 {
@@ -674,116 +424,7 @@ static bool is_alt_held()
     return key_pressed(XK_Alt_L) || key_pressed(XK_Alt_R);
 }
 
-static std::string get_window_title(Window window)
-{
-    char* name = nullptr;
-    if (XFetchName(display, window, &name) && name) {
-        std::string title(name);
-        XFree(name);
-        return title.empty() ? "Untitled" : title;
-    }
 
-    XTextProperty prop;
-    if (XGetWMName(display, window, &prop) && prop.value) {
-        std::string title(reinterpret_cast<char*>(prop.value));
-        XFree(prop.value);
-        return title.empty() ? "Untitled" : title;
-    }
-    return "Untitled";
-}
-
-static void hide_switcher()
-{
-    if (switcher != None && switcher_active) {
-        XUnmapWindow(display, switcher);
-    }
-
-    // NEW: release the keyboard grab we took in show_switcher()
-    if (switcher_active) {
-        XUngrabKeyboard(display, CurrentTime);
-    }
-
-    switcher_active = false;
-    switcher_list.clear();
-}
-
-static void draw_switcher()
-{
-    if (switcher == None || !switcher_active || switcher_list.empty())
-        return;
-
-    int height = SWITCHER_PAD * 2 + (int)switcher_list.size() * SWITCHER_LINE_H;
-
-    GC gc = XCreateGC(display, switcher, 0, nullptr);
-
-    // Background
-    XSetForeground(display, gc, COLOR_SWITCHER_BG);
-    XFillRectangle(display, switcher, gc, 0, 0, SWITCHER_WIDTH, height);
-
-    // Border
-    XSetForeground(display, gc, COLOR_SWITCHER_BORDER);
-    XDrawRectangle(display, switcher, gc, 0, 0, SWITCHER_WIDTH - 1, height - 1);
-
-    for (size_t i = 0; i < switcher_list.size(); ++i) {
-        int y = SWITCHER_PAD + (int)i * SWITCHER_LINE_H;
-
-        if (i == switcher_index) {
-            XSetForeground(display, gc, COLOR_SWITCHER_HL);
-            XFillRectangle(display, switcher, gc,
-                           4, y,
-                           SWITCHER_WIDTH - 8, SWITCHER_LINE_H);
-        }
-
-        std::string title = get_window_title(switcher_list[i]->window);
-        if (title.size() > 48)
-            title = title.substr(0, 45) + "...";
-
-        int baseline = y + (SWITCHER_LINE_H + (title_font ? title_font->ascent : 10)) / 2 - 2;
-        draw_title_text(switcher, SWITCHER_PAD + 6, baseline, title);
-    }
-
-    XFreeGC(display, gc);
-}
-
-static void show_switcher()
-{
-    if (switcher_list.empty())
-        return;
-
-    int height = SWITCHER_PAD * 2 + (int)switcher_list.size() * SWITCHER_LINE_H;
-    int screen_w = DisplayWidth(display, screen);
-    int screen_h = DisplayHeight(display, screen);
-    int x = (screen_w - SWITCHER_WIDTH) / 2;
-    int y = (screen_h - height) / 2;
-
-    if (switcher == None) {
-        XSetWindowAttributes attrs{};
-        attrs.override_redirect = True;
-        attrs.background_pixel  = COLOR_SWITCHER_BG;
-        attrs.border_pixel      = COLOR_SWITCHER_BORDER;
-        attrs.event_mask        = ExposureMask;
-
-        switcher = XCreateWindow(
-            display, root,
-            x, y, SWITCHER_WIDTH, height,
-            1,  // border width
-            CopyFromParent, InputOutput, CopyFromParent,
-            CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask,
-            &attrs
-        );
-    } else {
-        XMoveResizeWindow(display, switcher, x, y, SWITCHER_WIDTH, height);
-    }
-
-    XMapRaised(display, switcher);
-
-    // NEW: grab the keyboard so we reliably see the Alt release
-    // regardless of which window has input focus.
-    XGrabKeyboard(display, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
-
-    switcher_active = true;
-    draw_switcher();
-}
 
 static Client* find_client(Window window)
 {
@@ -815,7 +456,7 @@ static void cycle_switcher(bool reverse)
   }
 
   if (switcher_list.empty()) {
-    hide_switcher();
+    switcher.hide();
     return;
   }
 
@@ -830,7 +471,7 @@ static void cycle_switcher(bool reverse)
       }
     }
     switcher_index = start;
-    show_switcher();
+    switcher.show();
   }
   else {
     if (reverse) {
@@ -841,53 +482,15 @@ static void cycle_switcher(bool reverse)
     else {
       switcher_index = (switcher_index + 1) % switcher_list.size();
     }
-    draw_switcher();
+    switcher.draw();
   }
-
-  //  // Build / refresh the list of visible windows
-  //  switcher_list.clear();
-  //  for (Client* c : clients) {
-  //      if (!c->minimized)
-  //          switcher_list.push_back(c);
-  //  }
-
-  //  if (switcher_list.empty()) {
-  //      hide_switcher();
-  //      return;
-  //  }
-
-  //  if (!switcher_active) {
-  //      // First press: start switcher and select the next window
-  //      Client* current = get_focused_client();
-  //      size_t start = 0;
-  //      if (current) {
-  //          auto it = std::find(switcher_list.begin(), switcher_list.end(), current);
-  //          if (it != switcher_list.end())
-  //              start = (it - switcher_list.begin() + 1) % switcher_list.size();
-  //      }
-  //      switcher_index = start;
-  //      show_switcher();
-  //  } else {
-  //      // Subsequent presses: cycle
-  //      if (reverse) {
-  //          if (switcher_index == 0)
-  //              switcher_index = switcher_list.size() - 1;
-  //          else
-  //              --switcher_index;
-  //      } else {
-  //          switcher_index = (switcher_index + 1) % switcher_list.size();
-  //      }
-  //      draw_switcher();
-  //  }
 }
 
 static void focus_next();
-
 static volatile sig_atomic_t need_reconfigure = 0;
-
 static void sighup_handler(int)
 {
-    need_reconfigure = 1;
+  need_reconfigure = 1;
 }
 
 static std::string expand_key_string(const std::string& key_string)
@@ -916,21 +519,6 @@ static std::string expand_key_string(const std::string& key_string)
     return result;
 }
 
-
-
-
-
-
-
-
-//static void keybindings_window_apply_geometry()
-//{
-//    XMoveResizeWindow(display, keybindings_window, kb_win_x, kb_win_y, kb_win_width, kb_win_height);
-//    draw_keybindings_window();
-//}
-
-
-
 static void hide_keybindings_window()
 {
     if (keybindings_window != None && keybindings_window_active) {
@@ -938,33 +526,6 @@ static void hide_keybindings_window()
     }
     keybindings_window_active = false;
 }
-
-//static void maximize_keybindings_window()
-//{
-//    int screen_w = DisplayWidth(display, screen);
-//    int screen_h = DisplayHeight(display, screen);
-//
-//    if (!keybindings_window_maximized) {
-//        kb_win_old_x = kb_win_x;
-//        kb_win_old_y = kb_win_y;
-//        kb_win_old_width = kb_win_width;
-//        kb_win_old_height = kb_win_height;
-//
-//        kb_win_x = 0;
-//        kb_win_y = 0;
-//        kb_win_width = screen_w;
-//        kb_win_height = screen_h;
-//        keybindings_window_maximized = true;
-//    } else {
-//        kb_win_x = kb_win_old_x;
-//        kb_win_y = kb_win_old_y;
-//        kb_win_width = kb_win_old_width;
-//        kb_win_height = kb_win_old_height;
-//        keybindings_window_maximized = false;
-//    }
-//
-//    keybindings_window_apply_geometry();
-//}
 
 static void handle_keybindings_window_click(XButtonEvent* event)
 {
@@ -983,333 +544,6 @@ static void handle_keybindings_window_click(XButtonEvent* event)
     move_keybindings_window();
 }
 
-// ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
-
-
-static std::string trim(const std::string& str)
-{
-  size_t start = str.find_first_not_of(" \t\r\n");
-  if (start == std::string::npos) {
-    return "";
-  }
-
-  size_t end = str.find_last_not_of(" \t\r\n");
-  return str.substr(start, end - start + 1);
-}
-
-static std::string expand_home(const std::string& path)
-{
-  if (path == "~") {
-    return std::string(getenv("HOME"));
-  }
-
-  if (path.rfind("~/", 0) == 0) {
-    const char* home = getenv("HOME");
-    if (!home) {
-      return path;
-    }
-    return std::string(home) + path.substr(1);
-  }
-  return path;
-}
-
-// ------------------------------------------------------------
-// Config
-// ------------------------------------------------------------
-
-
-static std::string get_pidfile()
-{
-    return "/tmp/mew.pid";
-}
-
-static void write_pidfile()
-{
-    std::ofstream f(get_pidfile());
-    if (f)
-        f << getpid() << '\n';
-}
-
-static void remove_pidfile()
-{
-    unlink(get_pidfile().c_str());
-}
-
-static void create_config_directory()
-{
-  const char* home = getenv("HOME");
-  if (!home) {
-    return;
-  }
-
-  std::string config = std::string(home) + "/.config";
-  std::string mew = config + "/mew";
-
-  mkdir(config.c_str(), 0755);
-  mkdir(mew.c_str(), 0755);
-}
-
-static void load_config()
-{
-  // Reset to defaults before reading (last entry in file wins for bg)
-  config.backgroundColor = 0x3B3C3C;
-  config.backgroundImage.clear();
-  config.useBackgroundImage = false;
-
-  std::string path = get_config_directory() + "/config";
-  std::ifstream file(path);
-  if (!file.is_open()) {
-    fprintf(stderr, "mew: no config file: %s (using defaults)\n", path.c_str());
-    return;
-  }
-
-  std::string line;
-  while (std::getline(file, line)) {
-    line = trim(line);
-    if (line.empty() || line[0] == '#')
-      continue;
-
-    size_t eq = line.find('=');
-    if (eq == std::string::npos)
-      continue;
-
-    std::string key = trim(line.substr(0, eq));
-    std::string val = trim(line.substr(eq + 1));
-
-    // strip optional quotes
-    if (val.size() >= 2 && val.front() == '"' && val.back() == '"')
-      val = val.substr(1, val.size() - 2);
-
-    if (key == "title_font_size") {
-      config.titleFontSize = std::atof(val.c_str());
-      if (config.titleFontSize < 8.0)
-        config.titleFontSize = 8.0;
-    }
-    else if (key == "mouse_theme") {
-      config.mouseTheme = val;
-    }
-    else if (key == "mouse_size") {
-      config.mouseSize = std::atoi(val.c_str());
-      if (config.mouseSize < 8)
-        config.mouseSize = 8;
-    }
-    else if (key == "background_color") {
-      if (!val.empty() && val[0] == '#')
-        val = "0x" + val.substr(1);
-      config.backgroundColor = std::strtoul(val.c_str(), nullptr, 0);
-      config.useBackgroundImage = false; // last wins
-    }
-    else if (key == "panel_color") {
-      if (!val.empty() && val[0] == '#')
-        val = "0x" + val.substr(1);
-      config.panelColor = std::strtoul(val.c_str(), nullptr, 0);
-      COLOR_PANEL_BG = config.panelColor;
-    }
-    else if (key == "background_image") {
-      config.backgroundImage = expand_home(val);
-      config.useBackgroundImage = true; // last wins
-    }
-    else if (key == "login_sound") {
-      config.loginSound = expand_home(val);
-    }
-    else if (key == "logout_sound") {
-      config.logoutSound = expand_home(val);
-    }
-    else if (key == "window_theme") {
-      config.windowTheme = val;
-    }
-  }
-
-  //printf("mew: config loaded (font=%.1f, mouse=%s/%d, bg=0x%06lx)\n",
-  //       config.titleFontSize,
-  //       config.mouseTheme.c_str(),
-  //       config.mouseSize,
-  //       config.backgroundColor);
-}
-
-// Minimal WAV player (PCM, 16-bit). Runs in a forked child so the WM stays responsive.
-static void play_sound(const std::string& path)
-{
-  if (path.empty())
-    return;
-
-  pid_t pid = fork();
-  if (pid != 0)
-    return; // parent continues
-
-  // --- child ---
-  FILE* f = fopen(path.c_str(), "rb");
-  if (!f)
-    _exit(1);
-
-  // Parse RIFF/WAV header (minimal)
-  char riff[12];
-  if (fread(riff, 1, 12, f) != 12 || memcmp(riff, "RIFF", 4) != 0 || memcmp(riff + 8, "WAVE", 4) != 0) {
-    fclose(f);
-    _exit(1);
-  }
-
-  uint16_t audioFormat = 0, numChannels = 0, bitsPerSample = 0;
-  uint32_t sampleRate = 0, dataSize = 0;
-  long dataOffset = 0;
-
-  while (true) {
-    char chunkId[4];
-    uint32_t chunkSize = 0;
-    if (fread(chunkId, 1, 4, f) != 4 || fread(&chunkSize, 4, 1, f) != 1)
-      break;
-
-    if (memcmp(chunkId, "fmt ", 4) == 0) {
-      uint16_t fmt, ch, bps;
-      uint32_t sr;
-      fread(&fmt, 2, 1, f);
-      fread(&ch, 2, 1, f);
-      fread(&sr, 4, 1, f);
-      fseek(f, 6, SEEK_CUR); // skip byte rate + block align
-      fread(&bps, 2, 1, f);
-      audioFormat = fmt;
-      numChannels = ch;
-      sampleRate = sr;
-      bitsPerSample = bps;
-      if (chunkSize > 16)
-        fseek(f, chunkSize - 16, SEEK_CUR);
-    }
-    else if (memcmp(chunkId, "data", 4) == 0) {
-      dataSize = chunkSize;
-      dataOffset = ftell(f);
-      break;
-    }
-    else {
-      fseek(f, chunkSize, SEEK_CUR);
-    }
-  }
-
-  if (audioFormat != 1 || bitsPerSample != 16 || dataOffset == 0) {
-    fclose(f);
-    _exit(1);
-  }
-
-  fseek(f, dataOffset, SEEK_SET);
-
-  snd_pcm_t* pcm = nullptr;
-  if (snd_pcm_open(&pcm, "default", SND_PCM_STREAM_PLAYBACK, 0) < 0) {
-    fclose(f);
-    _exit(1);
-  }
-
-  snd_pcm_set_params(pcm,
-                     SND_PCM_FORMAT_S16_LE,
-                     SND_PCM_ACCESS_RW_INTERLEAVED,
-                     numChannels,
-                     sampleRate,
-                     1,          // soft resample
-                     100000);    // 100 ms latency
-
-  const size_t bufFrames = 1024;
-  std::vector<char> buf(bufFrames * numChannels * 2);
-  size_t remaining = dataSize;
-
-  while (remaining > 0) {
-    size_t toRead = std::min(remaining, buf.size());
-    size_t n = fread(buf.data(), 1, toRead, f);
-    if (n == 0)
-      break;
-    snd_pcm_sframes_t frames = n / (numChannels * 2);
-    snd_pcm_sframes_t written = snd_pcm_writei(pcm, buf.data(), frames);
-    if (written < 0)
-      snd_pcm_recover(pcm, (int)written, 0);
-    remaining -= n;
-  }
-
-  snd_pcm_drain(pcm);
-  snd_pcm_close(pcm);
-  fclose(f);
-  _exit(0);
-}
-
-static void apply_background()
-{
-  // Free previous pixmap if any
-  if (backgroundPixmap != None) {
-    XFreePixmap(display, backgroundPixmap);
-    backgroundPixmap = None;
-  }
-
-  int screen_w = DisplayWidth(display, screen);
-  int screen_h = DisplayHeight(display, screen);
-
-  if (config.useBackgroundImage && !config.backgroundImage.empty()) {
-    int img_w = 0, img_h = 0, channels = 0;
-    unsigned char* data = stbi_load(
-      config.backgroundImage.c_str(),
-      &img_w, &img_h, &channels, 4 // force RGBA
-    );
-
-    if (data && img_w > 0 && img_h > 0) {
-      backgroundPixmap = XCreatePixmap(
-        display, root, screen_w, screen_h,
-        DefaultDepth(display, screen)
-      );
-
-      // Build XImage from stretched pixels (nearest-neighbor)
-      Visual* visual = DefaultVisual(display, screen);
-      int depth = DefaultDepth(display, screen);
-
-      // Create 32-bit ZPixmap buffer
-      size_t bufSize = (size_t)screen_w * screen_h * 4;
-      char* xdata = (char*)malloc(bufSize);
-      if (xdata) {
-        for (int y = 0; y < screen_h; ++y) {
-          int sy = y * img_h / screen_h;
-          for (int x = 0; x < screen_w; ++x) {
-            int sx = x * img_w / screen_w;
-            unsigned char* src = data + (sy * img_w + sx) * 4;
-            // X11 typically wants BGRX on little-endian
-            char* dst = xdata + (y * screen_w + x) * 4;
-            dst[0] = (char)src[2]; // B
-            dst[1] = (char)src[1]; // G
-            dst[2] = (char)src[0]; // R
-            dst[3] = 0;
-          }
-        }
-
-        XImage* image = XCreateImage(
-          display, visual, depth, ZPixmap, 0,
-          xdata, screen_w, screen_h, 32, 0
-        );
-
-        if (image) {
-          GC gc = XCreateGC(display, backgroundPixmap, 0, nullptr);
-          XPutImage(display, backgroundPixmap, gc, image,
-                    0, 0, 0, 0, screen_w, screen_h);
-          XFreeGC(display, gc);
-          // XDestroyImage frees xdata
-          XDestroyImage(image);
-        } else {
-          free(xdata);
-        }
-      }
-
-      stbi_image_free(data);
-
-      XSetWindowBackgroundPixmap(display, root, backgroundPixmap);
-      XClearWindow(display, root);
-      printf("mew: background image set: %s\n", config.backgroundImage.c_str());
-      return;
-    }
-
-    if (data)
-      stbi_image_free(data);
-    fprintf(stderr, "mew: failed to load background image: %s\n",
-            config.backgroundImage.c_str());
-  }
-
-  // Solid color fallback / explicit color
-  XSetWindowBackground(display, root, config.backgroundColor);
-  XClearWindow(display, root);
-}
 
 static void hide_power_menu()
 {
@@ -1344,8 +578,8 @@ static void draw_menu_window(Window win, const std::vector<std::string>& items, 
 
   for (size_t i = 0; i < items.size(); ++i) {
     int y = (int)i * START_MENU_ITEM_H;
-    int baseline = y + (START_MENU_ITEM_H + (title_font ? title_font->ascent : 10)) / 2 - 2;
-    draw_title_text(win, 12, baseline, items[i]);
+    int baseline = y + (START_MENU_ITEM_H + (titleFont ? titleFont->ascent : 10)) / 2 - 2;
+    windows.drawTitleText(win, 12, baseline, items[i]);
   }
 
   XFreeGC(display, gc);
@@ -1627,8 +861,8 @@ static void draw_launcher()
                  LAUNCHER_WIDTH - LAUNCHER_PAD * 2, LAUNCHER_LINE_H);
 
   std::string prompt = "> " + launcherQuery + "_";
-  int baseline = LAUNCHER_PAD + (LAUNCHER_LINE_H + (title_font ? title_font->ascent : 10)) / 2 - 2;
-  draw_title_text(launcher, LAUNCHER_PAD + 8, baseline, prompt);
+  int baseline = LAUNCHER_PAD + (LAUNCHER_LINE_H + (titleFont ? titleFont->ascent : 10)) / 2 - 2;
+  windows.drawTitleText(launcher, LAUNCHER_PAD + 8, baseline, prompt);
 
   // Results
   int y0 = LAUNCHER_PAD + LAUNCHER_LINE_H + 4;
@@ -1639,8 +873,8 @@ static void draw_launcher()
       XFillRectangle(display, launcher, gc, 4, y, LAUNCHER_WIDTH - 8, LAUNCHER_LINE_H);
     }
     int appIdx = launcherFiltered[i];
-    int bl = y + (LAUNCHER_LINE_H + (title_font ? title_font->ascent : 10)) / 2 - 2;
-    draw_title_text(launcher, LAUNCHER_PAD + 8, bl, desktopApps[appIdx].name);
+    int bl = y + (LAUNCHER_LINE_H + (titleFont ? titleFont->ascent : 10)) / 2 - 2;
+    windows.drawTitleText(launcher, LAUNCHER_PAD + 8, bl, desktopApps[appIdx].name);
   }
 
   XFreeGC(display, gc);
@@ -1742,161 +976,6 @@ static void handle_launcher_key(XKeyEvent* event)
   }
 }
 
-static void update_volume()
-{
-  snd_mixer_t* handle = nullptr;
-  if (snd_mixer_open(&handle, 0) < 0)
-    return;
-  if (snd_mixer_attach(handle, "default") < 0) {
-    snd_mixer_close(handle);
-    return;
-  }
-  if (snd_mixer_selem_register(handle, nullptr, nullptr) < 0) {
-    snd_mixer_close(handle);
-    return;
-  }
-  if (snd_mixer_load(handle) < 0) {
-    snd_mixer_close(handle);
-    return;
-  }
-
-  snd_mixer_selem_id_t* sid = nullptr;
-  snd_mixer_selem_id_alloca(&sid);
-  snd_mixer_selem_id_set_index(sid, 0);
-  snd_mixer_selem_id_set_name(sid, "Master");
-
-  snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
-  if (!elem) {
-    // Try "PCM" as fallback
-    snd_mixer_selem_id_set_name(sid, "PCM");
-    elem = snd_mixer_find_selem(handle, sid);
-  }
-
-  if (elem) {
-    if (snd_mixer_selem_has_playback_switch(elem)) {
-      int muted = 0;
-      snd_mixer_selem_get_playback_switch(elem, SND_MIXER_SCHN_FRONT_LEFT, &muted);
-      volumeMuted = (muted == 0);
-    } else {
-      volumeMuted = false;
-    }
-
-    long minv = 0, maxv = 0, valv = 0;
-    snd_mixer_selem_get_playback_volume_range(elem, &minv, &maxv);
-    snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_FRONT_LEFT, &valv);
-    if (maxv > minv)
-      volumePercent = (int)(((valv - minv) * 100) / (maxv - minv));
-    else
-      volumePercent = 0;
-  }
-
-  snd_mixer_close(handle);
-}
-
-static void toggle_mute()
-{
-  snd_mixer_t* handle = nullptr;
-  if (snd_mixer_open(&handle, 0) < 0)
-    return;
-  if (snd_mixer_attach(handle, "default") < 0) {
-    snd_mixer_close(handle);
-    return;
-  }
-  snd_mixer_selem_register(handle, nullptr, nullptr);
-  snd_mixer_load(handle);
-
-  snd_mixer_selem_id_t* sid = nullptr;
-  snd_mixer_selem_id_alloca(&sid);
-  snd_mixer_selem_id_set_index(sid, 0);
-  snd_mixer_selem_id_set_name(sid, "Master");
-
-  snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
-  if (!elem) {
-    snd_mixer_selem_id_set_name(sid, "PCM");
-    elem = snd_mixer_find_selem(handle, sid);
-  }
-
-  if (elem && snd_mixer_selem_has_playback_switch(elem)) {
-    int muted = 0;
-    snd_mixer_selem_get_playback_switch(elem, SND_MIXER_SCHN_FRONT_LEFT, &muted);
-    int newState = muted ? 0 : 1; // toggle
-    snd_mixer_selem_set_playback_switch_all(elem, newState);
-  }
-
-  snd_mixer_close(handle);
-  update_volume();
-  draw_panel();
-}
-
-static void draw_panel()
-{
-  if (panel == None)
-    return;
-
-  int screen_w = DisplayWidth(display, screen);
-  GC gc = XCreateGC(display, panel, 0, nullptr);
-
-  XSetForeground(display, gc, COLOR_PANEL_BG);
-  XFillRectangle(display, panel, gc, 0, 0, screen_w, PANEL_HEIGHT);
-
-  time_t now = time(nullptr);
-  struct tm* tm = localtime(&now);
-  char buf[64];
-  // Full month name, e.g. "2026-September-07  23:57:01"
-  strftime(buf, sizeof(buf), " %Y-%B-%d  %H:%M:%S", tm);
-
-  int text_h = title_font ? (title_font->ascent + title_font->descent) : 12;
-  int baseline = (PANEL_HEIGHT + text_h) / 2 - (title_font ? title_font->descent : 2);
-  //int clock_w = title_font ? (int)(strlen(buf) * title_font->max_advance_width / 2) : 120; // rough
-  //draw_title_text(panel, screen_w - clock_w - 16, baseline, buf);
-
-  // Left: Start button
-  draw_title_text(panel, 10, baseline, " ");
-
-  // Volume (left of clock)
-  update_volume();
-  char volBuf[32];
-  if (volumeMuted || volumePercent < 0)
-    snprintf(volBuf, sizeof(volBuf), "󰖁 mute");
-  else if (volumePercent < 30)
-    snprintf(volBuf, sizeof(volBuf), "󰕿 %d%%", volumePercent);
-  else if (volumePercent < 70)
-    snprintf(volBuf, sizeof(volBuf), "󰖀 %d%%", volumePercent);
-  else
-    snprintf(volBuf, sizeof(volBuf), "󰕾 %d%%", volumePercent);
-
-  draw_title_text(panel, 70, baseline, volBuf);
-
-  // Right corner: time then Desktop (far right)
-  draw_title_text(panel, screen_w - 305, baseline, buf);
-  draw_title_text(panel, screen_w - 20, baseline, "");
-
-  XFreeGC(display, gc);
-  panel_last_time = now;
-}
-
-static void create_panel()
-{
-  int screen_w = DisplayWidth(display, screen);
-  int screen_h = DisplayHeight(display, screen);
-
-  XSetWindowAttributes attrs{};
-  attrs.override_redirect = True;
-  attrs.background_pixel = COLOR_PANEL_BG;
-  attrs.event_mask = ExposureMask | ButtonPressMask;
-
-  panel = XCreateWindow(
-    display, root,
-    0, screen_h - PANEL_HEIGHT, screen_w, PANEL_HEIGHT,
-    0,
-    CopyFromParent, InputOutput, CopyFromParent,
-    CWOverrideRedirect | CWBackPixel | CWEventMask,
-    &attrs
-  );
-
-  XMapRaised(display, panel);
-  draw_panel();
-}
 
 static void minimize_client(Client* client)
 {
@@ -1928,66 +1007,6 @@ static void focus_client(Client* client)
   raise_keybindings_window_if_active();
   XSetInputFocus(display, client->window, RevertToPointerRoot, CurrentTime);
   draw_frame(client);
-
-  //if (!client || client->minimized)
-  //    return;
-
-  //XRaiseWindow(
-  //    display,
-  //    client->frame
-  //);
-
-  //XSetInputFocus(
-  //    display,
-  //    client->window,
-  //    RevertToPointerRoot,
-  //    CurrentTime
-  //);
-
-  //draw_frame(client);
-}
-
-static void handle_panel_click(int x)
-{
-  int screen_w = DisplayWidth(display, screen);
-
-  // Left: Start menu
-  if (x < 40) {
-    if (start_menu_active)
-      hide_start_menu();
-    else
-      show_start_menu();
-    return;
-  }
-
-  // Volume toggle (approx left of clock)
-  if (x > screen_w - 330 && x < screen_w - 250) {
-    toggle_mute();
-    return;
-  }
-
-  // Right: Desktop icon (far right)
-  if (x > screen_w - 50) {
-    if (!desktop_showing) {
-      for (Client* c : clients) {
-        if (!c->minimized)
-          minimize_client(c);
-      }
-      desktop_showing = true;
-    }
-    else {
-      for (Client* c : clients) {
-        if (c->minimized) {
-          c->minimized = false;
-          XMapWindow(display, c->frame);
-        }
-      }
-      desktop_showing = false;
-      if (!clients.empty())
-        focus_client(clients.back());
-    }
-    return;
-  }
 }
 
 static bool parse_keybinding(
@@ -2095,7 +1114,7 @@ static void load_keybindings()
 {
   keybindings.clear();
 
-  std::string path = get_config_directory() + "/keybindings";
+  std::string path = configs.getConfigDirectory() + "/keybindings";
   std::ifstream file(path);
   if (!file.is_open()) {
     fprintf(stderr, "mew: no keybindings file: %s\n", path.c_str());
@@ -2145,7 +1164,7 @@ static void load_keybindings()
     KeyBinding binding;
     binding.keycode = keycode;
     binding.modifiers = modifiers;
-    binding.command = expand_home(command);
+    binding.command = strings.expandHome(command);
     binding.display = expand_key_string(key_string);
 
     keybindings.push_back(binding);
@@ -2156,7 +1175,7 @@ static void load_keybindings()
 
 static void run_autostart()
 {
-  std::string path = get_config_directory() + "/autostart";
+  std::string path = configs.getConfigDirectory() + "/autostart";
 
   std::ifstream file(path);
 
@@ -2355,73 +1374,41 @@ static void draw_frame(Client* client)
         );
     }
 
-
-    /*
-        Close icon
-    */
-
+    // Close icon
     XDrawLine(
-        display,
-        client->frame,
-        gc,
-        close_x + 9,
-        8,
-        close_x + BUTTON_WIDTH - 9,
-        TITLE_HEIGHT - 9
+      display,
+      client->frame,
+      gc,
+      close_x + 9,
+      8,
+      close_x + BUTTON_WIDTH - 9,
+      TITLE_HEIGHT - 9
     );
 
     XDrawLine(
-        display,
-        client->frame,
-        gc,
-        close_x + BUTTON_WIDTH - 9,
-        8,
-        close_x + 9,
-        TITLE_HEIGHT - 9
+      display,
+      client->frame,
+      gc,
+      close_x + BUTTON_WIDTH - 9,
+      8,
+      close_x + 9,
+      TITLE_HEIGHT - 9
     );
 
-
-    /*
-        Title
-    */
-
-    XSetForeground(
-        display,
-        gc,
-        COLOR_TEXT
-    );
-
-    //int baseline = BORDER_WIDTH + (TITLE_HEIGHT - BORDER_WIDTH + title_font ? title_font->ascent : 10) / 2;
-
-    std::string title = get_window_title(client->window);
-
-    int text_height = title_font ? (title_font->ascent + title_font->descent) : 10;
+    // Title
+    XSetForeground(display, gc, COLOR_TEXT);
+    std::string title = windows.getWindowTitle(client->window);
+    int text_height = titleFont ? (titleFont->ascent + titleFont->descent) : 10;
     int baseline = BORDER_WIDTH 
       + (TITLE_HEIGHT - BORDER_WIDTH - text_height) / 2 
-      + (title_font ? title_font->ascent : 10);
-    draw_title_text(client->frame, BORDER_WIDTH + 8, baseline, title);
-
-    //XDrawString(
-    //    display,
-    //    client->frame,
-    //    gc,
-    //    BORDER_WIDTH + 8,
-    //    TITLE_HEIGHT - 9,
-    //    "mew",
-    //    3
-    //);
-
-    XFreeGC(
-        display,
-        gc
-    );
+      + (titleFont ? titleFont->ascent : 10);
+    windows.drawTitleText(client->frame, BORDER_WIDTH + 8, baseline, title);
+    XFreeGC(display, gc);
 }
-
 
 // ------------------------------------------------------------
 // Client management
 // ------------------------------------------------------------
-
 static void resize_client(Client* client)
 {
     XMoveResizeWindow(
@@ -2623,38 +1610,26 @@ static void snap_client(Client* client, const std::string& edge)
   focus_client(client);
 }
 
-
 // ------------------------------------------------------------
 // Resize
 // ------------------------------------------------------------
-
-static ResizeDirection get_resize_direction(
-    Client* client,
-    int x,
-    int y)
+static ResizeDirection get_resize_direction(Client* client, int x, int y)
 {
-    int frame_width =
-        client->width + BORDER_WIDTH * 2;
+  int frame_width = client->width + BORDER_WIDTH * 2;
 
     int frame_height =
-        client->height +
-        TITLE_HEIGHT +
-        BORDER_WIDTH;
+      client->height +
+      TITLE_HEIGHT +
+      BORDER_WIDTH;
 
-    bool left =
-        x <= RESIZE_BORDER;
+    bool left = x <= RESIZE_BORDER;
+    bool right = x >= frame_width - RESIZE_BORDER;
+    bool top = y <= RESIZE_BORDER;
+    bool bottom = y >= frame_height - RESIZE_BORDER;
 
-    bool right =
-        x >= frame_width - RESIZE_BORDER;
-
-    bool top =
-        y <= RESIZE_BORDER;
-
-    bool bottom =
-        y >= frame_height - RESIZE_BORDER;
-
-    if (left && top)
-        return RESIZE_TOP_LEFT;
+    if (left && top) {
+      return RESIZE_TOP_LEFT;
+    }
 
     if (right && top)
         return RESIZE_TOP_RIGHT;
@@ -2679,7 +1654,6 @@ static ResizeDirection get_resize_direction(
 
     return RESIZE_NONE;
 }
-
 
 static unsigned int cursor_for_direction(ResizeDirection direction)
 {
@@ -2707,59 +1681,14 @@ static unsigned int cursor_for_direction(ResizeDirection direction)
     default:
       return cursor_default;
   }
-    //switch (direction) {
-
-    //    case RESIZE_LEFT:
-    //    case RESIZE_RIGHT:
-    //        return XC_sb_h_double_arrow;
-
-    //    case RESIZE_TOP:
-    //    case RESIZE_BOTTOM:
-    //        return XC_sb_v_double_arrow;
-
-    //    case RESIZE_TOP_LEFT:
-    //    case RESIZE_BOTTOM_RIGHT:
-    //        return XC_top_left_corner;
-
-    //    case RESIZE_TOP_RIGHT:
-    //    case RESIZE_BOTTOM_LEFT:
-    //        return XC_top_right_corner;
-
-    //    default:
-    //        return XC_left_ptr;
-    //}
 }
 
-
-static void update_cursor(
-    Client* client,
-    int x,
-    int y)
+static void update_cursor(Client* client, int x, int y)
 {
   ResizeDirection direction = get_resize_direction(client, x, y);
   Cursor cursor = cursor_for_direction(direction);
   XDefineCursor(display, client->frame, cursor);
-
-    //ResizeDirection direction =
-    //    get_resize_direction(client, x, y);
-
-    //Cursor cursor = XCreateFontCursor(
-    //    display,
-    //    cursor_for_direction(direction)
-    //);
-
-    //XDefineCursor(
-    //    display,
-    //    client->frame,
-    //    cursor
-    //);
-
-    //XFreeCursor(
-    //    display,
-    //    cursor
-    //);
 }
-
 
 static void resize_window(
     Client* client,
@@ -2913,11 +1842,9 @@ static void resize_window(
     );
 }
 
-
 // ------------------------------------------------------------
 // Move
 // ------------------------------------------------------------
-
 static void move_client(Client* client)
 {
   if (client->maximized) {
@@ -2964,126 +1891,9 @@ static void move_client(Client* client)
   XUngrabPointer(display, CurrentTime);
 }
 
-//static void move_client(Client* client)
-//{
-//  if (client->maximized) {
-//    return;
-//  }
-//
-//  Window dummy;
-//
-//  int root_x;
-//  int root_y;
-//
-//  int win_x;
-//  int win_y;
-//
-//  unsigned int mask;
-//
-//  XQueryPointer(
-//      display,
-//      root,
-//      &dummy,
-//      &dummy,
-//      &root_x,
-//      &root_y,
-//      &win_x,
-//      &win_y,
-//      &mask
-//  );
-//
-//  int start_x = kb_win_x;// client->x;
-//  int start_y = kb_win_y;// client->y;
-//                         //
-//  int grab_result = XGrabPointer(
-//    display, client->frame, False,
-//    ButtonMotionMask | ButtonReleaseMask,
-//    GrabModeAsync, GrabModeAsync,
-//    None, None, CurrentTime
-//  );
-//  fprintf(stderr, "mew: grab result = %d (0 = success)\n", grab_result);
-//
-//
-//  //XGrabPointer(
-//  //  display, keybindings_window, False,
-//  //  ButtonMotionMask | ButtonReleaseMask,
-//  //  GrabModeAsync, GrabModeAsync,
-//  //  None, None, CurrentTime
-//  //);
-//
-//  XEvent event;
-//  while (true) {
-//      XMaskEvent(display, ButtonMotionMask | ButtonReleaseMask, &event);
-//
-//      if (event.type == MotionNotify) {
-//          int dx = event.xmotion.x_root - root_x;
-//          int dy = event.xmotion.y_root - root_y;
-//
-//          kb_win_x = start_x + dx;
-//          kb_win_y = start_y + dy;
-//
-//          keybindings_window_apply_geometry();
-//      }
-//
-//      if (event.type == ButtonRelease)
-//          break;
-//  }
-//
-//  XUngrabPointer(display, CurrentTime);
-//
-//  //XGrabPointer(
-//  //    display,
-//  //    client->frame,
-//  //    False,
-//  //    ButtonMotionMask |
-//  //    ButtonReleaseMask,
-//  //    GrabModeAsync,
-//  //    GrabModeAsync,
-//  //    None,
-//  //    None,
-//  //    CurrentTime
-//  //);
-//
-//  //XEvent event;
-//
-//  //while (true) {
-//
-//  //    XMaskEvent(
-//  //        display,
-//  //        ButtonMotionMask |
-//  //        ButtonReleaseMask,
-//  //        &event
-//  //    );
-//
-//  //    if (event.type == MotionNotify) {
-//
-//  //        int dx =
-//  //            event.xmotion.x_root - root_x;
-//
-//  //        int dy =
-//  //            event.xmotion.y_root - root_y;
-//
-//  //        client->x = start_x + dx;
-//  //        client->y = start_y + dy;
-//
-//  //        resize_client(client);
-//  //    }
-//
-//  //    if (event.type == ButtonRelease)
-//  //        break;
-//  //}
-//
-//  //XUngrabPointer(
-//  //    display,
-//  //    CurrentTime
-//  //);
-//}
-
-
 // ------------------------------------------------------------
 // Button handling
 // ------------------------------------------------------------
-
 static void handle_button_press(XButtonEvent* event)
 {
     Client* client = find_client(event->window);
@@ -3353,36 +2163,30 @@ static void focus_next()
     }
 }
 
-
 // ------------------------------------------------------------
 // Keybindings
 // ------------------------------------------------------------
-
-static void grab_key(
-    KeyCode keycode,
-    unsigned int modifiers)
+static void grab_key(KeyCode keycode, unsigned int modifiers)
 {
-    unsigned int lock_masks[] = {
-        0,
-        LockMask,
-        Mod2Mask,
-        LockMask | Mod2Mask
-    };
+  unsigned int lock_masks[] = {
+    0,
+    LockMask,
+    Mod2Mask,
+    LockMask | Mod2Mask
+  };
 
-    for (unsigned int lock : lock_masks) {
-
-        XGrabKey(
-            display,
-            keycode,
-            modifiers | lock,
-            root,
-            True,
-            GrabModeAsync,
-            GrabModeAsync
-        );
-    }
+  for (unsigned int lock : lock_masks) {
+    XGrabKey(
+        display,
+        keycode,
+        modifiers | lock,
+        root,
+        True,
+        GrabModeAsync,
+        GrabModeAsync
+    );
+  }
 }
-
 
 static void grab_keys()
 {
@@ -3493,21 +2297,17 @@ static bool handle_custom_keybinding(
 // ------------------------------------------------------------
 // X error handler
 // ------------------------------------------------------------
-
-static int error_handler(
-    Display*,
-    XErrorEvent*)
+static int error_handler(Display*, XErrorEvent*)
 {
-    return 0;
+  return 0;
 }
-
 
 // ------------------------------------------------------------
 // Main
 // ------------------------------------------------------------
-
 int main(int argc, char** argv)
 {
+  Mew::Audio audio;
   bool do_reconfigure = false;
 
   for (int i = 1; i < argc; ++i) {
@@ -3552,9 +2352,7 @@ int main(int argc, char** argv)
   screen = DefaultScreen(display);
   root   = RootWindow(display, screen);
 
-
   display = XOpenDisplay(nullptr);
-
   if (!display) {
 
       fprintf(
@@ -3572,10 +2370,10 @@ int main(int argc, char** argv)
       RootWindow(display, screen);
 
   create_config_directory();
-  load_config();
+  configs.load();
   load_keybindings();
 
-  load_title_font();
+  loadTitleFont();
 
   setenv("XCURSOR_THEME", config.mouseTheme.c_str(), 0);
   char size_buf[16];
@@ -3585,8 +2383,8 @@ int main(int argc, char** argv)
   load_cursors();
   XDefineCursor(display, root, cursor_default);
 
-  apply_background();
-  play_sound(config.loginSound);
+  applyBackground();
+  audio.playSound(config.loginSound);
 
   XSetErrorHandler(
       error_handler
@@ -3637,7 +2435,7 @@ int main(int argc, char** argv)
 
   grab_keys();
 
-  create_panel();
+  createPanel();
   write_pidfile();
 
   /*
@@ -3682,25 +2480,12 @@ int main(int argc, char** argv)
           XFree(children);
   }
 
-
-  /*
-      Start autostart programs AFTER
-      the window manager is initialized.
-  */
-
+  // Start autostart programs AFTER the window manager is initialized.
   run_autostart();
 
+  XSync(display, False);
 
-  XSync(
-      display,
-      False
-  );
-
-
-  /*
-      Main event loop
-  */
-
+  // Main event loop
   while (true) {
     if (need_reconfigure) {
       need_reconfigure = 0;
@@ -3710,12 +2495,12 @@ int main(int argc, char** argv)
       XUngrabKey(display, AnyKey, AnyModifier, root);
 
       // reload config + keybindings
-      load_config();
+      configs.load();
       load_keybindings();
-      apply_background();
+      applyBackground();
       if (panel != None) {
         XSetWindowBackground(display, panel, COLOR_PANEL_BG);
-        draw_panel();
+        drawPanel();
       }
 
       // re-grab everything (built-in + new config)
@@ -3727,13 +2512,13 @@ int main(int argc, char** argv)
       if (!switcher_list.empty() && switcher_index < switcher_list.size()) {
         focus_client(switcher_list[switcher_index]);
       }
-      hide_switcher();
+      switcher.hide();
     }
 
     // Update panel clock once per second
     time_t now = time(nullptr);
     if (now != panel_last_time) {
-      draw_panel();
+      drawPanel();
     }
 
     XEvent event;
@@ -3902,8 +2687,8 @@ int main(int argc, char** argv)
 
           // Panel click
           if (w == panel) {
-              handle_panel_click(event.xbutton.x);
-              break;
+            Panel::handlePanelClick(event.xbutton.x);
+            break;
           }
 
           // Start menu click
@@ -3956,7 +2741,7 @@ int main(int argc, char** argv)
         case Expose:
         {
           if (event.xexpose.window == switcher) {
-            draw_switcher();
+            switcher.draw();
             break;
           }
           if (event.xexpose.window == keybindings_window) {
@@ -3964,7 +2749,7 @@ int main(int argc, char** argv)
             break;
           }
           if (event.xexpose.window == panel) {
-            draw_panel();
+            drawPanel();
             break;
           }
           if (event.xexpose.window == launcher) {
@@ -4065,12 +2850,6 @@ int main(int argc, char** argv)
             std::system("wezterm start >/dev/null 2>&1 &");
             break;
           }
-
-          // Alt+Shift+Q (Quit mew)
-          //if (state == (Mod1Mask | ShiftMask) && keysym == XK_q) {
-          //  XCloseDisplay(display);
-          //  return 0;
-          //}
         break;
       }
       case KeyRelease:
@@ -4080,8 +2859,7 @@ int main(int argc, char** argv)
         }
 
         KeySym keysym = XLookupKeysym(&event.xkey, 0);
-        // Close the switcher as soon as Alt is no longer held
-        // (works no matter the order you release Tab / Alt)
+        // Close the switcher as soon as Alt is no longer held (works no matter the order you release Tab / Alt)
         if (keysym == XK_Alt_L || keysym == XK_Alt_R ||
           keysym == XK_Tab    || !is_alt_held()) {
 
@@ -4089,21 +2867,10 @@ int main(int argc, char** argv)
             if (!switcher_list.empty() && switcher_index < switcher_list.size()) {
               focus_client(switcher_list[switcher_index]);
             }
-            hide_switcher();
+            switcher.hide();
           }
         }
         break;
-
-        //KeySym keysym = XLookupKeysym(&event.xkey, 0);
-
-        //// Release of Alt commits the switch
-        //if ((keysym == XK_Alt_L || keysym == XK_Alt_R) && switcher_active) {
-        //  if (!switcher_list.empty() && switcher_index < switcher_list.size()) {
-        //    focus_client(switcher_list[switcher_index]);
-        //  }
-        //  hide_switcher();
-        //}
-        //break;
       }
     }
     if (should_quit) {
@@ -4111,8 +2878,8 @@ int main(int argc, char** argv)
     }
   }
 
-  play_sound(config.logoutSound);
-  remove_pidfile();
+  audio.playSound(config.logoutSound);
+  removePIDFile();
   XCloseDisplay(display);
   return 0;
 }

@@ -29,7 +29,6 @@
 ### nemo
 - [+] bottom resize doesn't work.
 - [+] left/right resize sometimes grab internal content, instead of grabbing the frame.
-
 ---------------------------------------------------------------------------------
 # v2
 ## general
@@ -54,7 +53,6 @@
 - [+] ability to define panel color.
 - [+] for login_sound and logout_sound, remove dependency from mpg123 and play audio internally.
   if you want to use any library, it should be minimal and inform me before.
-
 ---------------------------------------------------------------------------------
 # v3
 - [+] create a start menu at left coerner. (Remove Logout and Keys from left of panel also)
@@ -67,8 +65,6 @@
 - [+] use this icon:  instead of writing "Desktop" on panel.
 - [+] put time after Desktop at right corner.
   for month, use the month name. for example instad of 09 you should write september.
-
-
 ---------------------------------------------------------------------------------
 # v4
 ## general
@@ -82,6 +78,40 @@
 ## ~/.config/mew/config
 - [+] background image
   choose a minimal approach. if you need extra libary to be use, just tell me know.
+
+## panel
+re-implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
+  - [P] volume icon (mandatory)
+  - [P] add another entry in Start menu called: apps.
+    when i click on it, a pop up window (in center of screen) should pops-up and it should shows all apps installed on my machine.
+      (by searching .desktop files)
+    it should have a search input text on top of itself. So i can type the name of the app.
+    it should look like rofi.
+  - [P] power manager (mandatory)
+    - [P] reboot
+    - [P] poweroff
+    - [+] logout (exit from mew)
+    - [P] mew --reconfigure
+      not working as expected. need to test it again.
+      - [+] put mew.pid in /tmp
+---------------------------------------------------------------------------------
+# v5
+## panel
+- [ ] when i click on volume nothing happens. just when i click on  , it will works. why? the positioning is wrong?
+  - [ ] it doesn't show the actual volume size, when i mute it, i can still hear the sound.
+- [ ] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
+- [ ] define keybinding for each item in startmenu, like for apps, logout, etc..
+- [ ] apps in start menu works. but it has different problems:
+  - [ ] it doen's have vertical scrool. so when i use down arrow key and go at the end of the list, it stops there and doesn't show more items. (i think you didn't implementing vertical scrolling throug items, right? do it) 
+  - [ ] when i start to type something, it can find the items. but it shows different frames(or windows) on top of each other.
+  - [ ] it should be close, when i click outside of it.
+  - [ ] power manager
+    these items just log out. reboot, doesn't reboot actually. poweroff doesn't poweroff actually!
+    - [ ] reboot
+    - [ ] poweroff
+
+## config
+- [ ] ability to set panel items color + panel item hover color in config file.
 - [ ] windows theme
 - [ ] ability to define applications windows size or position. for example:
     mpv.pos.x = 0
@@ -93,56 +123,21 @@
 re-implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
   - [ ] currently start menu closes only when i click on it. but i want it to be close  also whenever i clicked on other applications or another part of mew desktop.
   - [ ] network manager (mandatory)
-  - [P] volume icon (mandatory)
   - [ ] language switcher (mandatory)
-  - [P] add another entry in Start menu called: apps.
-    when i click on it, a pop up window (in center of screen) should pops-up and it should shows all apps installed on my machine.
-      (by searching .desktop files)
-    it should have a search input text on top of itself. So i can type the name of the app.
-    it should look like rofi.
-  - [+] rename ShortKeys to KeyBindings (mandatory)
   - [P] power manager (mandatory)
     - [P] reboot
     - [P] poweroff
-    - [+] logout (exit from mew)
     - [P] mew --reconfigure
       not working as expected. need to test it again.
-      - [+] put mew.pid in /tmp
 
 ## apps
 ### mpv
 - [ ] Pressing Enter doesn't maximize the whole window (i expect when i press ENTER in neovim, it becomes a full screen window)
 
+### nemo
+- [ ] when i extract zip files, there's a extract window appears, and its size is width: 2/3, height: 2/3. i don't want that.
+    i want it to have the minimum size it can. and it shuould be centerized. also max button on it should be disabled.
+
 ### neovim
 - [ ] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
   but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
-
----------------------------------------------------------------------------------
-# v5
-
-## panel
-- [ ] when i click on volume nothing happens. just when i click on  , it will works. why? the positioning is wrong?
-  - [ ] it doesn't show the actual volume size, when i mute it, i can still hear the sound.
-- [ ] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
-- [ ] define keybinding for each item in startmenu, like for apps, logout, etc..
-- apps in start menu works. but it has different problems:
-  - [ ] it doen's have vertical scrool. so when i use down arrow key and go at the end of the list, it stops there and doesn't show more items. (i think you didn't implementing vertical scrolling throug items, right? do it) 
-  - [ ] when i start to type something, it can find the items. but it shows different frames(or windows) on top of each other.
-  - [ ] it should be close, when i click outside of it.
-  - [ ] power manager
-    these items just log out. reboot, doesn't reboot actually. poweroff doesn't poweroff actually!
-    - [P] reboot
-    - [P] poweroff
-
-
-## config
-- [ ] ability to set panel items color + panel item hover color in config file.
-
-
----------------------------------------------------------------------------------
-# later
-### tint2
-- [ ] it should be on top of other windows.
-- [ ] it should be part of mew whole screen and rest of screen size should be use for other apps. 
-- [ ] it has border & icons. it shoulnd't have it.
-- [ ] when i hover over it, the mouse cursor chagned to resize. it shouldn't.
