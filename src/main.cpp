@@ -154,6 +154,8 @@ static unsigned long COLOR_PANEL_BG = 0x222222;
 static const unsigned long COLOR_PANEL_TEXT = 0xffffff;
 static time_t panel_last_time = 0;
 static bool desktop_showing = false;
+static int volumePercent = -1;  // 0-100, -1 = unknown
+static bool volumeMuted = false;
 
 // Start menu
 static Window start_menu = None;
@@ -1740,6 +1742,92 @@ static void handle_launcher_key(XKeyEvent* event)
   }
 }
 
+static void update_volume()
+{
+  snd_mixer_t* handle = nullptr;
+  if (snd_mixer_open(&handle, 0) < 0)
+    return;
+  if (snd_mixer_attach(handle, "default") < 0) {
+    snd_mixer_close(handle);
+    return;
+  }
+  if (snd_mixer_selem_register(handle, nullptr, nullptr) < 0) {
+    snd_mixer_close(handle);
+    return;
+  }
+  if (snd_mixer_load(handle) < 0) {
+    snd_mixer_close(handle);
+    return;
+  }
+
+  snd_mixer_selem_id_t* sid = nullptr;
+  snd_mixer_selem_id_alloca(&sid);
+  snd_mixer_selem_id_set_index(sid, 0);
+  snd_mixer_selem_id_set_name(sid, "Master");
+
+  snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
+  if (!elem) {
+    // Try "PCM" as fallback
+    snd_mixer_selem_id_set_name(sid, "PCM");
+    elem = snd_mixer_find_selem(handle, sid);
+  }
+
+  if (elem) {
+    if (snd_mixer_selem_has_playback_switch(elem)) {
+      int muted = 0;
+      snd_mixer_selem_get_playback_switch(elem, SND_MIXER_SCHN_FRONT_LEFT, &muted);
+      volumeMuted = (muted == 0);
+    } else {
+      volumeMuted = false;
+    }
+
+    long minv = 0, maxv = 0, valv = 0;
+    snd_mixer_selem_get_playback_volume_range(elem, &minv, &maxv);
+    snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_FRONT_LEFT, &valv);
+    if (maxv > minv)
+      volumePercent = (int)(((valv - minv) * 100) / (maxv - minv));
+    else
+      volumePercent = 0;
+  }
+
+  snd_mixer_close(handle);
+}
+
+static void toggle_mute()
+{
+  snd_mixer_t* handle = nullptr;
+  if (snd_mixer_open(&handle, 0) < 0)
+    return;
+  if (snd_mixer_attach(handle, "default") < 0) {
+    snd_mixer_close(handle);
+    return;
+  }
+  snd_mixer_selem_register(handle, nullptr, nullptr);
+  snd_mixer_load(handle);
+
+  snd_mixer_selem_id_t* sid = nullptr;
+  snd_mixer_selem_id_alloca(&sid);
+  snd_mixer_selem_id_set_index(sid, 0);
+  snd_mixer_selem_id_set_name(sid, "Master");
+
+  snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
+  if (!elem) {
+    snd_mixer_selem_id_set_name(sid, "PCM");
+    elem = snd_mixer_find_selem(handle, sid);
+  }
+
+  if (elem && snd_mixer_selem_has_playback_switch(elem)) {
+    int muted = 0;
+    snd_mixer_selem_get_playback_switch(elem, SND_MIXER_SCHN_FRONT_LEFT, &muted);
+    int newState = muted ? 0 : 1; // toggle
+    snd_mixer_selem_set_playback_switch_all(elem, newState);
+  }
+
+  snd_mixer_close(handle);
+  update_volume();
+  draw_panel();
+}
+
 static void draw_panel()
 {
   if (panel == None)
@@ -1765,9 +1853,23 @@ static void draw_panel()
   // Left: Start button
   draw_title_text(panel, 10, baseline, " ");
 
-  // Right corner order (from right): Desktop, then time/date
+  // Volume (left of clock)
+  update_volume();
+  char volBuf[32];
+  if (volumeMuted || volumePercent < 0)
+    snprintf(volBuf, sizeof(volBuf), "󰖁 mute");
+  else if (volumePercent < 30)
+    snprintf(volBuf, sizeof(volBuf), "󰕿 %d%%", volumePercent);
+  else if (volumePercent < 70)
+    snprintf(volBuf, sizeof(volBuf), "󰖀 %d%%", volumePercent);
+  else
+    snprintf(volBuf, sizeof(volBuf), "󰕾 %d%%", volumePercent);
+
+  draw_title_text(panel, 70, baseline, volBuf);
+
+  // Right corner: time then Desktop (far right)
+  draw_title_text(panel, screen_w - 305, baseline, buf);
   draw_title_text(panel, screen_w - 20, baseline, "");
-  draw_title_text(panel, screen_w - 308, baseline, buf);
 
   XFreeGC(display, gc);
   panel_last_time = now;
@@ -1855,6 +1957,12 @@ static void handle_panel_click(int x)
       hide_start_menu();
     else
       show_start_menu();
+    return;
+  }
+
+  // Volume toggle (approx left of clock)
+  if (x > screen_w - 330 && x < screen_w - 250) {
+    toggle_mute();
     return;
   }
 

@@ -93,7 +93,7 @@
 re-implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
   - [ ] currently start menu closes only when i click on it. but i want it to be close  also whenever i clicked on other applications or another part of mew desktop.
   - [ ] network manager (mandatory)
-  - [ ] volume icon (mandatory)
+  - [P] volume icon (mandatory)
   - [ ] language switcher (mandatory)
   - [P] add another entry in Start menu called: apps.
     when i click on it, a pop up window (in center of screen) should pops-up and it should shows all apps installed on my machine.
@@ -117,16 +117,12 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 - [ ] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
   but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
 
-### tint2
-- [ ] it should be on top of other windows.
-- [ ] it should be part of mew whole screen and rest of screen size should be use for other apps. 
-- [ ] it has border & icons. it shoulnd't have it.
-- [ ] when i hover over it, the mouse cursor chagned to resize. it shouldn't.
-
 ---------------------------------------------------------------------------------
 # v5
 
 ## panel
+- [ ] when i click on volume nothing happens. just when i click on  , it will works. why? the positioning is wrong?
+  - [ ] it doesn't show the actual volume size, when i mute it, i can still hear the sound.
 - [ ] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
 - [ ] define keybinding for each item in startmenu, like for apps, logout, etc..
 - apps in start menu works. but it has different problems:
@@ -141,3 +137,12 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 
 ## config
 - [ ] ability to set panel items color + panel item hover color in config file.
+
+
+---------------------------------------------------------------------------------
+# later
+### tint2
+- [ ] it should be on top of other windows.
+- [ ] it should be part of mew whole screen and rest of screen size should be use for other apps. 
+- [ ] it has border & icons. it shoulnd't have it.
+- [ ] when i hover over it, the mouse cursor chagned to resize. it shouldn't.
