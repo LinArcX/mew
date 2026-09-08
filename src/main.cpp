@@ -30,6 +30,8 @@
 #include <vector>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/reboot.h>
+#include <linux/reboot.h>
 #include <dirent.h>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -156,11 +158,22 @@ static bool desktop_showing = false;
 // Start menu
 static Window start_menu = None;
 static bool start_menu_active = false;
-static const int START_MENU_WIDTH = 160;
+static const int START_MENU_WIDTH = 180;
 static const int START_MENU_ITEM_H = 32;
 static const std::vector<std::string> start_menu_items = {
   "󰀻  Apps",
   "  KeyBindings",
+  "󰐥  PowerManager  ▸"
+};
+
+// PowerManager submenu (opens to the right of start menu)
+static Window power_menu = None;
+static bool power_menu_active = false;
+static const int POWER_MENU_WIDTH = 180;
+static const std::vector<std::string> power_menu_items = {
+  "󰢻  Reconfigure mew",
+  "󰜉  Reboot",
+  "󰤆  Poweroff",
   "󰗼  Logout"
 };
 
@@ -1296,39 +1309,94 @@ static void apply_background()
   XClearWindow(display, root);
 }
 
+static void hide_power_menu()
+{
+  if (power_menu != None && power_menu_active) {
+    XUnmapWindow(display, power_menu);
+  }
+  power_menu_active = false;
+}
+
 static void hide_start_menu()
 {
+  hide_power_menu();
   if (start_menu != None && start_menu_active) {
     XUnmapWindow(display, start_menu);
   }
   start_menu_active = false;
 }
 
-static void draw_start_menu()
+static void draw_menu_window(Window win, const std::vector<std::string>& items, int width)
 {
-  if (start_menu == None || !start_menu_active)
+  if (win == None)
     return;
 
-  int height = (int)start_menu_items.size() * START_MENU_ITEM_H;
-  GC gc = XCreateGC(display, start_menu, 0, nullptr);
+  int height = (int)items.size() * START_MENU_ITEM_H;
+  GC gc = XCreateGC(display, win, 0, nullptr);
 
   XSetForeground(display, gc, COLOR_PANEL_BG);
-  XFillRectangle(display, start_menu, gc, 0, 0, START_MENU_WIDTH, height);
+  XFillRectangle(display, win, gc, 0, 0, width, height);
 
   XSetForeground(display, gc, 0x555555);
-  XDrawRectangle(display, start_menu, gc, 0, 0, START_MENU_WIDTH - 1, height - 1);
+  XDrawRectangle(display, win, gc, 0, 0, width - 1, height - 1);
 
-  for (size_t i = 0; i < start_menu_items.size(); ++i) {
+  for (size_t i = 0; i < items.size(); ++i) {
     int y = (int)i * START_MENU_ITEM_H;
     int baseline = y + (START_MENU_ITEM_H + (title_font ? title_font->ascent : 10)) / 2 - 2;
-    draw_title_text(start_menu, 12, baseline, start_menu_items[i]);
+    draw_title_text(win, 12, baseline, items[i]);
   }
 
   XFreeGC(display, gc);
 }
 
+static void draw_start_menu()
+{
+  if (start_menu == None || !start_menu_active)
+    return;
+  draw_menu_window(start_menu, start_menu_items, START_MENU_WIDTH);
+}
+
+static void draw_power_menu()
+{
+  if (power_menu == None || !power_menu_active)
+    return;
+  draw_menu_window(power_menu, power_menu_items, POWER_MENU_WIDTH);
+}
+
+static void show_power_menu()
+{
+  int height = (int)power_menu_items.size() * START_MENU_ITEM_H;
+  int screen_h = DisplayHeight(display, screen);
+  // Align to the right of the start menu, same bottom edge
+  int x = START_MENU_WIDTH;
+  int y = screen_h - PANEL_HEIGHT - height;
+
+  if (power_menu == None) {
+    XSetWindowAttributes attrs{};
+    attrs.override_redirect = True;
+    attrs.background_pixel = COLOR_PANEL_BG;
+    attrs.event_mask = ExposureMask | ButtonPressMask;
+
+    power_menu = XCreateWindow(
+      display, root,
+      x, y, POWER_MENU_WIDTH, height,
+      1,
+      CopyFromParent, InputOutput, CopyFromParent,
+      CWOverrideRedirect | CWBackPixel | CWEventMask,
+      &attrs
+    );
+  } else {
+    XMoveResizeWindow(display, power_menu, x, y, POWER_MENU_WIDTH, height);
+  }
+
+  XMapRaised(display, power_menu);
+  power_menu_active = true;
+  draw_power_menu();
+}
+
 static void show_start_menu()
 {
+  hide_power_menu();
   int height = (int)start_menu_items.size() * START_MENU_ITEM_H;
   int screen_h = DisplayHeight(display, screen);
   int x = 0;
@@ -1357,18 +1425,63 @@ static void show_start_menu()
   draw_start_menu();
 }
 
+// Portable reboot / poweroff (no systemctl).
+// Tries the reboot(2) syscall first; falls back to /sbin/{reboot,poweroff}.
+static void do_reboot()
+{
+  sync();
+  if (reboot(RB_AUTOBOOT) != 0) {
+    execl("/sbin/reboot", "reboot", (char*)nullptr);
+    execl("/bin/reboot", "reboot", (char*)nullptr);
+  }
+}
+
+static void do_poweroff()
+{
+  sync();
+  if (reboot(RB_POWER_OFF) != 0) {
+    execl("/sbin/poweroff", "poweroff", (char*)nullptr);
+    execl("/bin/poweroff", "poweroff", (char*)nullptr);
+  }
+}
+
+static void handle_power_menu_click(int y)
+{
+  int index = y / START_MENU_ITEM_H;
+  hide_start_menu(); // closes both menus
+
+  if (index == 0) {
+    // Reconfigure mew → SIGHUP self
+    need_reconfigure = 1;
+  }
+  else if (index == 1) {
+    do_reboot();
+  }
+  else if (index == 2) {
+    do_poweroff();
+  }
+  else if (index == 3) {
+    should_quit = true;
+  }
+}
+
 static void handle_start_menu_click(int y)
 {
   int index = y / START_MENU_ITEM_H;
-  hide_start_menu();
   if (index == 0) {
+    hide_start_menu();
     show_launcher();
   }
   else if (index == 1) {
+    hide_start_menu();
     show_keybindings_window();
   }
   else if (index == 2) {
-    should_quit = true;
+    // Open PowerManager submenu to the right (keep start menu open)
+    if (power_menu_active)
+      hide_power_menu();
+    else
+      show_power_menu();
   }
 }
 
@@ -3691,6 +3804,12 @@ int main(int argc, char** argv)
               break;
           }
 
+          // PowerManager submenu click
+          if (power_menu_active && w == power_menu) {
+              handle_power_menu_click(event.xbutton.y);
+              break;
+          }
+
           // Launcher click (select item)
           if (launcher_active && w == launcher) {
               int y = event.xbutton.y;
@@ -3706,7 +3825,7 @@ int main(int argc, char** argv)
           }
 
           // Click elsewhere closes menus
-          if (start_menu_active)
+          if (start_menu_active || power_menu_active)
               hide_start_menu();
           if (launcher_active)
               hide_launcher();
@@ -3746,6 +3865,10 @@ int main(int argc, char** argv)
           }
           if (event.xexpose.window == start_menu) {
             draw_start_menu();
+            break;
+          }
+          if (event.xexpose.window == power_menu) {
+            draw_power_menu();
             break;
           }
 

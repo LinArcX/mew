@@ -101,11 +101,10 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
     it should have a search input text on top of itself. So i can type the name of the app.
     it should look like rofi.
   - [+] rename ShortKeys to KeyBindings (mandatory)
-  - [ ] power manager (mandatory)
-    - [ ] reboot
-    - [ ] poweroff
+  - [P] power manager (mandatory)
+    - [P] reboot
+    - [P] poweroff
     - [+] logout (exit from mew)
-    - [ ] mew --restart
     - [P] mew --reconfigure
       not working as expected. need to test it again.
       - [+] put mew.pid in /tmp
@@ -134,6 +133,11 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
   - [ ] it doen's have vertical scrool. so when i use down arrow key and go at the end of the list, it stops there and doesn't show more items. (i think you didn't implementing vertical scrolling throug items, right? do it) 
   - [ ] when i start to type something, it can find the items. but it shows different frames(or windows) on top of each other.
   - [ ] it should be close, when i click outside of it.
+  - [ ] power manager
+    these items just log out. reboot, doesn't reboot actually. poweroff doesn't poweroff actually!
+    - [P] reboot
+    - [P] poweroff
+
 
 ## config
 - [ ] ability to set panel items color + panel item hover color in config file.
