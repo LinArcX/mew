@@ -200,6 +200,7 @@ public:
 
 private:
   void updateVolume();
+  void resolveVolumeControl(std::string& device, std::string& control) const;
   void toggleMute();
   void showStartMenu();
   void hidePowerMenu();

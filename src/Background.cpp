@@ -69,43 +69,98 @@ void Background::apply(XConnection& xconn, const Config& config)
 
       if (xdata)
       {
-        // Cover mode: scale to fill screen, crop center (no bad stretch)
-        double scaleX = static_cast<double>(screenW) / static_cast<double>(imgW);
-        double scaleY = static_cast<double>(screenH) / static_cast<double>(imgH);
-        double scale = (scaleX > scaleY) ? scaleX : scaleY;
-        int scaledW = static_cast<int>(imgW * scale + 0.5);
-        int scaledH = static_cast<int>(imgH * scale + 0.5);
-        int srcOffsetX = (scaledW - screenW) / 2;
-        int srcOffsetY = (scaledH - screenH) / 2;
+        // Only upscale-and-crop when the image is at least as large as the
+        // screen in both dimensions; otherwise upscaling a low-res image
+        // just makes it blurry/stretchy. In that case, center it at its
+        // native resolution and pad the rest with background_color.
+        bool canCoverWithoutUpscale = (imgW >= screenW && imgH >= screenH);
 
-        for (int y = 0; y < screenH; ++y)
+        if (canCoverWithoutUpscale)
         {
-          for (int x = 0; x < screenW; ++x)
+          // Cover mode: scale to fill screen, crop center (no bad stretch)
+          double scaleX = static_cast<double>(screenW) / static_cast<double>(imgW);
+          double scaleY = static_cast<double>(screenH) / static_cast<double>(imgH);
+          double scale = (scaleX > scaleY) ? scaleX : scaleY;
+          int scaledW = static_cast<int>(imgW * scale + 0.5);
+          int scaledH = static_cast<int>(imgH * scale + 0.5);
+          int srcOffsetX = (scaledW - screenW) / 2;
+          int srcOffsetY = (scaledH - screenH) / 2;
+
+          for (int y = 0; y < screenH; ++y)
           {
-            int sx = static_cast<int>((x + srcOffsetX) / scale);
-            int sy = static_cast<int>((y + srcOffsetY) / scale);
-            if (sx < 0)
+            for (int x = 0; x < screenW; ++x)
             {
-              sx = 0;
+              int sx = static_cast<int>((x + srcOffsetX) / scale);
+              int sy = static_cast<int>((y + srcOffsetY) / scale);
+              if (sx < 0)
+              {
+                sx = 0;
+              }
+              if (sy < 0)
+              {
+                sy = 0;
+              }
+              if (sx >= imgW)
+              {
+                sx = imgW - 1;
+              }
+              if (sy >= imgH)
+              {
+                sy = imgH - 1;
+              }
+              unsigned char* src = data + (sy * imgW + sx) * 4;
+              char* dst = xdata + (y * screenW + x) * 4;
+              dst[0] = static_cast<char>(src[2]);
+              dst[1] = static_cast<char>(src[1]);
+              dst[2] = static_cast<char>(src[0]);
+              dst[3] = 0;
             }
-            if (sy < 0)
+          }
+        }
+        else
+        {
+          // Fill with background_color first, then blit the image centered
+          // at native resolution, preserving its original quality.
+          unsigned char bgR = static_cast<unsigned char>((bgColor >> 16) & 0xff);
+          unsigned char bgG = static_cast<unsigned char>((bgColor >> 8) & 0xff);
+          unsigned char bgB = static_cast<unsigned char>(bgColor & 0xff);
+
+          for (int y = 0; y < screenH; ++y)
+          {
+            for (int x = 0; x < screenW; ++x)
             {
-              sy = 0;
+              char* dst = xdata + (y * screenW + x) * 4;
+              dst[0] = static_cast<char>(bgB);
+              dst[1] = static_cast<char>(bgG);
+              dst[2] = static_cast<char>(bgR);
+              dst[3] = 0;
             }
-            if (sx >= imgW)
+          }
+
+          int offsetX = (screenW - imgW) / 2;
+          int offsetY = (screenH - imgH) / 2;
+
+          for (int y = 0; y < imgH; ++y)
+          {
+            int destY = y + offsetY;
+            if (destY < 0 || destY >= screenH)
             {
-              sx = imgW - 1;
+              continue;
             }
-            if (sy >= imgH)
+            for (int x = 0; x < imgW; ++x)
             {
-              sy = imgH - 1;
+              int destX = x + offsetX;
+              if (destX < 0 || destX >= screenW)
+              {
+                continue;
+              }
+              unsigned char* src = data + (y * imgW + x) * 4;
+              char* dst = xdata + (destY * screenW + destX) * 4;
+              dst[0] = static_cast<char>(src[2]);
+              dst[1] = static_cast<char>(src[1]);
+              dst[2] = static_cast<char>(src[0]);
+              dst[3] = 0;
             }
-            unsigned char* src = data + (sy * imgW + sx) * 4;
-            char* dst = xdata + (y * screenW + x) * 4;
-            dst[0] = static_cast<char>(src[2]);
-            dst[1] = static_cast<char>(src[1]);
-            dst[2] = static_cast<char>(src[0]);
-            dst[3] = 0;
           }
         }
 

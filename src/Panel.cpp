@@ -2,6 +2,7 @@
 #include <ctime>
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 #include <dirent.h>
 
 #include <X11/XKBlib.h>
@@ -270,18 +271,75 @@ void Panel::cycleLayout()
   draw();
 }
 
+void Panel::resolveVolumeControl(std::string& device, std::string& control) const
+{
+  device.clear();
+  control = "Master";
+
+  if (!m_pConfig)
+  {
+    return;
+  }
+
+  // Derive the real mixer control (and optional -D device) from whatever
+  // amixer command the user actually configured for volume keys, instead of
+  // assuming a "Master" control exists and is wired to the real output.
+  for (const KeyBinding& binding : m_pConfig->keybindings())
+  {
+    if (binding.command.find("amixer") == std::string::npos)
+    {
+      continue;
+    }
+
+    std::istringstream iss(binding.command);
+    std::string token;
+    std::string foundDevice;
+    std::string foundControl;
+    while (iss >> token)
+    {
+      if (token == "-D" && (iss >> token))
+      {
+        foundDevice = token;
+      }
+      else if ((token == "set" || token == "sset") && (iss >> token))
+      {
+        foundControl = token;
+      }
+    }
+
+    if (!foundControl.empty())
+    {
+      device = foundDevice;
+      control = foundControl;
+      return;
+    }
+  }
+}
+
 void Panel::updateVolume()
 {
-  // Prefer parsing amixer output (pulse / default / PCM)
-  FILE* pipe = popen(
-    "amixer -D pulse sget Master 2>/dev/null "
-    "|| amixer sget Master 2>/dev/null "
-    "|| amixer sget PCM 2>/dev/null",
-    "r");
+  std::string device;
+  std::string control;
+  resolveVolumeControl(device, control);
+
+  std::string primaryCmd = device.empty()
+    ? ("amixer sget " + control + " 2>/dev/null")
+    : ("amixer -D " + device + " sget " + control + " 2>/dev/null");
+
+  std::string fullCmd = primaryCmd
+    + " || amixer -D pulse sget Master 2>/dev/null"
+      " || amixer sget Master 2>/dev/null"
+      " || amixer sget PCM 2>/dev/null";
+
+  // Prefer parsing amixer output (whatever control the user's keybindings
+  // actually use, falling back to pulse / default / PCM)
+  FILE* pipe = popen(fullCmd.c_str(), "r");
   if (pipe)
   {
     char line[256];
     bool found = false;
+    bool anyChannelOff = false;
+    bool anySwitchSeen = false;
     while (fgets(line, sizeof(line), pipe))
     {
       // look for [42%] and [on]/[off]
@@ -298,18 +356,23 @@ void Panel::updateVolume()
       }
       if (std::strstr(line, "[off]"))
       {
-        m_volumeMuted = true;
+        anyChannelOff = true;
+        anySwitchSeen = true;
         found = true;
       }
       else if (std::strstr(line, "[on]"))
       {
-        m_volumeMuted = false;
+        anySwitchSeen = true;
         found = true;
       }
     }
     pclose(pipe);
     if (found)
     {
+      if (anySwitchSeen)
+      {
+        m_volumeMuted = anyChannelOff;
+      }
       return;
     }
   }
@@ -395,17 +458,22 @@ void Panel::runAudioCommand(const char* keyName)
   }
   if (cmd.empty())
   {
+    std::string device;
+    std::string control;
+    resolveVolumeControl(device, control);
+    std::string devicePart = device.empty() ? "" : ("-D " + device + " ");
+
     if (std::strcmp(keyName, "XF86AudioMute") == 0)
     {
-      cmd = "amixer -q set Master toggle";
+      cmd = "amixer " + devicePart + "set " + control + " toggle";
     }
     else if (std::strcmp(keyName, "XF86AudioRaiseVolume") == 0)
     {
-      cmd = "amixer -q set Master 5%+";
+      cmd = "amixer " + devicePart + "set " + control + " 5%+";
     }
     else if (std::strcmp(keyName, "XF86AudioLowerVolume") == 0)
     {
-      cmd = "amixer -q set Master 5%-";
+      cmd = "amixer " + devicePart + "set " + control + " 5%-";
     }
   }
   if (!cmd.empty())

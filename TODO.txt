@@ -1,16 +1,15 @@
 ---------------------------------------------------------------------------------
-# v8
+# v9
 ## general
-- [+] When i fullscreen any window, i can't min/max/brining back again. i can't don't anything. i think it's a bug. fix it.
-- [ ] images that have high resolutions, can fit good(but not perfect) on the screen. but images with lower resolution, becomes very strechy and ugly on background.
-- [ ] if i set background_image in ~/.config/mew/config:
-  - [ ] if it's hight resolution: mew can render it quite good(but not perfect) on the background.
-  - [ ] if it doesn't have high resoution or dimensions, mew makes it strech. it's ugly. and it reduced the quality of image.
-    i don't want that. in this case, i want the image to be centeralized. without streching. to preserve it's initial high-quiality.
-    if there are empty space around the image, fill it with background_color setting.
 - [ ] windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
   - nemo
   - meld
+- Widgets in Panel every second, i see a flash on it, like a flickering or heart bit. it has a bad visual effect. 
+  i know that you're updateing panel items regurarly, but can you fix this flickering, annoying artifact that annoy the eyes?
+- some gtk apps like gedit or meld, they already have frame and close/max/min buttons. in mew, we put an extra frame out of it which doesn't make sense.
+  So check if the app, or window already has frame, if it has don't make any frame around it.
+- change start menu icon to mew icon located in assets/mew.png
+
 ## panel
 - [ ] changing networks in networkmanager plugin doesn't take into account. (it causes windows freezes. i think because it needs sudo under the hood. right? fix it)
   for example i swtich to ethernet, but still i have internet!
@@ -18,17 +17,6 @@
 
 - [ ] bringing interfaces up/down in networkmanger plugin doesn't works. 
   Does it need root access? (CAP_NET_ADMIN) implement it with polkit-devel or any other similar and minimal/safe way.
-
-- [ ] instead of using amixer directly in Panel.cpp to mute audio, you should read the command from: ~/.config/mew/keybindings
-  key="XF86AudioRaiseVolume", command="amixer set PCM 5%+" # pi5: amixer -D default set Master 5%+
-  key="XF86AudioLowerVolume", command="amixer set PCM 5%-" # pi5: amixer -D default set Master 5%-
-  key="XF86AudioMute", command="amixer -D pulse set Master toggle" # amixer -D pulse set Master toggle
-  - [ ] Do the same process for RaiseVolue and LowerVolume.
-    you need to update volume percentage number in panel when i increase/decrease the volume with keyboard shortcut. 
-  - [ ] Click again on sound icon, doesn't mute.
-
-- [ ] volume widget in panel doesn't show the actual volume.
-  when i click on it (and it becomes mute), i still can hear the sound.
 
 ## startMenu
 - [ ] In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
@@ -43,6 +31,30 @@
   Like something you already did for apps popup:
     key="W-a" command="apps"
     key="W-p" command="power-manager"
+
+
+---------------------------------------------------------------------------------
+# v8
+## general
+- [+] When i fullscreen any window, i can't min/max/brining back again. i can't don't anything. i think it's a bug. fix it.
+- [+] images that have high resolutions, can fit good(but not perfect) on the screen. but images with lower resolution, becomes very strechy and ugly on background.
+- [+] if i set background_image in ~/.config/mew/config:
+  - [+] if it's hight resolution: mew can render it quite good(but not perfect) on the background.
+  - [+] if it doesn't have high resoution or dimensions, mew makes it strech. it's ugly. and it reduced the quality of image.
+    i don't want that. in this case, i want the image to be centeralized. without streching. to preserve it's initial high-quiality.
+    if there are empty space around the image, fill it with background_color setting.
+
+## panel
+- [+] instead of using amixer directly in Panel.cpp to mute audio, you should read the command from: ~/.config/mew/keybindings
+  key="XF86AudioRaiseVolume", command="amixer set PCM 5%+" # pi5: amixer -D default set Master 5%+
+  key="XF86AudioLowerVolume", command="amixer set PCM 5%-" # pi5: amixer -D default set Master 5%-
+  key="XF86AudioMute", command="amixer -D pulse set Master toggle" # amixer -D pulse set Master toggle
+  - [+] Do the same process for RaiseVolue and LowerVolume.
+    you need to update volume percentage number in panel when i increase/decrease the volume with keyboard shortcut. 
+  - [+] Click again on sound icon, doesn't mute.
+
+- [+] volume widget in panel doesn't show the actual volume.
+  when i click on it (and it becomes mute), i still can hear the sound.
 
 ## apps
 ### mpv
