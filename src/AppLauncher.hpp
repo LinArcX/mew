@@ -5,6 +5,7 @@
 #include "XConnection.hpp"
 
 #include <X11/Xlib.h>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -91,8 +92,11 @@ private:
   /** @brief Resolve Icon= to a readable PNG path. */
   std::string resolveIconPath(const std::string& icon) const;
 
-  /** @brief Draw a small icon if path is a loadable image. */
+  /** @brief Draw a small icon if path is a loadable image (cached). */
   void drawIcon(Display* d, Window win, int x, int y, const std::string& path);
+
+  /** @brief Free cached icon pixmaps. */
+  void clearIconCache();
 
   XConnection& m_xconn;
   FontRenderer& m_font;
@@ -104,6 +108,7 @@ private:
   std::vector<DesktopApp> m_apps;
   std::vector<int> m_filtered;
   size_t m_scroll = 0; // first visible index into m_filtered
+  std::map<std::string, Pixmap> m_iconCache;
 
   /** @brief Ensure m_index stays in view by adjusting m_scroll. */
   void ensureVisible();

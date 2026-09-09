@@ -187,11 +187,9 @@ public:
    */
   time_t lastTime() const { return m_lastTime; }
 
-  void handleNetworkMenuClick(int y);
-
   void drawNetworkMenu();
 
-  void runAudioCommand(const char* keyName);
+  void handleNetworkMenuClick(int y);
 
 private:
   void updateVolume();
@@ -213,6 +211,7 @@ private:
   void hideNetworkMenu();
   void toggleKillSwitch();
   bool isInterfaceUp(const std::string& name) const;
+  void runAudioCommand(const char* keyName);
 
   XConnection& m_xconn;
   FontRenderer& m_font;

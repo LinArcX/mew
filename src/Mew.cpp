@@ -269,6 +269,16 @@ bool Mew::handleCustomKeybinding(XKeyEvent* pEvent)
     std::string command = cmd + " >/dev/null 2>&1 &";
     printf("mew: running: %s\n", cmd.c_str());
     std::system(command.c_str());
+    // If volume keybinding, refresh panel volume display
+    if (m_pPanel
+        && (cmd.find("amixer") != std::string::npos
+            || cmd.find("pactl") != std::string::npos
+            || cmd.find("wpctl") != std::string::npos))
+    {
+      struct timespec ts = {0, 80 * 1000 * 1000};
+      nanosleep(&ts, nullptr);
+      m_pPanel->draw();
+    }
     return true;
   }
   return false;

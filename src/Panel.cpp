@@ -272,11 +272,16 @@ void Panel::cycleLayout()
 
 void Panel::updateVolume()
 {
-  // Prefer parsing amixer output (works with user's keybinding device)
-  FILE* pipe = popen("amixer sget Master 2>/dev/null || amixer sget PCM 2>/dev/null", "r");
+  // Prefer parsing amixer output (pulse / default / PCM)
+  FILE* pipe = popen(
+    "amixer -D pulse sget Master 2>/dev/null "
+    "|| amixer sget Master 2>/dev/null "
+    "|| amixer sget PCM 2>/dev/null",
+    "r");
   if (pipe)
   {
     char line[256];
+    bool found = false;
     while (fgets(line, sizeof(line), pipe))
     {
       // look for [42%] and [on]/[off]
@@ -289,18 +294,24 @@ void Panel::updateVolume()
       if (std::sscanf(pct, "[%d%%]", &v) == 1)
       {
         m_volumePercent = v;
+        found = true;
       }
       if (std::strstr(line, "[off]"))
       {
         m_volumeMuted = true;
+        found = true;
       }
       else if (std::strstr(line, "[on]"))
       {
         m_volumeMuted = false;
+        found = true;
       }
     }
     pclose(pipe);
-    return;
+    if (found)
+    {
+      return;
+    }
   }
 
   snd_mixer_t* handle = nullptr;
@@ -470,6 +481,11 @@ void Panel::draw()
   {
     XSetForeground(d, gc, m_hoverColor);
     XFillRectangle(d, m_window, gc, screenW - 25, 0, 30, MewConst::panelHeight);
+  }
+  else if (m_hoverZone == 6)
+  {
+    XSetForeground(d, gc, m_hoverColor);
+    XFillRectangle(d, m_window, gc, screenW - 305, 0, 275, MewConst::panelHeight);
   }
 
   // U+EB94 start icon
@@ -676,7 +692,7 @@ void Panel::doReboot()
   {
     return;
   }
-  if (std::system("/usr/bin/reboot >/dev/null 2>&1 &") == 0
+  if (std::system("/sbin/reboot >/dev/null 2>&1 &") == 0
       || std::system("reboot >/dev/null 2>&1 &") == 0)
   {
     return;
@@ -695,7 +711,7 @@ void Panel::doPoweroff()
   {
     return;
   }
-  if (std::system("/usr/bin/poweroff >/dev/null 2>&1 &") == 0
+  if (std::system("/sbin/poweroff >/dev/null 2>&1 &") == 0
       || std::system("poweroff >/dev/null 2>&1 &") == 0)
   {
     return;
@@ -892,10 +908,14 @@ void Panel::handleNetworkMenuClick(int y)
   // Selecting a down interface: disconnect previous if it was up
   if (!isInterfaceUp(m_selectedIface) && !prev.empty() && isInterfaceUp(prev))
   {
-    std::string cmd = "ip link set dev " + prev + " down >/dev/null 2>&1";
-    if (std::system(cmd.c_str()) != 0)
+    std::string cmd = "ip link set dev " + prev + " down";
+    if (std::system((cmd + " >/dev/null 2>&1").c_str()) != 0)
     {
-      std::system(("sudo -n " + cmd).c_str());
+      // CAP_NET_ADMIN via pkexec (polkit) then non-interactive sudo
+      if (std::system(("pkexec " + cmd + " >/dev/null 2>&1").c_str()) != 0)
+      {
+        std::system(("sudo -n " + cmd + " >/dev/null 2>&1").c_str());
+      }
     }
   }
   draw();
@@ -916,18 +936,19 @@ void Panel::toggleKillSwitch()
   std::string cmd;
   if (up)
   {
-    // stop internet
-    cmd = "ip link set dev " + m_selectedIface + " down >/dev/null 2>&1";
+    cmd = "ip link set dev " + m_selectedIface + " down";
   }
   else
   {
-    cmd = "ip link set dev " + m_selectedIface + " up >/dev/null 2>&1";
+    cmd = "ip link set dev " + m_selectedIface + " up";
   }
-  // try without sudo, then with sudo -n (non-interactive)
-  if (std::system(cmd.c_str()) != 0)
+  // try without privileges, then pkexec (polkit), then sudo -n
+  if (std::system((cmd + " >/dev/null 2>&1").c_str()) != 0)
   {
-    std::string sudoCmd = "sudo -n " + cmd;
-    std::system(sudoCmd.c_str());
+    if (std::system(("pkexec " + cmd + " >/dev/null 2>&1").c_str()) != 0)
+    {
+      std::system(("sudo -n " + cmd + " >/dev/null 2>&1").c_str());
+    }
   }
   // brief settle
   struct timespec ts = {0, 150 * 1000 * 1000};

@@ -22,11 +22,28 @@ AppLauncher::AppLauncher(XConnection& xconn, FontRenderer& font)
 AppLauncher::~AppLauncher()
 {
   hide();
+  clearIconCache();
   if (m_window != None && m_xconn.display())
   {
     XDestroyWindow(m_xconn.display(), m_window);
     m_window = None;
   }
+}
+
+void AppLauncher::clearIconCache()
+{
+  Display* d = m_xconn.display();
+  if (d)
+  {
+    for (auto& kv : m_iconCache)
+    {
+      if (kv.second != None)
+      {
+        XFreePixmap(d, kv.second);
+      }
+    }
+  }
+  m_iconCache.clear();
 }
 
 std::string AppLauncher::desktopField(const std::string& content, const std::string& key)
@@ -260,10 +277,8 @@ void AppLauncher::draw()
 
 void AppLauncher::show()
 {
-  if (m_apps.empty())
-  {
-    scanApps();
-  }
+  // Always rescan + reload frequency so sort by useCount is up to date
+  scanApps();
 
   m_query.clear();
   m_index = 0;
@@ -458,32 +473,40 @@ std::string AppLauncher::resolveIconPath(const std::string& icon) const
   {
     return "";
   }
-  if (icon[0] == '/' )
+  if (icon[0] == '/')
   {
-    return icon;
+    std::ifstream test(icon);
+    if (test.good())
+    {
+      return icon;
+    }
+    return "";
   }
-  // Try common icon theme paths (48px png)
+  // Common icon theme paths (prefer small sizes for launcher)
   const char* bases[] = {
     "/usr/share/icons/hicolor/48x48/apps/",
     "/usr/share/icons/hicolor/32x32/apps/",
-    "/usr/share/pixmaps/",
+    "/usr/share/icons/hicolor/24x24/apps/",
+    "/usr/share/icons/hicolor/scalable/apps/",
     "/usr/share/icons/Adwaita/48x48/apps/",
+    "/usr/share/icons/Adwaita/32x32/apps/",
+    "/usr/share/icons/Yaru/48x48/apps/",
+    "/usr/share/icons/Yaru/32x32/apps/",
+    "/usr/share/pixmaps/",
+    "/usr/share/icons/",
     nullptr
   };
+  const char* exts[] = {".png", ".svg", ".xpm", "", nullptr};
   for (int i = 0; bases[i]; ++i)
   {
-    std::string p = std::string(bases[i]) + icon + ".png";
-    std::ifstream test(p);
-    if (test.good())
+    for (int e = 0; exts[e]; ++e)
     {
-      return p;
-    }
-    // icon may already include extension
-    p = std::string(bases[i]) + icon;
-    std::ifstream test2(p);
-    if (test2.good())
-    {
-      return p;
+      std::string p = std::string(bases[i]) + icon + exts[e];
+      std::ifstream test(p);
+      if (test.good())
+      {
+        return p;
+      }
     }
   }
   return "";
@@ -491,6 +514,16 @@ std::string AppLauncher::resolveIconPath(const std::string& icon) const
 
 void AppLauncher::drawIcon(Display* d, Window win, int x, int y, const std::string& path)
 {
+  const int size = 20;
+  auto it = m_iconCache.find(path);
+  if (it != m_iconCache.end() && it->second != None)
+  {
+    GC gc = XCreateGC(d, win, 0, nullptr);
+    XCopyArea(d, it->second, win, gc, 0, 0, size, size, x, y);
+    XFreeGC(d, gc);
+    return;
+  }
+
   int iw = 0;
   int ih = 0;
   int ch = 0;
@@ -499,7 +532,7 @@ void AppLauncher::drawIcon(Display* d, Window win, int x, int y, const std::stri
   {
     GC gc = XCreateGC(d, win, 0, nullptr);
     XSetForeground(d, gc, 0x6688aa);
-    XFillRectangle(d, win, gc, x, y, 20, 20);
+    XFillRectangle(d, win, gc, x, y, size, size);
     XFreeGC(d, gc);
     if (data)
     {
@@ -508,7 +541,6 @@ void AppLauncher::drawIcon(Display* d, Window win, int x, int y, const std::stri
     return;
   }
 
-  const int size = 20;
   char* xdata = static_cast<char*>(std::malloc(static_cast<size_t>(size * size * 4)));
   if (!xdata)
   {
@@ -531,18 +563,32 @@ void AppLauncher::drawIcon(Display* d, Window win, int x, int y, const std::stri
   }
   stbi_image_free(data);
 
+  Pixmap pm = XCreatePixmap(d, win, size, size, DefaultDepth(d, m_xconn.screen()));
   XImage* image = XCreateImage(
     d, DefaultVisual(d, m_xconn.screen()), DefaultDepth(d, m_xconn.screen()),
     ZPixmap, 0, xdata, size, size, 32, 0);
-  if (image)
+  if (image && pm != None)
   {
-    GC gc = XCreateGC(d, win, 0, nullptr);
-    XPutImage(d, win, gc, image, 0, 0, x, y, size, size);
+    GC gc = XCreateGC(d, pm, 0, nullptr);
+    XPutImage(d, pm, gc, image, 0, 0, 0, 0, size, size);
+    XCopyArea(d, pm, win, gc, 0, 0, size, size, x, y);
     XFreeGC(d, gc);
     XDestroyImage(image);
+    m_iconCache[path] = pm;
   }
   else
   {
-    std::free(xdata);
+    if (image)
+    {
+      XDestroyImage(image);
+    }
+    else
+    {
+      std::free(xdata);
+    }
+    if (pm != None)
+    {
+      XFreePixmap(d, pm);
+    }
   }
 }

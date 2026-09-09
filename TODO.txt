@@ -1,18 +1,18 @@
 ---------------------------------------------------------------------------------
-# v7
+# v8
 ## general
-- [ ] hover over date/time shows a popup, but i can't see panel_hover_color for date/time. fix it.
 - [ ] When i fullscreen any window, i can't min/max/brining back again. i can't don't anything. i think it's a bug. fix it.
-- [ ] You created ~/.config/mew/app_freq, but i can't see its effect.  (untill i restart mew. why?)
-  Still when i app Apps popup, i can't see most frequently apps on top. it is sorted alphabetically.
-  I want it to be sorted by most frequently used apps on top.
-- [ ] By adding application icons to Apps popup, it is sloooow now. can you keep icons but make the Apps popup faster?
-- [ ] Image still strech badly when i set ~/.config/mew/config: background_image
+- [ ] images that have high resolutions, can fit good(but not perfect) on the screen. but images with lower resolution, becomes very strechy and ugly on background.
+- [ ] if i set background_image in ~/.config/mew/config:
+  - [ ] if it's hight resolution: mew can render it quite good(but not perfect) on the background.
+  - [ ] if it doesn't have high resoution or dimensions, mew makes it strech. it's ugly. and it reduced the quality of image.
+    i don't want that. in this case, i want the image to be centeralized. without streching. to preserve it's initial high-quiality.
+    if there are empty space around the image, fill it with background_color setting.
 - [ ] windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
   - nemo
   - meld
 ## panel
-- [ ] changing networks in networkmanager plugin doesn't take into account.
+- [ ] changing networks in networkmanager plugin doesn't take into account. (it causes windows freezes. i think because it needs sudo under the hood. right? fix it)
   for example i swtich to ethernet, but still i have internet!
   Note: I expect when i switch to an interface which is down, my internet connection should be disconnected.
 
@@ -103,7 +103,15 @@
     sigmoid-upscaling=yes
     deband=yes
     hwdec=no
-
+---------------------------------------------------------------------------------
+# v7
+## general
+- [+] hover over date/time shows a popup, but i can't see panel_hover_color for date/time. fix it.
+- [+] You created ~/.config/mew/app_freq, but i can't see its effect.  (untill i restart mew. why?)
+  Still when i app Apps popup, i can't see most frequently apps on top. it is sorted alphabetically.
+  I want it to be sorted by most frequently used apps on top.
+- [+] By adding application icons to Apps popup, it is sloooow now. can you keep icons but make the Apps popup faster?
+- [P] Image still strech badly when i set ~/.config/mew/config: background_image
 ---------------------------------------------------------------------------------
 # v6
 ## general
