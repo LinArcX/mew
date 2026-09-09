@@ -60,7 +60,7 @@ Client* ClientManager::focusedClient()
 
 void ClientManager::drawFrame(Client* pClient)
 {
-  if (!pClient)
+  if (!pClient || pClient->fullscreen)
   {
     return;
   }
@@ -119,7 +119,7 @@ void ClientManager::drawFrame(Client* pClient)
 
 void ClientManager::resize(Client* pClient)
 {
-  if (!pClient)
+  if (!pClient || pClient->fullscreen)
   {
     return;
   }
@@ -146,6 +146,18 @@ void ClientManager::focus(Client* pClient)
   {
     pClient->minimized = false;
     XMapWindow(d, pClient->frame);
+  }
+
+  if (pClient->fullscreen)
+  {
+    // Frame is unmapped; raise and focus the client window on root.
+    XRaiseWindow(d, pClient->window);
+    XSetInputFocus(d, pClient->window, RevertToPointerRoot, CurrentTime);
+    if (m_raiseOverlay)
+    {
+      m_raiseOverlay();
+    }
+    return;
   }
 
   XRaiseWindow(d, pClient->frame);
@@ -269,6 +281,10 @@ void ClientManager::minimize(Client* pClient)
   {
     return;
   }
+  if (pClient->fullscreen)
+  {
+    setFullscreen(pClient, false);
+  }
   pClient->minimized = true;
   XUnmapWindow(m_xconn.display(), pClient->frame);
   focusNext();
@@ -278,6 +294,13 @@ void ClientManager::maximize(Client* pClient)
 {
   if (!pClient || pClient->noMaximize)
   {
+    return;
+  }
+
+  // Fullscreen owns the geometry; leave it first so decorations return.
+  if (pClient->fullscreen)
+  {
+    setFullscreen(pClient, false);
     return;
   }
 
@@ -326,9 +349,13 @@ void ClientManager::setFullscreen(Client* pClient, bool enable)
     pClient->fullscreen = true;
     pClient->maximized = true;
 
+    // Reparent to root generates UnmapNotify; ignore expected ones.
+    pClient->ignoreUnmap += 2;
+
     // True fullscreen: client covers entire screen; frame and panel hidden
     XReparentWindow(d, pClient->window, m_xconn.root(), 0, 0);
     XMoveResizeWindow(d, pClient->window, 0, 0, m_xconn.width(), m_xconn.height());
+    XMapWindow(d, pClient->window);
     XUnmapWindow(d, pClient->frame);
     XRaiseWindow(d, pClient->window);
     XSetInputFocus(d, pClient->window, RevertToPointerRoot, CurrentTime);
@@ -366,11 +393,24 @@ void ClientManager::setFullscreen(Client* pClient, bool enable)
     pClient->width = pClient->oldWidth;
     pClient->height = pClient->oldHeight;
 
+    // Reparent back can emit UnmapNotify; ignore expected ones.
+    pClient->ignoreUnmap += 2;
+
     XReparentWindow(
       d, pClient->window, pClient->frame,
       MewConst::borderWidth, MewConst::titleHeight);
-    XMapWindow(d, pClient->frame);
-    resize(pClient);
+    // Reparent may leave client unmapped; force both mapped + raised.
+    XMapWindow(d, pClient->window);
+    XMapRaised(d, pClient->frame);
+    XMoveResizeWindow(
+      d, pClient->window,
+      MewConst::borderWidth, MewConst::titleHeight,
+      pClient->width, pClient->height);
+    XMoveResizeWindow(
+      d, pClient->frame, pClient->x, pClient->y,
+      pClient->width + MewConst::borderWidth * 2,
+      pClient->height + MewConst::titleHeight + MewConst::borderWidth);
+    drawFrame(pClient);
 
     Atom state = m_xconn.atomNetWmState();
     XDeleteProperty(d, pClient->window, state);
@@ -390,6 +430,11 @@ void ClientManager::snap(Client* pClient, const std::string& edge)
     return;
   }
 
+  if (pClient->fullscreen)
+  {
+    setFullscreen(pClient, false);
+  }
+
   int screenW = m_xconn.width();
   int screenH = usableHeight();
 
@@ -401,7 +446,6 @@ void ClientManager::snap(Client* pClient, const std::string& edge)
     pClient->oldHeight = pClient->height;
   }
   pClient->maximized = false;
-  pClient->fullscreen = false;
 
   if (edge == "left")
   {
@@ -555,7 +599,7 @@ Cursor ClientManager::cursorFor(ResizeDirection direction)
 
 void ClientManager::resizeInteractive(Client* pClient, ResizeDirection direction)
 {
-  if (!pClient || pClient->maximized)
+  if (!pClient || pClient->maximized || pClient->fullscreen)
   {
     return;
   }
@@ -656,7 +700,7 @@ void ClientManager::resizeInteractive(Client* pClient, ResizeDirection direction
 
 void ClientManager::move(Client* pClient)
 {
-  if (!pClient || pClient->maximized)
+  if (!pClient || pClient->maximized || pClient->fullscreen)
   {
     return;
   }

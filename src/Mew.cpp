@@ -445,7 +445,8 @@ void Mew::processEvent(XEvent& event)
         XConfigureWindow(d, event.xconfigurerequest.window, event.xconfigurerequest.value_mask, &changes);
         break;
       }
-      if (pClient->maximized)
+      // Fullscreen / maximized geometry is owned by the WM.
+      if (pClient->fullscreen || pClient->maximized)
       {
         break;
       }
@@ -598,6 +599,12 @@ void Mew::processEvent(XEvent& event)
       Client* pClient = m_pClients->findClient(event.xunmap.window);
       if (pClient && event.xunmap.window == pClient->window)
       {
+        // Reparent/fullscreen can emit UnmapNotify; ignore those.
+        if (pClient->ignoreUnmap > 0)
+        {
+          pClient->ignoreUnmap--;
+          break;
+        }
         m_pClients->unmanage(pClient);
       }
       break;

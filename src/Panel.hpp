@@ -147,6 +147,17 @@ public:
   void drawPowerMenu();
 
   /**
+   * @brief Handle a click on the network interface menu.
+   * @param y Click y in menu coordinates.
+   */
+  void handleNetworkMenuClick(int y);
+
+  /**
+   * @brief Redraw network menu if active (Expose).
+   */
+  void drawNetworkMenu();
+
+  /**
    * @brief Panel X window, or None.
    */
   Window window() const { return m_window; }
@@ -186,10 +197,6 @@ public:
    * @brief Last clock update time (for periodic redraw).
    */
   time_t lastTime() const { return m_lastTime; }
-
-  void drawNetworkMenu();
-
-  void handleNetworkMenuClick(int y);
 
 private:
   void updateVolume();

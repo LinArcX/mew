@@ -25,6 +25,9 @@ struct Client
   bool transient = false;   // dialog / transient window
   bool noMaximize = false;  // disable maximize button
 
+  // Expected UnmapNotify count to ignore (reparent/fullscreen transitions).
+  int ignoreUnmap = 0;
+
   Time lastTitleClick = 0;
 };
 
