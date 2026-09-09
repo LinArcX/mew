@@ -143,6 +143,12 @@ public:
    */
   Window powerMenuWindow() const { return m_powerMenu; }
 
+  /** @brief Network interface picker window, or None. */
+  Window networkMenuWindow() const { return m_netMenu; }
+
+  /** @brief Whether network menu is mapped. */
+  bool isNetworkMenuActive() const { return m_netMenuActive; }
+
   /**
    * @brief Whether start menu is mapped.
    */
@@ -163,6 +169,10 @@ public:
    */
   time_t lastTime() const { return m_lastTime; }
 
+  void handleNetworkMenuClick(int y);
+
+  void drawNetworkMenu();
+
 private:
   void updateVolume();
   void toggleMute();
@@ -178,6 +188,11 @@ private:
   void hideTooltip();
   void refreshLayout();
   void cycleLayout();
+  void refreshNetwork();
+  void showNetworkMenu();
+  void hideNetworkMenu();
+  void toggleKillSwitch();
+  bool isInterfaceUp(const std::string& name) const;
 
   XConnection& m_xconn;
   FontRenderer& m_font;
@@ -196,6 +211,13 @@ private:
   std::string m_layoutName = "??";
   int m_layoutGroup = 0;
   int m_layoutCount = 1;
+
+  std::vector<std::string> m_netIfaces;
+  std::string m_selectedIface;
+  Window m_netMenu = None;
+  bool m_netMenuActive = false;
+  static constexpr int kNetMenuW = 200;
+  static constexpr int kNetMenuItemH = 28;
 
   Window m_startMenu = None;
   bool m_startMenuActive = false;

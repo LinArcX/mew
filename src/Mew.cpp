@@ -461,6 +461,11 @@ void Mew::processEvent(XEvent& event)
         m_pPanel->handlePowerMenuClick(event.xbutton.y);
         break;
       }
+      if (m_pPanel && m_pPanel->isNetworkMenuActive() && w == m_pPanel->networkMenuWindow())
+      {
+        m_pPanel->handleNetworkMenuClick(event.xbutton.y);
+        break;
+      }
       if (m_pLauncher && m_pLauncher->isActive() && w == m_pLauncher->window())
       {
         m_pLauncher->handleClick(&event.xbutton);
@@ -525,6 +530,11 @@ void Mew::processEvent(XEvent& event)
       if (m_pPanel && w == m_pPanel->powerMenuWindow())
       {
         m_pPanel->drawPowerMenu();
+        break;
+      }
+      if (m_pPanel && w == m_pPanel->networkMenuWindow())
+      {
+        m_pPanel->drawNetworkMenu();
         break;
       }
       Client* pClient = m_pClients->findClient(w);

@@ -122,18 +122,16 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 ## panel
 re-implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
   - [ ] currently start menu closes only when i click on it. but i want it to be close  also whenever i clicked on other applications or another part of mew desktop.
-  - [ ] network manager (mandatory)
+  - [P] network manager (mandatory)
     it should show a plugin in panel. that shows currently using network intreface. (you can access to all netowrk interfaces with: `ip a`)
     then when i click on it, a pop-up window should shows and gives me all of the interfaces.
     i can select one of them. and it can become my main network interface.
-
-    - there should be another plugin next to network manager plugin, i call it kill-switch for internet. so when i click on it, it should toggle between these states:
+    - [P] there should be another plugin next to network manager plugin, i call it kill-switch for internet. so when i click on it, it should toggle between these states:
     "stop internet")
       sudo ip link set dev INTERFACE up
     "stop internet")
       sudo ip link set dev INTERFACE down
-    - the icon of kill switch should be green (if the selected interface is up and connected) and red(if the selected interface is down and disconnected)
-
+    - [+] the icon of kill switch should be green (if the selected interface is up and connected) and red(if the selected interface is down and disconnected)
     
   - [+] language switcher (mandatory)
   - [Probably] power manager (mandatory)
@@ -154,6 +152,8 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 ---------------------------------------------------------------------------------
 # v6
 ## general
+- [ ] when i open meld app, it's size is very small. make it full screen. don't hard-code the name of meld in code.
+  if you can find a way to maximize the size of meld through config, it would be awesome.
 - [ ] transfer my README file to a professional README. i want it to be:
   - simple
   - understandable
@@ -172,6 +172,8 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 - [ ] hover over start menu, make start menu icon dissapear. fix it.
 
 ## panel
+- [ ] changing networks in networkmanager plugin doesn't take into account. for example i swtich to ethernet, but still i have internet! (but i expect when i switch to an interface which is down, my internet connection should be disconnect)
+- [ ] bringing interfaces up/down doesn't works. does it need root access? implement it. CAP_NET_ADMIN (polkit-devel?).
 - [ ] in language switcher plugin, when i switch to persian, it shows persian. but i want it to write IR insted. 
   This is the command i use in ~/.config/mew/autostart:
     setxkbmap -layout "us,ir" -option "grp:alt_shift_toggle" &

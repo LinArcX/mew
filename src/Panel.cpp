@@ -1,4 +1,8 @@
 #include "Panel.hpp"
+#include <ctime>
+#include <algorithm>
+#include <fstream>
+#include <dirent.h>
 
 #include <X11/XKBlib.h>
 
@@ -34,6 +38,11 @@ Panel::~Panel()
   {
     XDestroyWindow(d, m_powerMenu);
     m_powerMenu = None;
+  }
+  if (m_netMenu != None)
+  {
+    XDestroyWindow(d, m_netMenu);
+    m_netMenu = None;
   }
   if (m_tooltip != None)
   {
@@ -325,14 +334,11 @@ void Panel::draw()
   {
     return;
   }
-
   Display* d = m_xconn.display();
   int screenW = m_xconn.width();
   GC gc = XCreateGC(d, m_window, 0, nullptr);
-
   XSetForeground(d, gc, m_bgColor);
   XFillRectangle(d, m_window, gc, 0, 0, screenW, MewConst::panelHeight);
-
   time_t now = time(nullptr);
   struct tm* tm = localtime(&now);
   char buf[64];
@@ -343,16 +349,12 @@ void Panel::draw()
   char timePart[16];
   strftime(timePart, sizeof(timePart), "%H:%M:%S", tm);
   snprintf(buf, sizeof(buf), "\xee\xaa\xb0 %s \xee\x99\x81 %s", datePart, timePart);
-
   XftFont* pFont = m_font.font();
   int textH = pFont ? (pFont->ascent + pFont->descent) : 12;
   int baseline = (MewConst::panelHeight + textH) / 2 - (pFont ? pFont->descent : 2);
 
-  // U+EB94 start icon
-  m_font.draw(d, m_xconn.screen(), m_window, 12, baseline, "");
-
   // Hover highlight under interactive zones
-  // Layout from right: desktop | clock | volume | language
+  // Layout from right: desktop | clock | volume | language | network | kill
   if (m_hoverZone == 0)
   {
     XSetForeground(d, gc, m_hoverColor);
@@ -361,21 +363,51 @@ void Panel::draw()
   else if (m_hoverZone == 1)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, screenW - 380, 0, 30, MewConst::panelHeight);
+    XFillRectangle(d, m_window, gc, screenW - 480, 0, 28, MewConst::panelHeight);
   }
   else if (m_hoverZone == 2)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, screenW - 350, 0, 35, MewConst::panelHeight);
+    XFillRectangle(d, m_window, gc, screenW - 450, 0, 70, MewConst::panelHeight);
   }
   else if (m_hoverZone == 3)
+  {
+    XSetForeground(d, gc, m_hoverColor);
+    XFillRectangle(d, m_window, gc, screenW - 380, 0, 30, MewConst::panelHeight);
+  }
+  else if (m_hoverZone == 4)
+  {
+    XSetForeground(d, gc, m_hoverColor);
+    XFillRectangle(d, m_window, gc, screenW - 350, 0, 35, MewConst::panelHeight);
+  }
+  else if (m_hoverZone == 5)
   {
     XSetForeground(d, gc, m_hoverColor);
     XFillRectangle(d, m_window, gc, screenW - 25, 0, 30, MewConst::panelHeight);
   }
 
+  // U+EB94 start icon
+  m_font.draw(d, m_xconn.screen(), m_window, 12, baseline, "\xee\xae\x94");
+
   refreshLayout();
   updateVolume();
+  refreshNetwork();
+
+  // Kill-switch (green=up, red=down)
+  bool ifaceUp = !m_selectedIface.empty() && isInterfaceUp(m_selectedIface);
+  const char* killIcon = ifaceUp ? "\xf3\xb0\x8c\xa0" : "\xf3\xb0\x8c\xa1"; // placeholder; color via prefix text
+  // Draw colored indicator using GC + short label
+  XSetForeground(d, gc, ifaceUp ? 0x22cc44 : 0xcc2222);
+  XFillRectangle(d, m_window, gc, screenW - 476, 6, 16, 16);
+  m_font.draw(d, m_xconn.screen(), m_window, screenW - 478, baseline, " ");
+
+  // Network interface name
+  std::string netLabel = m_selectedIface.empty() ? "net" : m_selectedIface;
+  if (netLabel.size() > 8)
+  {
+    netLabel = netLabel.substr(0, 8);
+  }
+  m_font.draw(d, m_xconn.screen(), m_window, screenW - 448, baseline, netLabel);
 
   // Language (left of volume)
   m_font.draw(d, m_xconn.screen(), m_window, screenW - 375, baseline, m_layoutName);
@@ -392,8 +424,7 @@ void Panel::draw()
   }
   m_font.draw(d, m_xconn.screen(), m_window, screenW - 345, baseline, volBuf);
   m_font.draw(d, m_xconn.screen(), m_window, screenW - 305, baseline, buf);
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 20, baseline, "");
-
+  m_font.draw(d, m_xconn.screen(), m_window, screenW - 20, baseline, "\xef\x92\xa9");
   XFreeGC(d, gc);
   m_lastTime = now;
 }
@@ -438,6 +469,7 @@ void Panel::hidePowerMenu()
 void Panel::hideMenus()
 {
   hidePowerMenu();
+  hideNetworkMenu();
   if (m_startMenu != None && m_startMenuActive)
   {
     XUnmapWindow(m_xconn.display(), m_startMenu);
@@ -607,6 +639,195 @@ void Panel::toggleDesktop()
   }
 }
 
+
+void Panel::refreshNetwork()
+{
+  m_netIfaces.clear();
+  // Prefer /sys/class/net (no shell)
+  DIR* dir = opendir("/sys/class/net");
+  if (dir)
+  {
+    struct dirent* ent = nullptr;
+    while ((ent = readdir(dir)) != nullptr)
+    {
+      std::string name = ent->d_name;
+      if (name == "." || name == ".." || name == "lo")
+      {
+        continue;
+      }
+      m_netIfaces.push_back(name);
+    }
+    closedir(dir);
+    std::sort(m_netIfaces.begin(), m_netIfaces.end());
+  }
+
+  if (m_selectedIface.empty() ||
+      std::find(m_netIfaces.begin(), m_netIfaces.end(), m_selectedIface) == m_netIfaces.end())
+  {
+    m_selectedIface.clear();
+    for (const std::string& n : m_netIfaces)
+    {
+      if (isInterfaceUp(n))
+      {
+        m_selectedIface = n;
+        break;
+      }
+    }
+    if (m_selectedIface.empty() && !m_netIfaces.empty())
+    {
+      m_selectedIface = m_netIfaces.front();
+    }
+  }
+}
+
+bool Panel::isInterfaceUp(const std::string& name) const
+{
+  if (name.empty())
+  {
+    return false;
+  }
+  std::string path = "/sys/class/net/" + name + "/operstate";
+  std::ifstream f(path);
+  if (!f.is_open())
+  {
+    return false;
+  }
+  std::string state;
+  f >> state;
+  return state == "up";
+}
+
+void Panel::hideNetworkMenu()
+{
+  if (m_netMenu != None && m_netMenuActive)
+  {
+    XUnmapWindow(m_xconn.display(), m_netMenu);
+  }
+  m_netMenuActive = false;
+}
+
+void Panel::drawNetworkMenu()
+{
+  if (m_netMenu == None || !m_netMenuActive)
+  {
+    return;
+  }
+  Display* d = m_xconn.display();
+  int height = std::max(1, static_cast<int>(m_netIfaces.size())) * kNetMenuItemH;
+  GC gc = XCreateGC(d, m_netMenu, 0, nullptr);
+  XSetForeground(d, gc, m_bgColor);
+  XFillRectangle(d, m_netMenu, gc, 0, 0, kNetMenuW, height);
+  XSetForeground(d, gc, 0x555555);
+  XDrawRectangle(d, m_netMenu, gc, 0, 0, kNetMenuW - 1, height - 1);
+
+  XftFont* pFont = m_font.font();
+  if (m_netIfaces.empty())
+  {
+    int baseline = (kNetMenuItemH + (pFont ? pFont->ascent : 10)) / 2 - 2;
+    m_font.draw(d, m_xconn.screen(), m_netMenu, 12, baseline, "(no interfaces)");
+  }
+  else
+  {
+    for (size_t i = 0; i < m_netIfaces.size(); ++i)
+    {
+      int y = static_cast<int>(i) * kNetMenuItemH;
+      if (m_netIfaces[i] == m_selectedIface)
+      {
+        XSetForeground(d, gc, m_hoverColor);
+        XFillRectangle(d, m_netMenu, gc, 2, y + 1, kNetMenuW - 4, kNetMenuItemH - 2);
+      }
+      std::string line = m_netIfaces[i];
+      if (isInterfaceUp(m_netIfaces[i]))
+      {
+        line += "  [up]";
+      }
+      else
+      {
+        line += "  [down]";
+      }
+      int baseline = y + (kNetMenuItemH + (pFont ? pFont->ascent : 10)) / 2 - 2;
+      m_font.draw(d, m_xconn.screen(), m_netMenu, 12, baseline, line);
+    }
+  }
+  XFreeGC(d, gc);
+}
+
+void Panel::showNetworkMenu()
+{
+  refreshNetwork();
+  Display* d = m_xconn.display();
+  int height = std::max(1, static_cast<int>(m_netIfaces.size())) * kNetMenuItemH;
+  int screenH = m_xconn.height();
+  int x = m_xconn.width() - 450;
+  int y = screenH - MewConst::panelHeight - height;
+
+  if (m_netMenu == None)
+  {
+    XSetWindowAttributes attrs{};
+    attrs.override_redirect = True;
+    attrs.background_pixel = m_bgColor;
+    attrs.event_mask = ExposureMask | ButtonPressMask;
+    m_netMenu = XCreateWindow(
+      d, m_xconn.root(),
+      x, y, kNetMenuW, height, 1,
+      CopyFromParent, InputOutput, CopyFromParent,
+      CWOverrideRedirect | CWBackPixel | CWEventMask,
+      &attrs);
+  }
+  else
+  {
+    XMoveResizeWindow(d, m_netMenu, x, y, kNetMenuW, height);
+  }
+  XMapRaised(d, m_netMenu);
+  m_netMenuActive = true;
+  drawNetworkMenu();
+}
+
+void Panel::handleNetworkMenuClick(int y)
+{
+  int index = y / kNetMenuItemH;
+  hideNetworkMenu();
+  if (index >= 0 && index < static_cast<int>(m_netIfaces.size()))
+  {
+    m_selectedIface = m_netIfaces[static_cast<size_t>(index)];
+    draw();
+  }
+}
+
+void Panel::toggleKillSwitch()
+{
+  if (m_selectedIface.empty())
+  {
+    refreshNetwork();
+  }
+  if (m_selectedIface.empty())
+  {
+    return;
+  }
+
+  bool up = isInterfaceUp(m_selectedIface);
+  std::string cmd;
+  if (up)
+  {
+    // stop internet
+    cmd = "ip link set dev " + m_selectedIface + " down >/dev/null 2>&1";
+  }
+  else
+  {
+    cmd = "ip link set dev " + m_selectedIface + " up >/dev/null 2>&1";
+  }
+  // try without sudo, then with sudo -n (non-interactive)
+  if (std::system(cmd.c_str()) != 0)
+  {
+    std::string sudoCmd = "sudo -n " + cmd;
+    std::system(sudoCmd.c_str());
+  }
+  // brief settle
+  struct timespec ts = {0, 150 * 1000 * 1000};
+  nanosleep(&ts, nullptr);
+  draw();
+}
+
 void Panel::handleClick(int x)
 {
   int zone = hitTest(x);
@@ -624,15 +845,32 @@ void Panel::handleClick(int x)
   }
   if (zone == 1)
   {
-    cycleLayout();
+    toggleKillSwitch();
     return;
   }
   if (zone == 2)
   {
-    toggleMute();
+    if (m_netMenuActive)
+    {
+      hideNetworkMenu();
+    }
+    else
+    {
+      showNetworkMenu();
+    }
     return;
   }
   if (zone == 3)
+  {
+    cycleLayout();
+    return;
+  }
+  if (zone == 4)
+  {
+    toggleMute();
+    return;
+  }
+  if (zone == 5)
   {
     toggleDesktop();
   }
@@ -646,17 +884,25 @@ int Panel::hitTest(int x) const
   {
     return 0; // start
   }
-  if (x >= screenW - 400 && x < screenW - 345)
+  if (x >= screenW - 480 && x < screenW - 452)
   {
-    return 1; // language
+    return 1; // kill-switch
   }
-  if (x >= screenW - 340 && x < screenW - 245)
+  if (x >= screenW - 450 && x < screenW - 380)
   {
-    return 2; // volume
+    return 2; // network
   }
-  if (x > screenW - 50)
+  if (x >= screenW - 380 && x < screenW - 350)
   {
-    return 3; // desktop
+    return 3; // language
+  }
+  if (x >= screenW - 350 && x < screenW - 310)
+  {
+    return 4; // volume
+  }
+  if (x > screenW - 30)
+  {
+    return 5; // desktop
   }
   return -1;
 }
@@ -728,13 +974,21 @@ void Panel::handleMotion(int x)
   }
   else if (zone == 1)
   {
-    showTooltip(x, "Keyboard layout (click to cycle)");
+    showTooltip(x, "Internet kill-switch");
   }
   else if (zone == 2)
   {
-    showTooltip(x, "Volume (click to mute)");
+    showTooltip(x, "Network interface");
   }
   else if (zone == 3)
+  {
+    showTooltip(x, "Keyboard layout (click to cycle)");
+  }
+  else if (zone == 4)
+  {
+    showTooltip(x, "Volume (click to mute)");
+  }
+  else if (zone == 5)
   {
     showTooltip(x, "Show desktop");
   }
