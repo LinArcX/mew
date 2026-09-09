@@ -544,6 +544,10 @@ void Mew::processEvent(XEvent& event)
         auto& list = m_pClients->clients();
         list.erase(std::remove(list.begin(), list.end(), pClient), list.end());
         delete pClient;
+        if (!list.empty())
+        {
+          m_pClients->focus(list.back());
+        }
       }
       break;
     }

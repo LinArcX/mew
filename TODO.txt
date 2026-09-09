@@ -91,7 +91,7 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
     - [P] reboot
     - [P] poweroff
     - [+] logout (exit from mew)
-    - [P] mew --reconfigure
+    - [Probably] mew --reconfigure
       not working as expected. need to test it again.
       - [+] put mew.pid in /tmp
 ---------------------------------------------------------------------------------
@@ -131,18 +131,13 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
       not working as expected. need to test it again.
 
 ## apps
-### mpv
-- [ ] Pressing Enter doesn't maximize the whole window (i expect when i press ENTER in neovim, it becomes a full screen window)
-
 ### nemo
-- [ ] when i extract zip files, there's a extract window appears, and its size is width: 2/3, height: 2/3. i don't want that.
+- [+] when i extract zip files, there's a extract window appears, and its size is width: 2/3, height: 2/3. i don't want that.
     i want it to have the minimum size it can. and it shuould be centerized. also max button on it should be disabled.
 
 ### neovim
-- [ ] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
+- [Probably] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
   but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
-
-
 
 ---------------------------------------------------------------------------------
 # v6
@@ -165,13 +160,69 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 - [ ] hover over start menu, make start menu icon dissapear. fix it.
 
 ## panel
+- [ ] hover over date/time doesn't work.
+- [ ] hover over desktop icon and sound icon, is not matching their text lenght. 
 - [ ] panel_item_color doesn't change panel items color.
 - [ ] apps popup in start-menu only close when i press ESCAPE from keyboard. i want it to be close, when i click on other apps, or in general space also in WM.
 - [ ] instead of using amixer directly in Panel.cpp to mute audio, you should read the command from: ~/.config/mew/keybindings
   key="XF86AudioRaiseVolume", command="amixer set PCM 5%+" # pi5: amixer -D default set Master 5%+
   key="XF86AudioLowerVolume", command="amixer set PCM 5%-" # pi5: amixer -D default set Master 5%-
   key="XF86AudioMute", command="amixer -D pulse set Master toggle" # amixer -D pulse set Master toggle
-
   - [ ] Do the same process for RaiseVolue and LowerVolume.
     you need to update volume percentage number in panel when i increase/decrease the volume with keyboard shortcut. 
 
+## apps
+### mpv
+- [ ] Pressing Enter doesn't maximize the whole window (i expect when i press ENTER in neovim, it becomes a full screen window)
+  - this is part of my ~/.config/mpv/input.conf:
+    # General
+    ESC                 cycle fullscreen
+    SPACE               cycle pause
+    IDEOGRAPHIC_SPACE   cycle pause
+    TAB                 cycle mute
+    ENTER               cycle fullscreen
+    PGUP                add chapter 1                   # skip to next chapter
+    PGDWN               add chapter -1                  # skip to previous chapter
+
+  - this is my ~/.config/mpv/mpv.conf:
+    #-----------=[ General ] =----------#
+    keep-open                           # keep the player open when a file's end is reached
+    hls-bitrate=max                     # use max quality for HLS streams
+    ao='alsa'
+    vo='gpu'
+    hwdec='vaapi'
+    #sub-font="" Roboto #Merriweather 
+    sub-font="vazirmatn" # Vazir #Vazirmatn-Light
+    sub-scale = 1.9
+    sub-scale-with-window='yes'
+    geometry='50%:50%'
+    autofit-larger='70%x70%'
+    save-position-on-quit
+    screenshot-directory = "~/Pictures/mpv"
+    sub-pos = 101
+    #secondary-sub-pos=22
+    #secondary-sid='auto'
+    #sub-codepage=utf8:cp1256
+    #sub-pos=10
+    
+    #------------=[ Audio ]=------------#
+    audio-device=alsa/default
+    audio-channels=auto
+    audio-file-auto=fuzzy               # external audio doesn't has to match the file name exactly to autoload
+    audio-pitch-correction=yes          # automatically insert scaletempo when playing with higher speed
+    volume-max=300                      # maximum volume in %, everything above 100 results in amplification
+    volume=100                          # default volume, 100 = unchanged
+    
+    #------------=[ Video ]=------------#
+    [high-quality]
+    profile-desc=cond:is_desktop() and get('width', math.huge) < 3840
+    scale=ewa_lanczossharp
+    cscale=ewa_lanczossoft
+    dscale=mitchell
+    scale-antiring=0
+    cscale-antiring=0
+    dither-depth=auto
+    correct-downscaling=yes
+    sigmoid-upscaling=yes
+    deband=yes
+    hwdec=no

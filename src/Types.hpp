@@ -22,6 +22,8 @@ struct Client
   bool maximized = false;
   bool minimized = false;
   bool fullscreen = false;
+  bool transient = false;   // dialog / transient window
+  bool noMaximize = false;  // disable maximize button
 
   Time lastTitleClick = 0;
 };

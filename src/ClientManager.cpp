@@ -139,18 +139,49 @@ void ClientManager::focus(Client* pClient)
     return;
   }
 
+  Display* d = m_xconn.display();
+
   if (pClient->minimized)
   {
     pClient->minimized = false;
-    XMapWindow(m_xconn.display(), pClient->frame);
+    XMapWindow(d, pClient->frame);
   }
 
-  XRaiseWindow(m_xconn.display(), pClient->frame);
+  XRaiseWindow(d, pClient->frame);
   if (m_raiseOverlay)
   {
     m_raiseOverlay();
   }
-  XSetInputFocus(m_xconn.display(), pClient->window, RevertToPointerRoot, CurrentTime);
+
+  // Prefer explicit focus; also send WM_TAKE_FOCUS for clients that need it (e.g. neovim)
+  XSetInputFocus(d, pClient->window, RevertToPointerRoot, CurrentTime);
+
+  Atom* protocols = nullptr;
+  int count = 0;
+  if (XGetWMProtocols(d, pClient->window, &protocols, &count))
+  {
+    Atom takeFocus = XInternAtom(d, "WM_TAKE_FOCUS", False);
+    for (int i = 0; i < count; ++i)
+    {
+      if (protocols[i] == takeFocus)
+      {
+        XEvent ev{};
+        ev.xclient.type = ClientMessage;
+        ev.xclient.window = pClient->window;
+        ev.xclient.message_type = m_xconn.atomProtocols();
+        ev.xclient.format = 32;
+        ev.xclient.data.l[0] = static_cast<long>(takeFocus);
+        ev.xclient.data.l[1] = CurrentTime;
+        XSendEvent(d, pClient->window, False, NoEventMask, &ev);
+        break;
+      }
+    }
+    if (protocols)
+    {
+      XFree(protocols);
+    }
+  }
+
   drawFrame(pClient);
 }
 
@@ -244,7 +275,7 @@ void ClientManager::minimize(Client* pClient)
 
 void ClientManager::maximize(Client* pClient)
 {
-  if (!pClient)
+  if (!pClient || pClient->noMaximize)
   {
     return;
   }
@@ -299,6 +330,21 @@ void ClientManager::setFullscreen(Client* pClient, bool enable)
     pClient->height = m_xconn.height();
     XMoveResizeWindow(d, pClient->frame, 0, 0, pClient->width, pClient->height);
     XMoveResizeWindow(d, pClient->window, 0, 0, pClient->width, pClient->height);
+    XRaiseWindow(d, pClient->frame);
+
+    // Notify client of new size (mpv/SDL need this for true fullscreen)
+    XEvent ce{};
+    ce.xconfigure.type = ConfigureNotify;
+    ce.xconfigure.event = pClient->window;
+    ce.xconfigure.window = pClient->window;
+    ce.xconfigure.x = 0;
+    ce.xconfigure.y = 0;
+    ce.xconfigure.width = pClient->width;
+    ce.xconfigure.height = pClient->height;
+    ce.xconfigure.border_width = 0;
+    ce.xconfigure.above = None;
+    ce.xconfigure.override_redirect = False;
+    XSendEvent(d, pClient->window, False, StructureNotifyMask, &ce);
   }
   else if (!enable && pClient->fullscreen)
   {
@@ -646,17 +692,31 @@ void ClientManager::manage(Window window)
 
   int screenW = m_xconn.width();
   int screenH = usableHeight();
-  int minW = (screenW * 2) / 3;
-  int minH = (screenH * 2) / 3;
+
+  // Detect dialogs / transient windows (e.g. nemo extract progress)
+  Window transientFor = None;
+  bool isTransient = (XGetTransientForHint(d, window, &transientFor) && transientFor != None);
+
+  // Respect application size; only enforce a small floor (not 2/3 screen)
   int w = attr.width;
   int h = attr.height;
-  if (w < minW)
+  if (w < MewConst::minWidth)
   {
-    w = minW;
+    w = MewConst::minWidth;
   }
-  if (h < minH)
+  if (h < MewConst::minHeight)
   {
-    h = minH;
+    h = MewConst::minHeight;
+  }
+
+  // Clamp to usable screen
+  if (w > screenW - MewConst::borderWidth * 2)
+  {
+    w = screenW - MewConst::borderWidth * 2;
+  }
+  if (h > screenH - MewConst::titleHeight - MewConst::borderWidth)
+  {
+    h = screenH - MewConst::titleHeight - MewConst::borderWidth;
   }
 
   int frameW = w + MewConst::borderWidth * 2;
@@ -685,6 +745,8 @@ void ClientManager::manage(Window window)
   pClient->oldY = y;
   pClient->oldWidth = w;
   pClient->oldHeight = h;
+  pClient->transient = isTransient;
+  pClient->noMaximize = isTransient;
 
   XSelectInput(d, pClient->frame, ExposureMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
   XAddToSaveSet(d, window);
@@ -716,6 +778,12 @@ void ClientManager::unmanage(Client* pClient)
   XDestroyWindow(d, pClient->frame);
   m_clients.erase(std::remove(m_clients.begin(), m_clients.end(), pClient), m_clients.end());
   delete pClient;
+
+  // Restore keyboard focus to another window (fixes neovim hollow cursor)
+  if (!m_clients.empty())
+  {
+    focus(m_clients.back());
+  }
 }
 
 void ClientManager::handleButtonPress(XButtonEvent* pEvent)
@@ -756,7 +824,10 @@ void ClientManager::handleButtonPress(XButtonEvent* pEvent)
       }
       if (pEvent->x >= maxX && pEvent->x < closeX)
       {
-        maximize(pClient);
+        if (!pClient->noMaximize)
+        {
+          maximize(pClient);
+        }
         return;
       }
       if (pEvent->x >= closeX)
