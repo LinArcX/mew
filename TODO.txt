@@ -1,64 +1,17 @@
 ---------------------------------------------------------------------------------
 # v7
 ## general
-- You created ~/.config/mew/app_freq, but i can't see its effect. 
+- [ ] hover over date/time shows a popup, but i can't see panel_hover_color for date/time. fix it.
+- [ ] When i fullscreen any window, i can't min/max/brining back again. i can't don't anything. i think it's a bug. fix it.
+- [ ] You created ~/.config/mew/app_freq, but i can't see its effect.  (untill i restart mew. why?)
   Still when i app Apps popup, i can't see most frequently apps on top. it is sorted alphabetically.
   I want it to be sorted by most frequently used apps on top.
-- By adding application icons to Apps popup, it is sloooow now. can you keep icons but make the Apps popup faster?
-- In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
-- hover over date/time shows a popup, but i can't see panel_hover_color for date/time. fix it.
-- Image still strech in when i set ~/.config/mew/config: background_image
-- windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
+- [ ] By adding application icons to Apps popup, it is sloooow now. can you keep icons but make the Apps popup faster?
+- [ ] Image still strech badly when i set ~/.config/mew/config: background_image
+- [ ] windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
   - nemo
   - meld
-- shortcut for powerManagement just open startMenu.
-  I want it to be a separate pop-up menu in center with search text input at top.
-  Like something you already did for apps popup:
-    key="W-a" command="apps"
-    key="W-p" command="power-manager"
-
----------------------------------------------------------------------------------
-# v6
-## general
-- [+] when i open meld app(which a gui diff tool), its size is very small. So, make it full screen. don't hard-code the name of meld in code.
-  if you can find a way to maximize the size of meld through config, it would be awesome.
-- [P] if i set background_image in ~/.config/mew/config, mew shows it to me streched. it's ugly. and it reduced the quality of image.
-  i don't want that. i want the image to be centeralized. without streching. to preserve it's initial high-quiality.
-  if there are empty space around the image, fill it with background_color setting.
-- [P] like apps pop-up, there should be a pop-up for powerManagement items.
-  and i should be able to define shortcut for that in ~/.config/mew/keybindings also.
-- [P] show application icons in Apps popup.
-- [P] apps should be sorted by most frequent apps ran in the past.
-  for example if i ran firefox 5 times through apps pop-up and gedit 3 times, firefox should show me first, then gedit.
-- [ ] when keybindings pop-up window appears, i shuould be able to hit ESCAPE on keyboard to close it.
-
-## startmenu
-- [+] hover over start-menu, make the start-menu icon dissapear. fix it.
-- [ ] currently start-menu popup closes only when i click on it again.
-  start-menu popup should be close when i click outside of it (like on panel or clicking on other apps or even background of mew)
-  - [ ] and also when i hit ESCAPE from keyboard
-- [ ] apps popup in start-menu only close when i press ESCAPE from keyboard.
-  i want it to be close, when i click on other apps, or in general space also in WM.
-
-## config
-- [+] ability to define applications windows size or position. for example:
-    mpv.pos.x = 0
-    mpv.pos.y = 0
-    mpv.width = 200
-    mpv.height = 300
-
 ## panel
-- [Probably] re-implement panel as a pluging system. (some plugins are mandatory. others are optional. this gives us this ability to enable/disable optional ones and recompile mew)
-  - [Probably] So inside src/ folder, create another folder called panel/. and you should create for each panel widget a separate class and put these classes in src/panel directory.
-  - [Probably] My idea is that, in future, if user wanted to create his own widget for panel, it should be easier for him. he just create another class under src/panel directory.
-    and Main panel class should be able to automatically brings all panel widgest at compile time and compile them.
-
-- [+] panel_item_color doesn't change panel items color.
-
-- [+] in language switcher plugin, when i switch to persian, it shows persian. but i want it to write IR insted. 
-  This is the command i use in ~/.config/mew/autostart:
-    setxkbmap -layout "us,ir" -option "grp:alt_shift_toggle" &
-
 - [ ] changing networks in networkmanager plugin doesn't take into account.
   for example i swtich to ethernet, but still i have internet!
   Note: I expect when i switch to an interface which is down, my internet connection should be disconnected.
@@ -77,7 +30,19 @@
 - [ ] volume widget in panel doesn't show the actual volume.
   when i click on it (and it becomes mute), i still can hear the sound.
 
-- [P] hover over date/time widget in panel doesn't work and doesn't show anything. fix it.
+## startMenu
+- [ ] In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
+- [ ] when keybindings pop-up window appears, i shuould be able to hit ESCAPE on keyboard to close it.
+- [ ] currently, start-menu popup closes only when i click on it again.
+  start-menu popup should be close when i click outside of it (like on panel or clicking on other apps or even background of mew)
+  - [ ] and also when i hit ESCAPE from keyboard
+- [ ] apps popup in start-menu only close when i press ESCAPE from keyboard.
+  i want it to be close, when i click on other apps, or in general space also in WM.
+- [ ] shortcut for powerManagement just open startMenu.
+  I want it to be a separate pop-up menu in center with search text input at top.
+  Like something you already did for apps popup:
+    key="W-a" command="apps"
+    key="W-p" command="power-manager"
 
 ## apps
 ### mpv
@@ -85,6 +50,7 @@
   Details of issue: Pressing Enter when i was watching with mpv on other WM (likde dwm, openbox, etc..) make the mpv fullscreen.
   But it's not the case in mew. Pressing Enter on mpv in mew doesn't maximize the whole mpv window (i expect when i press ENTER in mpv, it becomes a full screen window)
   when i say fullscreen, i mean top frame(that contains close/max/min buttons) and panel also should be hidden.
+  One Idea that you can follow, when i press Enter on Mpv, fullScreen it, or it's even better if i can define what ENTER does in mpv in config menu.
   - This is part of my ~/.config/mpv/input.conf that can help you:
     # General
     ESC                 cycle fullscreen
@@ -137,6 +103,44 @@
     sigmoid-upscaling=yes
     deband=yes
     hwdec=no
+
+---------------------------------------------------------------------------------
+# v6
+## general
+- [+] when i open meld app(which a gui diff tool), its size is very small. So, make it full screen. don't hard-code the name of meld in code.
+  if you can find a way to maximize the size of meld through config, it would be awesome.
+- [P] if i set background_image in ~/.config/mew/config, mew shows it to me streched. it's ugly. and it reduced the quality of image.
+  i don't want that. i want the image to be centeralized. without streching. to preserve it's initial high-quiality.
+  if there are empty space around the image, fill it with background_color setting.
+- [P] like apps pop-up, there should be a pop-up for powerManagement items.
+  and i should be able to define shortcut for that in ~/.config/mew/keybindings also.
+- [P] show application icons in Apps popup.
+- [P] apps should be sorted by most frequent apps ran in the past.
+  for example if i ran firefox 5 times through apps pop-up and gedit 3 times, firefox should show me first, then gedit.
+
+## startmenu
+- [+] hover over start-menu, make the start-menu icon dissapear. fix it.
+
+## config
+- [+] ability to define applications windows size or position. for example:
+    mpv.pos.x = 0
+    mpv.pos.y = 0
+    mpv.width = 200
+    mpv.height = 300
+
+## panel
+- [Probably] re-implement panel as a pluging system. (some plugins are mandatory. others are optional. this gives us this ability to enable/disable optional ones and recompile mew)
+  - [Probably] So inside src/ folder, create another folder called panel/. and you should create for each panel widget a separate class and put these classes in src/panel directory.
+  - [Probably] My idea is that, in future, if user wanted to create his own widget for panel, it should be easier for him. he just create another class under src/panel directory.
+    and Main panel class should be able to automatically brings all panel widgest at compile time and compile them.
+
+- [+] panel_item_color doesn't change panel items color.
+
+- [+] in language switcher plugin, when i switch to persian, it shows persian. but i want it to write IR insted. 
+  This is the command i use in ~/.config/mew/autostart:
+    setxkbmap -layout "us,ir" -option "grp:alt_shift_toggle" &
+
+- [P] hover over date/time widget in panel doesn't work and doesn't show anything. fix it.
 ---------------------------------------------------------------------------------
 # v5
 ## panel
