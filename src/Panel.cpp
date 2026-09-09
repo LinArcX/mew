@@ -203,27 +203,34 @@ void Panel::draw()
   time_t now = time(nullptr);
   struct tm* tm = localtime(&now);
   char buf[64];
-  strftime(buf, sizeof(buf), "%Y-%B-%d  %H:%M:%S", tm);
+  // Full month name, e.g. "2026-September-07  23:57:01"
+  strftime(buf, sizeof(buf), " %Y-%B-%d  %H:%M:%S", tm);
 
   XftFont* pFont = m_font.font();
   int textH = pFont ? (pFont->ascent + pFont->descent) : 12;
   int baseline = (MewConst::panelHeight + textH) / 2 - (pFont ? pFont->descent : 2);
 
-  m_font.draw(d, m_xconn.screen(), m_window, 12, baseline, "\u2630");
+  m_font.draw(d, m_xconn.screen(), m_window, 12, baseline, "");
 
   updateVolume();
   char volBuf[32];
   if (m_volumeMuted || m_volumePercent < 0)
   {
-    snprintf(volBuf, sizeof(volBuf), "mute");
+    snprintf(volBuf, sizeof(volBuf), "󰖁 mute");
   }
-  else
-  {
-    snprintf(volBuf, sizeof(volBuf), "%d%%", m_volumePercent);
+  else if (m_volumePercent < 30) {
+    snprintf(volBuf, sizeof(volBuf), "󰕿 %d%%", m_volumePercent);
   }
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 320, baseline, volBuf);
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 240, baseline, buf);
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 36, baseline, "D");
+  else if (m_volumePercent < 70) {
+    snprintf(volBuf, sizeof(volBuf), "󰖀 %d%%", m_volumePercent);
+  }
+  else {
+    snprintf(volBuf, sizeof(volBuf), "󰕾 %d%%", m_volumePercent);
+  }
+
+  m_font.draw(d, m_xconn.screen(), m_window, screenW - 360, baseline, volBuf);
+  m_font.draw(d, m_xconn.screen(), m_window, screenW - 305, baseline, buf);
+  m_font.draw(d, m_xconn.screen(), m_window, screenW - 20, baseline, "");
 
   XFreeGC(d, gc);
   m_lastTime = now;
@@ -373,8 +380,9 @@ void Panel::doReboot()
   sync();
   if (reboot(RB_AUTOBOOT) != 0)
   {
-    execl("/sbin/reboot", "reboot", static_cast<char*>(nullptr));
     execl("/bin/reboot", "reboot", static_cast<char*>(nullptr));
+    execl("/sbin/reboot", "reboot", static_cast<char*>(nullptr));
+    execl("/usr/bin/reboot", "reboot", static_cast<char*>(nullptr));
   }
 }
 
@@ -383,8 +391,9 @@ void Panel::doPoweroff()
   sync();
   if (reboot(RB_POWER_OFF) != 0)
   {
-    execl("/sbin/poweroff", "poweroff", static_cast<char*>(nullptr));
     execl("/bin/poweroff", "poweroff", static_cast<char*>(nullptr));
+    execl("/sbin/poweroff", "poweroff", static_cast<char*>(nullptr));
+    execl("/usr/bin/poweroff", "poweroff", static_cast<char*>(nullptr));
   }
 }
 
