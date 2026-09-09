@@ -31,14 +31,59 @@ bool XConnection::open()
   m_atomNetWmStateFullscreen = XInternAtom(m_pDisplay, "_NET_WM_STATE_FULLSCREEN", False);
   m_atomNetWmStateMaxVert = XInternAtom(m_pDisplay, "_NET_WM_STATE_MAXIMIZED_VERT", False);
   m_atomNetWmStateMaxHorz = XInternAtom(m_pDisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+  m_atomNetSupported = XInternAtom(m_pDisplay, "_NET_SUPPORTED", False);
+  m_atomNetSupportingWmCheck = XInternAtom(m_pDisplay, "_NET_SUPPORTING_WM_CHECK", False);
 
+  setupEwmh();
   return true;
+}
+
+void XConnection::setupEwmh()
+{
+  if (!m_pDisplay)
+  {
+    return;
+  }
+
+  // Child window required by EWMH for _NET_SUPPORTING_WM_CHECK
+  m_ewmhWmCheck = XCreateSimpleWindow(m_pDisplay, m_root, 0, 0, 1, 1, 0, 0, 0);
+
+  Atom utf8 = XInternAtom(m_pDisplay, "UTF8_STRING", False);
+  const char* wmName = "mew";
+  XChangeProperty(
+    m_pDisplay, m_ewmhWmCheck, m_atomNetWmName, utf8, 8, PropModeReplace,
+    reinterpret_cast<const unsigned char*>(wmName), 3);
+  XChangeProperty(
+    m_pDisplay, m_ewmhWmCheck, m_atomNetSupportingWmCheck, XA_WINDOW, 32,
+    PropModeReplace, reinterpret_cast<unsigned char*>(&m_ewmhWmCheck), 1);
+  XChangeProperty(
+    m_pDisplay, m_root, m_atomNetSupportingWmCheck, XA_WINDOW, 32,
+    PropModeReplace, reinterpret_cast<unsigned char*>(&m_ewmhWmCheck), 1);
+
+  Atom supported[] = {
+    m_atomNetSupported,
+    m_atomNetSupportingWmCheck,
+    m_atomNetWmName,
+    m_atomNetWmState,
+    m_atomNetWmStateFullscreen,
+    m_atomNetWmStateMaxVert,
+    m_atomNetWmStateMaxHorz,
+  };
+  XChangeProperty(
+    m_pDisplay, m_root, m_atomNetSupported, XA_ATOM, 32, PropModeReplace,
+    reinterpret_cast<unsigned char*>(supported),
+    static_cast<int>(sizeof(supported) / sizeof(supported[0])));
 }
 
 void XConnection::close()
 {
   if (m_pDisplay)
   {
+    if (m_ewmhWmCheck != None)
+    {
+      XDestroyWindow(m_pDisplay, m_ewmhWmCheck);
+      m_ewmhWmCheck = None;
+    }
     XCloseDisplay(m_pDisplay);
     m_pDisplay = nullptr;
   }

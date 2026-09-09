@@ -1,7 +1,7 @@
 ---------------------------------------------------------------------------------
 # v8
 ## general
-- [ ] When i fullscreen any window, i can't min/max/brining back again. i can't don't anything. i think it's a bug. fix it.
+- [+] When i fullscreen any window, i can't min/max/brining back again. i can't don't anything. i think it's a bug. fix it.
 - [ ] images that have high resolutions, can fit good(but not perfect) on the screen. but images with lower resolution, becomes very strechy and ugly on background.
 - [ ] if i set background_image in ~/.config/mew/config:
   - [ ] if it's hight resolution: mew can render it quite good(but not perfect) on the background.
@@ -46,7 +46,7 @@
 
 ## apps
 ### mpv
-- [ ] Still i have this issue. it didnt' fix it.
+- [+] Still i have this issue. it didnt' fix it.
   Details of issue: Pressing Enter when i was watching with mpv on other WM (likde dwm, openbox, etc..) make the mpv fullscreen.
   But it's not the case in mew. Pressing Enter on mpv in mew doesn't maximize the whole mpv window (i expect when i press ENTER in mpv, it becomes a full screen window)
   when i say fullscreen, i mean top frame(that contains close/max/min buttons) and panel also should be hidden.

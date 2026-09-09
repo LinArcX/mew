@@ -70,6 +70,12 @@ public:
    */
   void loadCursors(const char* themeName, int size);
 
+  /**
+   * @brief Advertise EWMH support on the root window.
+   * Needed so clients (mpv, etc.) send _NET_WM_STATE instead of internal FS.
+   */
+  void setupEwmh();
+
   /** @brief Screen width in pixels. */
   int width() const;
   /** @brief Screen height in pixels. */
@@ -81,6 +87,7 @@ private:
   Display* m_pDisplay = nullptr;
   Window m_root = None;
   int m_screen = 0;
+  Window m_ewmhWmCheck = None;
 
   Atom m_atomDeleteWindow = None;
   Atom m_atomProtocols = None;
@@ -89,6 +96,8 @@ private:
   Atom m_atomNetWmStateFullscreen = None;
   Atom m_atomNetWmStateMaxVert = None;
   Atom m_atomNetWmStateMaxHorz = None;
+  Atom m_atomNetSupported = None;
+  Atom m_atomNetSupportingWmCheck = None;
 
   Cursor m_cursorDefault = None;
   Cursor m_cursorResizeH = None;
