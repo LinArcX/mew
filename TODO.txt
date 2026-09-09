@@ -97,13 +97,13 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 ---------------------------------------------------------------------------------
 # v5
 ## panel
-- [ ] when i click on volume nothing happens. just when i click on  , it will works. why? the positioning is wrong?
+- [P] when i click on volume nothing happens. just when i click on  , it will works. why? the positioning is wrong?
   - [ ] it doesn't show the actual volume size, when i mute it, i can still hear the sound.
 - [ ] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
 - [ ] define keybinding for each item in startmenu, like for apps, logout, etc..
 - [ ] apps in start menu works. but it has different problems:
-  - [ ] it doen's have vertical scrool. so when i use down arrow key and go at the end of the list, it stops there and doesn't show more items. (i think you didn't implementing vertical scrolling throug items, right? do it) 
-  - [ ] when i start to type something, it can find the items. but it shows different frames(or windows) on top of each other.
+  - [+] it doen's have vertical scrool. so when i use down arrow key and go at the end of the list, it stops there and doesn't show more items. (i think you didn't implementing vertical scrolling throug items, right? do it) 
+  - [+] when i start to type something, it can find the items. but it shows different frames(or windows) on top of each other.
   - [ ] it should be close, when i click outside of it.
   - [ ] power manager
     these items just log out. reboot, doesn't reboot actually. poweroff doesn't poweroff actually!
@@ -141,3 +141,17 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 ### neovim
 - [ ] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
   but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
+
+
+
+---------------------------------------------------------------------------------
+# v6
+## panel
+- [ ] apps popup in start-menu only close when i press ESCAPE from keyboard. i want it to be close, when i click on other apps, or in general space also in WM.
+- [ ] instead of using amixer directly in Panel.cpp to mute audio, you should read the command from: ~/.config/mew/keybindings
+  key="XF86AudioRaiseVolume", command="amixer set PCM 5%+" # pi5: amixer -D default set Master 5%+
+  key="XF86AudioLowerVolume", command="amixer set PCM 5%-" # pi5: amixer -D default set Master 5%-
+  key="XF86AudioMute", command="amixer -D pulse set Master toggle" # amixer -D pulse set Master toggle
+
+  - [ ] Do the same process for RaiseVolue and LowerVolume.
+    you need to update volume percentage number in panel when i increase/decrease the volume with keyboard shortcut. 

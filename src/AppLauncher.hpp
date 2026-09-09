@@ -91,6 +91,13 @@ private:
   size_t m_index = 0;
   std::vector<DesktopApp> m_apps;
   std::vector<int> m_filtered;
+  size_t m_scroll = 0; // first visible index into m_filtered
+
+  /** @brief Ensure m_index stays in view by adjusting m_scroll. */
+  void ensureVisible();
+
+  /** @brief Fixed window height for kMaxVisible rows. */
+  int windowHeight() const;
 
   static constexpr int kWidth = 480;
   static constexpr int kLineH = 28;

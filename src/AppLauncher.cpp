@@ -156,6 +156,34 @@ void AppLauncher::filter()
   }
 }
 
+
+void AppLauncher::ensureVisible()
+{
+  if (m_filtered.empty())
+  {
+    m_scroll = 0;
+    m_index = 0;
+    return;
+  }
+  if (m_index >= m_filtered.size())
+  {
+    m_index = m_filtered.size() - 1;
+  }
+  if (m_index < m_scroll)
+  {
+    m_scroll = m_index;
+  }
+  if (m_index >= m_scroll + static_cast<size_t>(kMaxVisible))
+  {
+    m_scroll = m_index - static_cast<size_t>(kMaxVisible) + 1;
+  }
+}
+
+int AppLauncher::windowHeight() const
+{
+  return kPad * 2 + kLineH + kMaxVisible * kLineH + 8;
+}
+
 void AppLauncher::hide()
 {
   if (m_window != None && m_active)
@@ -166,6 +194,7 @@ void AppLauncher::hide()
   m_active = false;
   m_query.clear();
   m_index = 0;
+  m_scroll = 0;
 }
 
 void AppLauncher::draw()
@@ -176,9 +205,7 @@ void AppLauncher::draw()
   }
 
   Display* d = m_xconn.display();
-  int visible = static_cast<int>(std::min(m_filtered.size(), static_cast<size_t>(kMaxVisible)));
-  int height = kPad * 2 + kLineH + visible * kLineH + 8;
-
+  int height = windowHeight();
   GC gc = XCreateGC(d, m_window, 0, nullptr);
 
   XSetForeground(d, gc, 0x1e1e1e);
@@ -196,15 +223,17 @@ void AppLauncher::draw()
   m_font.draw(d, m_xconn.screen(), m_window, kPad + 8, baseline, prompt);
 
   int y0 = kPad + kLineH + 4;
-  for (int i = 0; i < visible; ++i)
+  size_t end = std::min(m_filtered.size(), m_scroll + static_cast<size_t>(kMaxVisible));
+  for (size_t i = m_scroll; i < end; ++i)
   {
-    int y = y0 + i * kLineH;
-    if (static_cast<size_t>(i) == m_index)
+    int row = static_cast<int>(i - m_scroll);
+    int y = y0 + row * kLineH;
+    if (i == m_index)
     {
       XSetForeground(d, gc, 0x0a64c8);
       XFillRectangle(d, m_window, gc, 4, y, kWidth - 8, kLineH);
     }
-    int appIdx = m_filtered[static_cast<size_t>(i)];
+    int appIdx = m_filtered[i];
     int bl = y + (kLineH + (pFont ? pFont->ascent : 10)) / 2 - 2;
     m_font.draw(d, m_xconn.screen(), m_window, kPad + 8, bl, m_apps[static_cast<size_t>(appIdx)].name);
   }
@@ -221,11 +250,11 @@ void AppLauncher::show()
 
   m_query.clear();
   m_index = 0;
+  m_scroll = 0;
   filter();
 
   Display* d = m_xconn.display();
-  int visible = static_cast<int>(std::min(m_filtered.size(), static_cast<size_t>(kMaxVisible)));
-  int height = kPad * 2 + kLineH + visible * kLineH + 8;
+  int height = windowHeight();
   int x = (m_xconn.width() - kWidth) / 2;
   int y = (m_xconn.height() - height) / 3;
 
@@ -249,6 +278,7 @@ void AppLauncher::show()
   }
 
   XMapRaised(d, m_window);
+  XClearWindow(d, m_window);
   XGrabKeyboard(d, m_window, True, GrabModeAsync, GrabModeAsync, CurrentTime);
   m_active = true;
   draw();
@@ -292,17 +322,17 @@ void AppLauncher::handleKey(XKeyEvent* pEvent)
     if (m_index > 0)
     {
       --m_index;
+      ensureVisible();
     }
     draw();
     return;
   }
   if (sym == XK_Down || sym == XK_KP_Down)
   {
-    if (!m_filtered.empty()
-        && m_index + 1 < m_filtered.size()
-        && m_index + 1 < static_cast<size_t>(kMaxVisible))
+    if (!m_filtered.empty() && m_index + 1 < m_filtered.size())
     {
       ++m_index;
+      ensureVisible();
     }
     draw();
     return;
@@ -313,7 +343,9 @@ void AppLauncher::handleKey(XKeyEvent* pEvent)
     {
       m_query.pop_back();
       m_index = 0;
+      m_scroll = 0;
       filter();
+      ensureVisible();
       draw();
     }
     return;
@@ -323,7 +355,9 @@ void AppLauncher::handleKey(XKeyEvent* pEvent)
   {
     m_query.push_back(buf[0]);
     m_index = 0;
+    m_scroll = 0;
     filter();
+    ensureVisible();
     draw();
   }
 }
@@ -341,8 +375,9 @@ void AppLauncher::handleClick(XButtonEvent* pEvent)
     return;
   }
 
-  size_t idx = static_cast<size_t>((pEvent->y - y0) / kLineH);
-  if (idx < m_filtered.size() && idx < static_cast<size_t>(kMaxVisible))
+  size_t row = static_cast<size_t>((pEvent->y - y0) / kLineH);
+  size_t idx = m_scroll + row;
+  if (idx < m_filtered.size() && row < static_cast<size_t>(kMaxVisible))
   {
     m_index = idx;
     launchSelected();

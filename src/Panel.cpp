@@ -4,6 +4,7 @@
 #include <sys/reboot.h>
 #include <linux/reboot.h>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <unistd.h>
 
@@ -148,6 +149,15 @@ void Panel::updateVolume()
 
 void Panel::toggleMute()
 {
+  // Prefer amixer (works with Pulse/PipeWire bridges). Fall back to ALSA selem.
+  if (std::system("amixer -q set Master toggle 2>/dev/null") == 0
+      || std::system("amixer -q set Master playback toggle 2>/dev/null") == 0)
+  {
+    updateVolume();
+    draw();
+    return;
+  }
+
   snd_mixer_t* handle = nullptr;
   if (snd_mixer_open(&handle, 0) < 0)
   {
@@ -164,21 +174,44 @@ void Panel::toggleMute()
   snd_mixer_selem_id_t* sid = nullptr;
   snd_mixer_selem_id_alloca(&sid);
   snd_mixer_selem_id_set_index(sid, 0);
-  snd_mixer_selem_id_set_name(sid, "Master");
-
-  snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
-  if (!elem)
+  const char* names[] = {"Master", "PCM", "Speaker", "Headphone", nullptr};
+  snd_mixer_elem_t* elem = nullptr;
+  for (int i = 0; names[i]; ++i)
   {
-    snd_mixer_selem_id_set_name(sid, "PCM");
+    snd_mixer_selem_id_set_name(sid, names[i]);
     elem = snd_mixer_find_selem(handle, sid);
+    if (elem)
+    {
+      break;
+    }
   }
 
-  if (elem && snd_mixer_selem_has_playback_switch(elem))
+  if (elem)
   {
-    int muted = 0;
-    snd_mixer_selem_get_playback_switch(elem, SND_MIXER_SCHN_FRONT_LEFT, &muted);
-    int newState = muted ? 0 : 1;
-    snd_mixer_selem_set_playback_switch_all(elem, newState);
+    if (snd_mixer_selem_has_playback_switch(elem))
+    {
+      int on = 0;
+      snd_mixer_selem_get_playback_switch(elem, SND_MIXER_SCHN_FRONT_LEFT, &on);
+      snd_mixer_selem_set_playback_switch_all(elem, on ? 0 : 1);
+    }
+    else
+    {
+      // No mute switch: toggle volume 0 <-> saved level
+      long minv = 0;
+      long maxv = 0;
+      long valv = 0;
+      snd_mixer_selem_get_playback_volume_range(elem, &minv, &maxv);
+      snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_FRONT_LEFT, &valv);
+      if (valv <= minv)
+      {
+        long mid = minv + (maxv - minv) * 50 / 100;
+        snd_mixer_selem_set_playback_volume_all(elem, mid);
+      }
+      else
+      {
+        snd_mixer_selem_set_playback_volume_all(elem, minv);
+      }
+    }
   }
 
   snd_mixer_close(handle);
@@ -204,30 +237,31 @@ void Panel::draw()
   struct tm* tm = localtime(&now);
   char buf[64];
   // Full month name, e.g. "2026-September-07  23:57:01"
-  strftime(buf, sizeof(buf), " %Y-%B-%d  %H:%M:%S", tm);
+  // Icons: U+EAB0, U+E641 (Nerd Font PUA)
+  char datePart[48];
+  strftime(datePart, sizeof(datePart), "%Y-%B-%d", tm);
+  char timePart[16];
+  strftime(timePart, sizeof(timePart), "%H:%M:%S", tm);
+  snprintf(buf, sizeof(buf), "\xee\xaa\xb0 %s \xee\x99\x81 %s", datePart, timePart);
 
   XftFont* pFont = m_font.font();
   int textH = pFont ? (pFont->ascent + pFont->descent) : 12;
   int baseline = (MewConst::panelHeight + textH) / 2 - (pFont ? pFont->descent : 2);
 
+  // U+EB94 start icon
   m_font.draw(d, m_xconn.screen(), m_window, 12, baseline, "");
 
   updateVolume();
-  char volBuf[32];
+  char volBuf[48];
   if (m_volumeMuted || m_volumePercent < 0)
   {
-    snprintf(volBuf, sizeof(volBuf), "󰖁 mute");
+    // U+F0581 mute
+    snprintf(volBuf, sizeof(volBuf), "\xf3\xb0\x96\x81 mute");
   }
-  else if (m_volumePercent < 30) {
-    snprintf(volBuf, sizeof(volBuf), "󰕿 %d%%", m_volumePercent);
+  else
+  {
+    snprintf(volBuf, sizeof(volBuf), "%d%%", m_volumePercent);
   }
-  else if (m_volumePercent < 70) {
-    snprintf(volBuf, sizeof(volBuf), "󰖀 %d%%", m_volumePercent);
-  }
-  else {
-    snprintf(volBuf, sizeof(volBuf), "󰕾 %d%%", m_volumePercent);
-  }
-
   m_font.draw(d, m_xconn.screen(), m_window, screenW - 360, baseline, volBuf);
   m_font.draw(d, m_xconn.screen(), m_window, screenW - 305, baseline, buf);
   m_font.draw(d, m_xconn.screen(), m_window, screenW - 20, baseline, "");
@@ -378,23 +412,40 @@ void Panel::showStartMenu()
 void Panel::doReboot()
 {
   sync();
-  if (reboot(RB_AUTOBOOT) != 0)
+  // logind (works without root if polkit allows), then classic binaries, then syscall
+  if (std::system("dbus-send --system --print-reply "
+                  "--dest=org.freedesktop.login1 "
+                  "/org/freedesktop/login1 "
+                  "org.freedesktop.login1.Manager.Reboot boolean:false "
+                  ">/dev/null 2>&1") == 0)
   {
-    execl("/bin/reboot", "reboot", static_cast<char*>(nullptr));
-    execl("/sbin/reboot", "reboot", static_cast<char*>(nullptr));
-    execl("/usr/bin/reboot", "reboot", static_cast<char*>(nullptr));
+    return;
   }
+  if (std::system("/usr/bin/reboot >/dev/null 2>&1 &") == 0
+      || std::system("reboot >/dev/null 2>&1 &") == 0)
+  {
+    return;
+  }
+  reboot(RB_AUTOBOOT);
 }
 
 void Panel::doPoweroff()
 {
   sync();
-  if (reboot(RB_POWER_OFF) != 0)
+  if (std::system("dbus-send --system --print-reply "
+                  "--dest=org.freedesktop.login1 "
+                  "/org/freedesktop/login1 "
+                  "org.freedesktop.login1.Manager.PowerOff boolean:false "
+                  ">/dev/null 2>&1") == 0)
   {
-    execl("/bin/poweroff", "poweroff", static_cast<char*>(nullptr));
-    execl("/sbin/poweroff", "poweroff", static_cast<char*>(nullptr));
-    execl("/usr/bin/poweroff", "poweroff", static_cast<char*>(nullptr));
+    return;
   }
+  if (std::system("/usr/bin/poweroff >/dev/null 2>&1 &") == 0
+      || std::system("poweroff >/dev/null 2>&1 &") == 0)
+  {
+    return;
+  }
+  reboot(RB_POWER_OFF);
 }
 
 void Panel::toggleDesktop()
@@ -432,6 +483,7 @@ void Panel::handleClick(int x)
 {
   int screenW = m_xconn.width();
 
+  // Start button (left)
   if (x < 40)
   {
     if (m_startMenuActive)
@@ -445,12 +497,15 @@ void Panel::handleClick(int x)
     return;
   }
 
-  if (x > screenW - 330 && x < screenW - 250)
+  // Volume drawn at screenW-320; clock at screenW-240; desktop at screenW-36
+  // Hit volume from just left of the text through before the clock.
+  if (x >= screenW - 340 && x < screenW - 245)
   {
     toggleMute();
     return;
   }
 
+  // Desktop icon (far right)
   if (x > screenW - 50)
   {
     toggleDesktop();
