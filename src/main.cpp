@@ -46,11 +46,6 @@
 
 static FT_Face ft_face = nullptr;
 static FT_Library ft_library = nullptr;
-static std::vector<std::string> kb_display_lines;
-
-// Keybindings viewer window
-static Window keybindings_window = None;
-static bool keybindings_window_active = false;
 
 // Set by the "Exit" menu item, checked in the main loop.
 static volatile bool should_quit = false;
@@ -122,7 +117,6 @@ static void draw_launcher();
 static void filter_launcher();
 static void scan_desktop_apps();
 
-
 // Usable area excludes the bottom panel
 static int usable_height()
 {
@@ -167,7 +161,7 @@ static const int KB_DEFAULT_WIDTH = 560;
 
 static void kb_button_geometry(int& close_x, int& max_x, int& min_x)
 {
-    close_x = kb_win_width - BUTTON_WIDTH;
+  close_x = kb_win_width - BUTTON_WIDTH;
 }
 
 static void loadTitleFont()
@@ -177,22 +171,19 @@ static void loadTitleFont()
     return;
   }
 
-  if (FT_New_Memory_Face(
-        ft_library,
+  if (FT_New_Memory_Face(ft_library,
         hurmit_ttf,
         (FT_Long)hurmit_ttf_len,
         0,
-        &ft_face) != 0) {
+        &ft_face) != 0)
+  {
     fprintf(stderr, "mew: FT_New_Memory_Face failed to parse embedded font\n");
     return;
   }
 
-  fprintf(
-    stderr,
-    "mew: loaded embedded font: %s %s\n",
+  fprintf(stderr, "mew: loaded embedded font: %s %s\n",
     ft_face->family_name ? ft_face->family_name : "?",
-    ft_face->style_name  ? ft_face->style_name  : "?"
-  );
+    ft_face->style_name  ? ft_face->style_name  : "?");
 
   FcPattern* pattern = FcPatternCreate();
   FcPatternAddFTFace(pattern, FC_FT_FACE, ft_face);
@@ -226,190 +217,6 @@ static void loadTitleFont()
   }
 }
 
-static void raise_keybindings_window_if_active()
-{
-  if (keybindings_window != None && keybindings_window_active) {
-    XRaiseWindow(display, keybindings_window);
-  }
-  if (panel != None) {
-    XRaiseWindow(display, panel);
-  }
-}
-
-
-static void build_keybindings_display()
-{
-    kb_display_lines.clear();
-    kb_display_lines.push_back(configs.getConfigDirectory() + "/keybindings");
-    kb_display_lines.push_back(""); // spacer
-
-    int i = 1;
-    for (const KeyBinding& b : keybindings) {
-        std::ostringstream oss;
-        oss << i << ". " << b.display << " --> " << b.command;
-        kb_display_lines.push_back(oss.str());
-        ++i;
-    }
-
-    if (keybindings.empty()) {
-        kb_display_lines.push_back("(no keybindings configured)");
-    }
-}
-
-static void draw_keybindings_window()
-{
-    if (keybindings_window == None || !keybindings_window_active)
-        return;
-
-    GC gc = XCreateGC(display, keybindings_window, 0, nullptr);
-
-    // Whole window background (border color, matches client frame style)
-    XSetForeground(display, gc, COLOR_BORDER);
-    XFillRectangle(display, keybindings_window, gc, 0, 0, kb_win_width, kb_win_height);
-
-    // Titlebar
-    XSetForeground(display, gc, COLOR_TITLE);
-    XFillRectangle(display, keybindings_window, gc,
-                   BORDER_WIDTH, BORDER_WIDTH,
-                   kb_win_width - BORDER_WIDTH * 2, TITLE_HEIGHT - BORDER_WIDTH);
-
-    int close_x, max_x, min_x;
-    kb_button_geometry(close_x, max_x, min_x);
-
-    // Buttons
-    XSetForeground(display, gc, COLOR_BUTTON);
-    XFillRectangle(display, keybindings_window, gc, min_x, BORDER_WIDTH, BUTTON_WIDTH, TITLE_HEIGHT - BORDER_WIDTH);
-
-    // Icons
-    XSetForeground(display, gc, COLOR_TEXT);
-
-    // Close
-    XDrawLine(display, keybindings_window, gc, close_x + 9, 8, close_x + BUTTON_WIDTH - 9, TITLE_HEIGHT - 9);
-    XDrawLine(display, keybindings_window, gc, close_x + BUTTON_WIDTH - 9, 8, close_x + 9, TITLE_HEIGHT - 9);
-
-    // Title text
-    int text_height = titleFont ? (titleFont->ascent + titleFont->descent) : 10;
-    int title_baseline = BORDER_WIDTH
-      + (TITLE_HEIGHT - BORDER_WIDTH - text_height) / 2
-      + (titleFont ? titleFont->ascent : 10);
-    windows.drawTitleText(keybindings_window, BORDER_WIDTH + 8, title_baseline, "Keybindings");
-
-    // Content area background
-    XSetForeground(display, gc, COLOR_SWITCHER_BG);
-    XFillRectangle(display, keybindings_window, gc,
-                   BORDER_WIDTH, TITLE_HEIGHT,
-                   kb_win_width - BORDER_WIDTH * 2,
-                   kb_win_height - TITLE_HEIGHT - BORDER_WIDTH);
-
-    // Content text
-    int y = TITLE_HEIGHT + KB_PADDING + (titleFont ? titleFont->ascent : 12);
-    for (const std::string& line : kb_display_lines) {
-        if (!line.empty()) {
-            windows.drawTitleText(keybindings_window, BORDER_WIDTH + KB_PADDING, y, line);
-        }
-        y += KB_LINE_HEIGHT;
-        if (y > kb_win_height - BORDER_WIDTH - 4)
-            break; // don't draw past the window (no scrolling yet)
-    }
-
-    XFreeGC(display, gc);
-}
-
-static int kb_close_button_x()
-{
-    return kb_win_width - BUTTON_WIDTH;
-}
-
-static void keybindings_window_apply_geometry()
-{
-    XMoveResizeWindow(display, keybindings_window, kb_win_x, kb_win_y, kb_win_width, kb_win_height);
-    draw_keybindings_window();
-}
-
-static void move_keybindings_window()
-{
-    Window dummy;
-    int root_x, root_y, win_x, win_y;
-    unsigned int mask;
-
-    XQueryPointer(display, root, &dummy, &dummy,
-                  &root_x, &root_y, &win_x, &win_y, &mask);
-
-    int start_x = kb_win_x;
-    int start_y = kb_win_y;
-
-    XGrabPointer(
-        display, keybindings_window, False,
-        ButtonMotionMask | ButtonReleaseMask,
-        GrabModeAsync, GrabModeAsync,
-        None, None, CurrentTime
-    );
-
-    XEvent event;
-    while (true) {
-        XMaskEvent(display, ButtonMotionMask | ButtonReleaseMask, &event);
-
-        if (event.type == MotionNotify) {
-            int dx = event.xmotion.x_root - root_x;
-            int dy = event.xmotion.y_root - root_y;
-
-            kb_win_x = start_x + dx;
-            kb_win_y = start_y + dy;
-
-            keybindings_window_apply_geometry();
-        }
-
-        if (event.type == ButtonRelease)
-            break;
-    }
-
-    XUngrabPointer(display, CurrentTime);
-}
-
-static void show_keybindings_window()
-{
-    build_keybindings_display();
-
-    int screen_w = DisplayWidth(display, screen);
-    int screen_h = DisplayHeight(display, screen);
-
-    if (keybindings_window == None) {
-        kb_win_width = KB_DEFAULT_WIDTH;
-        kb_win_height = std::min(
-            (int)(TITLE_HEIGHT + BORDER_WIDTH + KB_PADDING * 2 + kb_display_lines.size() * KB_LINE_HEIGHT + 12),
-            screen_h - 80
-        );
-        kb_win_x = (screen_w - kb_win_width) / 2;
-        kb_win_y = (screen_h - kb_win_height) / 2;
-
-        XSetWindowAttributes attrs{};
-        attrs.override_redirect = True;
-        attrs.background_pixel  = COLOR_BORDER;
-        attrs.border_pixel      = COLOR_SWITCHER_BORDER;
-        attrs.event_mask        = ExposureMask | ButtonPressMask;
-
-        keybindings_window = XCreateWindow(
-            display, root,
-            kb_win_x, kb_win_y, kb_win_width, kb_win_height,
-            1,
-            CopyFromParent, InputOutput, CopyFromParent,
-            CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask,
-            &attrs
-        );
-    } else {
-        // Recompute height in case keybindings changed since last open
-        kb_win_height = std::min(
-            (int)(TITLE_HEIGHT + BORDER_WIDTH + KB_PADDING * 2 + kb_display_lines.size() * KB_LINE_HEIGHT + 12),
-            screen_h - 80
-        );
-        XMoveResizeWindow(display, keybindings_window, kb_win_x, kb_win_y, kb_win_width, kb_win_height);
-    }
-
-    XMapRaised(display, keybindings_window);
-    keybindings_window_active = true;
-    draw_keybindings_window();
-}
-
 static bool is_alt_held()
 {
     char keys[32];
@@ -423,8 +230,6 @@ static bool is_alt_held()
 
     return key_pressed(XK_Alt_L) || key_pressed(XK_Alt_R);
 }
-
-
 
 static Client* find_client(Window window)
 {
@@ -518,32 +323,6 @@ static std::string expand_key_string(const std::string& key_string)
     result += parts.back();
     return result;
 }
-
-static void hide_keybindings_window()
-{
-    if (keybindings_window != None && keybindings_window_active) {
-        XUnmapWindow(display, keybindings_window);
-    }
-    keybindings_window_active = false;
-}
-
-static void handle_keybindings_window_click(XButtonEvent* event)
-{
-    if (event->y < BORDER_WIDTH || event->y >= TITLE_HEIGHT) {
-      return; // clicks below the titlebar do nothing for now
-    }
-
-    int close_x = kb_close_button_x();
-
-    if (event->x >= close_x) {
-        hide_keybindings_window();
-        return;
-    }
-
-    // Anywhere else on the titlebar -> drag to move
-    move_keybindings_window();
-}
-
 
 static void hide_power_menu()
 {
@@ -710,7 +489,7 @@ static void handle_start_menu_click(int y)
   }
   else if (index == 1) {
     hide_start_menu();
-    show_keybindings_window();
+    keybindingsWindow.showKeybindingsKindow();
   }
   else if (index == 2) {
     // Open PowerManager submenu to the right (keep start menu open)
@@ -1004,7 +783,7 @@ static void focus_client(Client* client)
   }
 
   XRaiseWindow(display, client->frame);
-  raise_keybindings_window_if_active();
+  keybindingsWindow.raiseKeybindingsWindowIfActive();
   XSetInputFocus(display, client->window, RevertToPointerRoot, CurrentTime);
   draw_frame(client);
 }
@@ -1108,69 +887,6 @@ static bool parse_key(
 
   key_name = parts.back();
   return true;
-}
-
-static void load_keybindings()
-{
-  keybindings.clear();
-
-  std::string path = configs.getConfigDirectory() + "/keybindings";
-  std::ifstream file(path);
-  if (!file.is_open()) {
-    fprintf(stderr, "mew: no keybindings file: %s\n", path.c_str());
-    return;
-  }
-
-  std::string line;
-  while (std::getline(file, line)) {
-    line = trim(line);
-
-    if (line.empty()) {
-      continue;
-    }
-
-    if (line[0] == '#') {
-      continue;
-    }
-
-    std::string key_string;
-    std::string command;
-
-    if (!parse_keybinding(line, key_string, command)) {
-      fprintf(stderr, "mew: invalid keybinding: %s\n", line.c_str());
-      continue;
-    }
-
-    unsigned int modifiers;
-    std::string key_name;
-
-    if (!parse_key(key_string, modifiers, key_name)) {
-      continue;
-    }
-
-    KeySym keysym = XStringToKeysym(key_name.c_str());
-
-    if (keysym == NoSymbol) {
-      fprintf(stderr, "mew: unknown key: %s\n", key_name.c_str());
-      continue;
-    }
-
-    KeyCode keycode = XKeysymToKeycode(display, keysym);
-    if (keycode == 0) {
-      fprintf(stderr, "mew: cannot find keycode: %s\n", key_name.c_str());
-      continue;
-    }
-
-    KeyBinding binding;
-    binding.keycode = keycode;
-    binding.modifiers = modifiers;
-    binding.command = strings.expandHome(command);
-    binding.display = expand_key_string(key_string);
-
-    keybindings.push_back(binding);
-
-    printf("mew: keybinding %s -> %s\n", key_string.c_str(), binding.command.c_str());
-  }
 }
 
 static void run_autostart()
@@ -2071,7 +1787,7 @@ static void manage(Window window)
   XMapWindow(display, client->frame);
   XMapWindow(display, window);
 
-  raise_keybindings_window_if_active();
+  keybindingsWindow.raiseKeybindingsWindowIfActive();
 
   clients.push_back(client);
   resize_client(client);
@@ -2163,46 +1879,6 @@ static void focus_next()
     }
 }
 
-// ------------------------------------------------------------
-// Keybindings
-// ------------------------------------------------------------
-static void grab_key(KeyCode keycode, unsigned int modifiers)
-{
-  unsigned int lock_masks[] = {
-    0,
-    LockMask,
-    Mod2Mask,
-    LockMask | Mod2Mask
-  };
-
-  for (unsigned int lock : lock_masks) {
-    XGrabKey(
-        display,
-        keycode,
-        modifiers | lock,
-        root,
-        True,
-        GrabModeAsync,
-        GrabModeAsync
-    );
-  }
-}
-
-static void grab_keys()
-{
-  // Built-in shortcuts
-  grab_key(XKeysymToKeycode(display, XK_Tab), Mod1Mask);                  // Alt+Tab
-  grab_key(XKeysymToKeycode(display, XK_Tab), Mod1Mask | ShiftMask);      // Alt+Shift+Tab
-  grab_key(XKeysymToKeycode(display, XK_F4), Mod1Mask);
-  grab_key(XKeysymToKeycode(display, XK_F1), Mod1Mask);
-  grab_key(XKeysymToKeycode(display, XK_q), Mod1Mask | ShiftMask);
-
-  // User-configured shortcuts
-  for (const KeyBinding& binding : keybindings) {
-    grab_key(binding.keycode, binding.modifiers);
-  }
-}
-
 static bool handle_custom_keybinding(
     XKeyEvent* event)
 {
@@ -2289,10 +1965,8 @@ static bool handle_custom_keybinding(
             return true;
         }
     }
-
     return false;
 }
-
 
 // ------------------------------------------------------------
 // X error handler
@@ -2302,9 +1976,6 @@ static int error_handler(Display*, XErrorEvent*)
   return 0;
 }
 
-// ------------------------------------------------------------
-// Main
-// ------------------------------------------------------------
 int main(int argc, char** argv)
 {
   Mew::Audio audio;
@@ -2354,24 +2025,16 @@ int main(int argc, char** argv)
 
   display = XOpenDisplay(nullptr);
   if (!display) {
-
-      fprintf(
-          stderr,
-          "mew: cannot open display\n"
-      );
-
-      return 1;
+    fprintf(stderr, "mew: cannot open display\n");
+    return 1;
   }
 
-  screen =
-      DefaultScreen(display);
-
-  root =
-      RootWindow(display, screen);
+  screen = DefaultScreen(display);
+  root = RootWindow(display, screen);
 
   create_config_directory();
   configs.load();
-  load_keybindings();
+  keyBindingsWindow.loadKeybindings();
 
   loadTitleFont();
 
@@ -2385,104 +2048,62 @@ int main(int argc, char** argv)
 
   applyBackground();
   audio.playSound(config.loginSound);
+  XSetErrorHandler(error_handler);
 
-  XSetErrorHandler(
-      error_handler
-  );
+  WM_DELETE_WINDOW = XInternAtom(display, "WM_DELETE_WINDOW", False);
+  WM_PROTOCOLS = XInternAtom(display, "WM_PROTOCOLS", False);
+  NET_WM_STATE = XInternAtom(display, "_NET_WM_STATE", False);
+  NET_WM_STATE_FULLSCREEN = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
+  NET_WM_STATE_MAXIMIZED_VERT = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+  NET_WM_STATE_MAXIMIZED_HORZ = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
 
+  // Become the window manager
+  XSelectInput(display,
+    root,
+    SubstructureRedirectMask |
+    SubstructureNotifyMask |
+    ButtonPressMask |
+    KeyReleaseMask |
+    PropertyChangeMask);
 
-  WM_DELETE_WINDOW =
-      XInternAtom(
-          display,
-          "WM_DELETE_WINDOW",
-          False
-      );
-
-  WM_PROTOCOLS =
-      XInternAtom(
-          display,
-          "WM_PROTOCOLS",
-          False
-      );
-
-  NET_WM_STATE =
-      XInternAtom(display, "_NET_WM_STATE", False);
-  NET_WM_STATE_FULLSCREEN =
-      XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
-  NET_WM_STATE_MAXIMIZED_VERT =
-      XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-  NET_WM_STATE_MAXIMIZED_HORZ =
-      XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-
-  /*
-      Become the window manager
-  */
-
-  XSelectInput(
-      display,
-      root,
-      SubstructureRedirectMask |
-      SubstructureNotifyMask |
-      ButtonPressMask |
-      KeyReleaseMask |
-      PropertyChangeMask
-  );
-
-
-  /*
-      Grab keyboard shortcuts
-  */
-
-  grab_keys();
+  // Grab keyboard shortcuts
+  keyBindingsWindow.grabKeys();
 
   createPanel();
   write_pidfile();
 
-  /*
-      Manage existing windows
-  */
-
+  // Manage existing windows
   Window root_return;
   Window parent_return;
 
   Window* children = nullptr;
   unsigned int child_count = 0;
 
-  if (XQueryTree(
-          display,
-          root,
-          &root_return,
-          &parent_return,
-          &children,
-          &child_count)) {
-
-      for (unsigned int i = 0;
-           i < child_count;
-           ++i) {
-
-          XWindowAttributes attr;
-
-          if (!XGetWindowAttributes(
-                  display,
-                  children[i],
-                  &attr))
-              continue;
-
-          if (attr.map_state ==
-                  IsViewable &&
-              !attr.override_redirect) {
-
-              manage(children[i]);
-          }
+  if (XQueryTree(display,
+        root,
+        &root_return,
+        &parent_return,
+        &children,
+        &child_count))
+  {
+    for (unsigned int i = 0; i < child_count; ++i) {
+      XWindowAttributes attr;
+      if (!XGetWindowAttributes(display, children[i], &attr)) {
+        continue;
       }
 
-      if (children)
-          XFree(children);
+      if (attr.map_state == IsViewable && !attr.override_redirect) {
+        manage(children[i]);
+      }
+    }
+
+    if (children) {
+      XFree(children);
+    }
   }
 
   // Start autostart programs AFTER the window manager is initialized.
   run_autostart();
-
   XSync(display, False);
 
   // Main event loop
@@ -2496,7 +2117,7 @@ int main(int argc, char** argv)
 
       // reload config + keybindings
       configs.load();
-      load_keybindings();
+      keyBindingsWindow.loadKeybindings();
       applyBackground();
       if (panel != None) {
         XSetWindowBackground(display, panel, COLOR_PANEL_BG);
@@ -2504,7 +2125,7 @@ int main(int argc, char** argv)
       }
 
       // re-grab everything (built-in + new config)
-      grab_keys();
+      keyBindingsWindow.grabKeys();
     }
 
     // Safety net: if Alt is no longer held, force-close the switcher
@@ -2534,11 +2155,9 @@ int main(int argc, char** argv)
       case PropertyNotify:
       {
         //Atom name_atom = XInternAtom(display, "_NET_WM_NAME", False);
-      
         NET_WM_NAME = XInternAtom(display, "_NET_WM_NAME", False);
 
         if (event.xproperty.atom == XA_WM_NAME || event.xproperty.atom == NET_WM_NAME) {
-      
           Client* client = find_client(event.xproperty.window);
           if (client) {
             draw_frame(client);
@@ -2585,272 +2204,214 @@ int main(int argc, char** argv)
         break;
       }
 
-        case MapRequest:
-        {
-            manage(event.xmaprequest.window);
-            break;
-        }
-
-        case ConfigureRequest:
-        {
-            Client* client =
-                find_client(
-                    event.xconfigurerequest.window
-                );
-
-            if (!client) {
-
-                XWindowChanges changes;
-
-                changes.x =
-                    event.xconfigurerequest.x;
-
-                changes.y =
-                    event.xconfigurerequest.y;
-
-                changes.width =
-                    event.xconfigurerequest.width;
-
-                changes.height =
-                    event.xconfigurerequest.height;
-
-                changes.border_width =
-                    event.xconfigurerequest.border_width;
-
-                changes.sibling =
-                    event.xconfigurerequest.above;
-
-                changes.stack_mode =
-                    event.xconfigurerequest.detail;
-
-                XConfigureWindow(
-                    display,
-                    event.xconfigurerequest.window,
-                    event.xconfigurerequest.value_mask,
-                    &changes
-                );
-
-                break;
-            }
-
-
-            if (client->maximized)
-                break;
-
-
-            if (event.xconfigurerequest.value_mask &
-                CWX)
-
-                client->x =
-                    event.xconfigurerequest.x;
-
-            if (event.xconfigurerequest.value_mask &
-                CWY)
-
-                client->y =
-                    event.xconfigurerequest.y;
-
-            if (event.xconfigurerequest.value_mask &
-                CWWidth)
-
-                client->width =
-                    std::max(
-                        MIN_WIDTH,
-                        event.xconfigurerequest.width
-                    );
-
-            if (event.xconfigurerequest.value_mask &
-                CWHeight)
-
-                client->height =
-                    std::max(
-                        MIN_HEIGHT,
-                        event.xconfigurerequest.height
-                    );
-
-
-            resize_client(client);
-
-            break;
-        }
-
-
-        case ButtonPress:
-        {
-          Window w = event.xbutton.window;
-
-          // Click on the keybindings window -> handle its titlebar buttons
-          if (keybindings_window_active && w == keybindings_window) {
-              handle_keybindings_window_click(&event.xbutton);
-              break;
-          }
-
-          // Panel click
-          if (w == panel) {
-            Panel::handlePanelClick(event.xbutton.x);
-            break;
-          }
-
-          // Start menu click
-          if (start_menu_active && w == start_menu) {
-              handle_start_menu_click(event.xbutton.y);
-              break;
-          }
-
-          // PowerManager submenu click
-          if (power_menu_active && w == power_menu) {
-              handle_power_menu_click(event.xbutton.y);
-              break;
-          }
-
-          // Launcher click (select item)
-          if (launcher_active && w == launcher) {
-              int y = event.xbutton.y;
-              int y0 = LAUNCHER_PAD + LAUNCHER_LINE_H + 4;
-              if (y >= y0) {
-                size_t idx = (size_t)((y - y0) / LAUNCHER_LINE_H);
-                if (idx < launcherFiltered.size() && idx < (size_t)LAUNCHER_MAX_VISIBLE) {
-                  launcherIndex = idx;
-                  launch_selected();
-                }
-              }
-              break;
-          }
-
-          // Click elsewhere closes menus
-          if (start_menu_active || power_menu_active)
-              hide_start_menu();
-          if (launcher_active)
-              hide_launcher();
-
-          handle_button_press(&event.xbutton);
-          break;
-        }
-
-
-        case MotionNotify:
-        {
-            handle_motion(
-                &event.xmotion
-            );
-
-            break;
-        }
-
-
-        case Expose:
-        {
-          if (event.xexpose.window == switcher) {
-            switcher.draw();
-            break;
-          }
-          if (event.xexpose.window == keybindings_window) {
-            draw_keybindings_window();
-            break;
-          }
-          if (event.xexpose.window == panel) {
-            drawPanel();
-            break;
-          }
-          if (event.xexpose.window == launcher) {
-            draw_launcher();
-            break;
-          }
-          if (event.xexpose.window == start_menu) {
-            draw_start_menu();
-            break;
-          }
-          if (event.xexpose.window == power_menu) {
-            draw_power_menu();
-            break;
-          }
-
-          Client* client = find_client(event.xexpose.window);
-          if (client) {
-            draw_frame(client);
-          }
-          break;
-        }
-
-
-        case DestroyNotify:
-        {
-          Client* client = find_client(event.xdestroywindow.window);
-          if (client) {
-              // Window is already gone – only destroy the frame
-              XDestroyWindow(display, client->frame);
-              clients.erase(
-                  std::remove(clients.begin(), clients.end(), client),
-                  clients.end()
-              );
-              delete client;
-          }
-          break;
-        }
-
-        case UnmapNotify:
-        {
-            Client* client =
-                find_client(
-                    event.xunmap.window
-                );
-
-            if (client &&
-                event.xunmap.window ==
-                    client->window) {
-
-                unmanage(client);
-            }
-
-            break;
-        }
-
-
-        case KeyPress:
-        {
-          XKeyEvent* key = &event.xkey;
-
-          // Launcher takes all keys while open
-          if (launcher_active) {
-            handle_launcher_key(key);
-            break;
-          }
-
-          // First check user configuration.
-          if (handle_custom_keybinding(key)) {
-            break;
-          }
-          unsigned int state = key->state & ~(LockMask | Mod2Mask);
-          KeySym keysym = XLookupKeysym(key, 0);
-
-          // Alt+Tab / Alt+Shift+Tab
-          if (keysym == XK_Tab && (state == Mod1Mask || state == (Mod1Mask | ShiftMask))) {
-              bool reverse = (state & ShiftMask);
-              cycle_switcher(reverse);
-              break;
-          }
-
-          //// Alt+Tab
-          //if (state == Mod1Mask && keysym == XK_Tab) {
-          //  focus_next();
-          //  break;
-          //}
-
-          // Alt+F4
-          if (state == Mod1Mask && keysym == XK_F4) {
-            Client* client = get_focused_client();
-            if (client) {
-              close_client(client);
-            }
-            break;
-          }
-
-          // Alt+F1
-          if (state == Mod1Mask && keysym == XK_F1) {
-            std::system("wezterm start >/dev/null 2>&1 &");
-            break;
-          }
+      case MapRequest:
+      {
+        manage(event.xmaprequest.window);
         break;
+      }
+
+      case ConfigureRequest:
+      {
+        Client* client = find_client(event.xconfigurerequest.window);
+
+        if (!client) {
+            XWindowChanges changes;
+            changes.x = event.xconfigurerequest.x;
+            changes.y = event.xconfigurerequest.y;
+
+            changes.width = event.xconfigurerequest.width;
+            changes.height = event.xconfigurerequest.height;
+
+            changes.border_width = event.xconfigurerequest.border_width;
+            changes.sibling = event.xconfigurerequest.above;
+
+            changes.stack_mode = event.xconfigurerequest.detail;
+
+            XConfigureWindow(display,
+              event.xconfigurerequest.window,
+              event.xconfigurerequest.value_mask,
+              &changes);
+            break;
+        }
+
+        if (client->maximized) {
+          break;
+        }
+
+        if (event.xconfigurerequest.value_mask & CWX) {
+          client->x = event.xconfigurerequest.x;
+        }
+
+        if (event.xconfigurerequest.value_mask & CWY) {
+          client->y = event.xconfigurerequest.y;
+        }
+
+        if (event.xconfigurerequest.value_mask & CWWidth) {
+          client->width = std::max(MIN_WIDTH, event.xconfigurerequest.width);
+        }
+
+        if (event.xconfigurerequest.value_mask & CWHeight) {
+          client->height = std::max(MIN_HEIGHT, event.xconfigurerequest.height);
+        }
+
+        resize_client(client);
+        break;
+      }
+
+      case ButtonPress:
+      {
+        Window w = event.xbutton.window;
+
+        // Click on the keybindings window -> handle its titlebar buttons
+        if (keybindings_window_active && w == keybindings_window) {
+          keyBindingsWindow.handleKeybindingsWindowClick(&event.xbutton);
+          break;
+        }
+
+        // Panel click
+        if (w == panel) {
+          Panel::handlePanelClick(event.xbutton.x);
+          break;
+        }
+
+        // Start menu click
+        if (start_menu_active && w == start_menu) {
+          handle_start_menu_click(event.xbutton.y);
+          break;
+        }
+
+        // PowerManager submenu click
+        if (power_menu_active && w == power_menu) {
+          handle_power_menu_click(event.xbutton.y);
+          break;
+        }
+
+        // Launcher click (select item)
+        if (launcher_active && w == launcher) {
+          int y = event.xbutton.y;
+          int y0 = LAUNCHER_PAD + LAUNCHER_LINE_H + 4;
+          if (y >= y0) {
+            size_t idx = (size_t)((y - y0) / LAUNCHER_LINE_H);
+            if (idx < launcherFiltered.size() && idx < (size_t)LAUNCHER_MAX_VISIBLE) {
+              launcherIndex = idx;
+              launch_selected();
+            }
+          }
+          break;
+        }
+
+        // Click elsewhere closes menus
+        if (start_menu_active || power_menu_active) {
+          hide_start_menu();
+        }
+        if (launcher_active) {
+          hide_launcher();
+        }
+
+        handle_button_press(&event.xbutton);
+        break;
+      }
+
+      case MotionNotify:
+      {
+        handle_motion(&event.xmotion);
+        break;
+      }
+
+      case Expose:
+      {
+        if (event.xexpose.window == switcher) {
+          switcher.draw();
+          break;
+        }
+        if (event.xexpose.window == keybindings_window) {
+          keybindingsWindow.drawKeybindingsWindow();
+          break;
+        }
+        if (event.xexpose.window == panel) {
+          drawPanel();
+          break;
+        }
+        if (event.xexpose.window == launcher) {
+          draw_launcher();
+          break;
+        }
+        if (event.xexpose.window == start_menu) {
+          draw_start_menu();
+          break;
+        }
+        if (event.xexpose.window == power_menu) {
+          draw_power_menu();
+          break;
+        }
+
+        Client* client = find_client(event.xexpose.window);
+        if (client) {
+          draw_frame(client);
+        }
+        break;
+      }
+
+      case DestroyNotify:
+      {
+        Client* client = find_client(event.xdestroywindow.window);
+        if (client) {
+          // Window is already gone – only destroy the frame
+          XDestroyWindow(display, client->frame);
+          clients.erase(std::remove(clients.begin(), clients.end(), client), clients.end());
+          delete client;
+        }
+        break;
+      }
+
+      case UnmapNotify:
+      {
+        Client* client = find_client(event.xunmap.window);
+        if (client && event.xunmap.window == client->window) {
+          unmanage(client);
+        }
+        break;
+      }
+
+      case KeyPress:
+      {
+        XKeyEvent* key = &event.xkey;
+
+        // Launcher takes all keys while open
+        if (launcher_active) {
+          handle_launcher_key(key);
+          break;
+        }
+
+        // First check user configuration.
+        if (handle_custom_keybinding(key)) {
+          break;
+        }
+        unsigned int state = key->state & ~(LockMask | Mod2Mask);
+        KeySym keysym = XLookupKeysym(key, 0);
+
+        // Alt+Tab / Alt+Shift+Tab
+        if (keysym == XK_Tab && (state == Mod1Mask || state == (Mod1Mask | ShiftMask))) {
+          bool reverse = (state & ShiftMask);
+          cycle_switcher(reverse);
+          break;
+        }
+
+        // Alt+F4
+        if (state == Mod1Mask && keysym == XK_F4) {
+          Client* client = get_focused_client();
+          if (client) {
+            close_client(client);
+          }
+          break;
+        }
+
+        // Alt+F1
+        if (state == Mod1Mask && keysym == XK_F1) {
+          std::system("wezterm start >/dev/null 2>&1 &");
+          break;
+        }
+      break;
       }
       case KeyRelease:
       {
@@ -2860,9 +2421,7 @@ int main(int argc, char** argv)
 
         KeySym keysym = XLookupKeysym(&event.xkey, 0);
         // Close the switcher as soon as Alt is no longer held (works no matter the order you release Tab / Alt)
-        if (keysym == XK_Alt_L || keysym == XK_Alt_R ||
-          keysym == XK_Tab    || !is_alt_held()) {
-
+        if (keysym == XK_Alt_L || keysym == XK_Alt_R || keysym == XK_Tab || !is_alt_held()) {
           if (!is_alt_held()) {
             if (!switcher_list.empty() && switcher_index < switcher_list.size()) {
               focus_client(switcher_list[switcher_index]);
