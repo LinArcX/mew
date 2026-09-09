@@ -33,6 +33,11 @@ Panel::~Panel()
     XDestroyWindow(d, m_powerMenu);
     m_powerMenu = None;
   }
+  if (m_tooltip != None)
+  {
+    XDestroyWindow(d, m_tooltip);
+    m_tooltip = None;
+  }
   if (m_window != None)
   {
     XDestroyWindow(d, m_window);
@@ -50,6 +55,18 @@ void Panel::setBackgroundColor(unsigned long color)
   }
 }
 
+void Panel::setItemColor(unsigned long color)
+{
+  m_itemColor = color;
+  draw();
+}
+
+void Panel::setHoverColor(unsigned long color)
+{
+  m_hoverColor = color;
+  draw();
+}
+
 void Panel::create()
 {
   Display* d = m_xconn.display();
@@ -59,7 +76,7 @@ void Panel::create()
   XSetWindowAttributes attrs{};
   attrs.override_redirect = True;
   attrs.background_pixel = m_bgColor;
-  attrs.event_mask = ExposureMask | ButtonPressMask;
+  attrs.event_mask = ExposureMask | ButtonPressMask | PointerMotionMask | LeaveWindowMask;
 
   m_window = XCreateWindow(
     d, m_xconn.root(),
@@ -250,6 +267,23 @@ void Panel::draw()
 
   // U+EB94 start icon
   m_font.draw(d, m_xconn.screen(), m_window, 12, baseline, "");
+
+  // Hover highlight under interactive zones
+  if (m_hoverZone == 0)
+  {
+    XSetForeground(d, gc, m_hoverColor);
+    XFillRectangle(d, m_window, gc, 0, 0, 40, MewConst::panelHeight);
+  }
+  else if (m_hoverZone == 1)
+  {
+    XSetForeground(d, gc, m_hoverColor);
+    XFillRectangle(d, m_window, gc, screenW - 340, 0, 95, MewConst::panelHeight);
+  }
+  else if (m_hoverZone == 2)
+  {
+    XSetForeground(d, gc, m_hoverColor);
+    XFillRectangle(d, m_window, gc, screenW - 50, 0, 50, MewConst::panelHeight);
+  }
 
   updateVolume();
   char volBuf[48];
@@ -510,6 +544,111 @@ void Panel::handleClick(int x)
   {
     toggleDesktop();
   }
+}
+
+
+int Panel::hitTest(int x) const
+{
+  int screenW = m_xconn.width();
+  if (x < 40)
+  {
+    return 0; // start
+  }
+  if (x >= screenW - 340 && x < screenW - 245)
+  {
+    return 1; // volume
+  }
+  if (x > screenW - 50)
+  {
+    return 2; // desktop
+  }
+  return -1;
+}
+
+void Panel::hideTooltip()
+{
+  if (m_tooltip != None)
+  {
+    XUnmapWindow(m_xconn.display(), m_tooltip);
+  }
+}
+
+void Panel::showTooltip(int x, const char* text)
+{
+  Display* d = m_xconn.display();
+  int screenH = m_xconn.height();
+  int tw = static_cast<int>(std::strlen(text)) * 9 + 16;
+  int th = 22;
+  int tx = x;
+  int ty = screenH - MewConst::panelHeight - th - 4;
+  if (tx + tw > m_xconn.width())
+  {
+    tx = m_xconn.width() - tw;
+  }
+  if (tx < 0)
+  {
+    tx = 0;
+  }
+
+  if (m_tooltip == None)
+  {
+    XSetWindowAttributes attrs{};
+    attrs.override_redirect = True;
+    attrs.background_pixel = 0x1a1a1a;
+    attrs.border_pixel = 0x888888;
+    attrs.event_mask = ExposureMask;
+    m_tooltip = XCreateWindow(
+      d, m_xconn.root(),
+      tx, ty, tw, th, 1,
+      CopyFromParent, InputOutput, CopyFromParent,
+      CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask,
+      &attrs);
+  }
+  else
+  {
+    XMoveResizeWindow(d, m_tooltip, tx, ty, tw, th);
+  }
+
+  XMapRaised(d, m_tooltip);
+  GC gc = XCreateGC(d, m_tooltip, 0, nullptr);
+  XSetForeground(d, gc, 0x1a1a1a);
+  XFillRectangle(d, m_tooltip, gc, 0, 0, tw, th);
+  m_font.draw(d, m_xconn.screen(), m_tooltip, 8, 16, text);
+  XFreeGC(d, gc);
+}
+
+void Panel::handleMotion(int x)
+{
+  int zone = hitTest(x);
+  if (zone == m_hoverZone)
+  {
+    return;
+  }
+  m_hoverZone = zone;
+  draw();
+  if (zone == 0)
+  {
+    showTooltip(x, "Start menu");
+  }
+  else if (zone == 1)
+  {
+    showTooltip(x, "Volume (click to mute)");
+  }
+  else if (zone == 2)
+  {
+    showTooltip(x, "Show desktop");
+  }
+  else
+  {
+    hideTooltip();
+  }
+}
+
+void Panel::handleLeave()
+{
+  m_hoverZone = -1;
+  hideTooltip();
+  draw();
 }
 
 void Panel::handleStartMenuClick(int y)

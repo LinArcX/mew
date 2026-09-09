@@ -99,8 +99,8 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 ## panel
 - [P] when i click on volume nothing happens. just when i click on  , it will works. why? the positioning is wrong?
   - [ ] it doesn't show the actual volume size, when i mute it, i can still hear the sound.
-- [ ] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
-- [ ] define keybinding for each item in startmenu, like for apps, logout, etc..
+- [P] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
+- [+] define keybinding for each item in startmenu, like for apps, logout, etc..
 - [ ] apps in start menu works. but it has different problems:
   - [+] it doen's have vertical scrool. so when i use down arrow key and go at the end of the list, it stops there and doesn't show more items. (i think you didn't implementing vertical scrolling throug items, right? do it) 
   - [+] when i start to type something, it can find the items. but it shows different frames(or windows) on top of each other.
@@ -111,7 +111,7 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
     - [ ] poweroff
 
 ## config
-- [ ] ability to set panel items color + panel item hover color in config file.
+- [P] ability to set panel items color + panel item hover color in config file.
 - [ ] windows theme
 - [ ] ability to define applications windows size or position. for example:
     mpv.pos.x = 0
@@ -146,7 +146,26 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 
 ---------------------------------------------------------------------------------
 # v6
+## general
+- [ ] transfer my README file to a professional README. i want it to be:
+  - simple
+  - understandable
+  - attract peoples attention. (at the sime time minimal and not bloated)
+  - looks professional
+  - link to pateron
+- [ ] background color that loads with mew, streching all over the monitor background.
+  i don't want that. i want the image to be centeralized. without streching. to preserve it's initial high-quiality.
+- [ ] when keybindings window appears, i shuould be able to hit ESCAPE on keyboard, and it's window should be closs.
+- [ ] show apps icons in apps popup also.
+- [ ] apps should be sorted by running apps through it.
+  for example if i ran firefox 5 times through apps pop-up, then gedit 3 times, firefox should show me first, then gedit second item in the list.
+- [ ] like apps pop-up, there should be a pop-up for powerManagement items. and i should be able to define a shortcut for that in ~/.config/mew/keybindings also.
+
+## startmenu
+- [ ] hover over start menu, make start menu icon dissapear. fix it.
+
 ## panel
+- [ ] panel_item_color doesn't change panel items color.
 - [ ] apps popup in start-menu only close when i press ESCAPE from keyboard. i want it to be close, when i click on other apps, or in general space also in WM.
 - [ ] instead of using amixer directly in Panel.cpp to mute audio, you should read the command from: ~/.config/mew/keybindings
   key="XF86AudioRaiseVolume", command="amixer set PCM 5%+" # pi5: amixer -D default set Master 5%+
@@ -155,3 +174,4 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 
   - [ ] Do the same process for RaiseVolue and LowerVolume.
     you need to update volume percentage number in panel when i increase/decrease the volume with keyboard shortcut. 
+

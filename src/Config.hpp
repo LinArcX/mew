@@ -32,6 +32,10 @@ public:
   unsigned long backgroundColor() const { return m_backgroundColor; }
   /** @brief Panel background color. */
   unsigned long panelColor() const { return m_panelColor; }
+  /** @brief Default panel item (icon/text) color. */
+  unsigned long panelItemColor() const { return m_panelItemColor; }
+  /** @brief Panel item color while hovered. */
+  unsigned long panelHoverColor() const { return m_panelHoverColor; }
   /** @brief Path to wallpaper image. */
   const std::string& backgroundImage() const { return m_backgroundImage; }
   /** @brief True if last background_* key in config was the image. */
@@ -55,6 +59,8 @@ private:
   int m_mouseSize = 24;
   unsigned long m_backgroundColor = 0x425645;
   unsigned long m_panelColor = 0x222222;
+  unsigned long m_panelItemColor = 0xffffff;
+  unsigned long m_panelHoverColor = 0x0a64c8;
   std::string m_backgroundImage;
   bool m_useBackgroundImage = false;
   std::string m_loginSound;

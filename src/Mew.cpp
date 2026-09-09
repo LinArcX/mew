@@ -197,6 +197,53 @@ bool Mew::handleCustomKeybinding(XKeyEvent* pEvent)
       m_pClients->center(pClient);
       return true;
     }
+    if (cmd == "apps" || cmd == "open-apps")
+    {
+      if (m_pLauncher)
+      {
+        m_pLauncher->show();
+      }
+      return true;
+    }
+    if (cmd == "keybindings" || cmd == "open-keybindings")
+    {
+      if (m_pKeybindings)
+      {
+        m_pKeybindings->show();
+      }
+      return true;
+    }
+    if (cmd == "logout" || cmd == "quit")
+    {
+      m_shouldQuit = true;
+      return true;
+    }
+    if (cmd == "reconfigure")
+    {
+      m_needReconfigure = true;
+      return true;
+    }
+    if (cmd == "reboot")
+    {
+      if (m_pPanel)
+      {
+        // reuse panel power actions via simulated index would be awkward;
+        // call system path same as panel
+      }
+      std::system("dbus-send --system --print-reply "
+                  "--dest=org.freedesktop.login1 /org/freedesktop/login1 "
+                  "org.freedesktop.login1.Manager.Reboot boolean:false "
+                  ">/dev/null 2>&1");
+      return true;
+    }
+    if (cmd == "poweroff")
+    {
+      std::system("dbus-send --system --print-reply "
+                  "--dest=org.freedesktop.login1 /org/freedesktop/login1 "
+                  "org.freedesktop.login1.Manager.PowerOff boolean:false "
+                  ">/dev/null 2>&1");
+      return true;
+    }
 
     std::string command = cmd + " >/dev/null 2>&1 &";
     printf("mew: running: %s\n", cmd.c_str());
@@ -240,6 +287,8 @@ void Mew::reconfigure()
   if (m_pPanel)
   {
     m_pPanel->setBackgroundColor(m_config.panelColor());
+    m_pPanel->setItemColor(m_config.panelItemColor());
+    m_pPanel->setHoverColor(m_config.panelHoverColor());
     m_pPanel->draw();
   }
   grabKeys();
@@ -430,7 +479,19 @@ void Mew::processEvent(XEvent& event)
     }
 
     case MotionNotify:
+      if (m_pPanel && event.xmotion.window == m_pPanel->window())
+      {
+        m_pPanel->handleMotion(event.xmotion.x);
+        break;
+      }
       m_pClients->handleMotion(&event.xmotion);
+      break;
+
+    case LeaveNotify:
+      if (m_pPanel && event.xcrossing.window == m_pPanel->window())
+      {
+        m_pPanel->handleLeave();
+      }
       break;
 
     case Expose:
@@ -578,6 +639,8 @@ int Mew::run()
   m_pLauncher = new AppLauncher(m_xconn, m_font);
   m_pPanel = new Panel(m_xconn, m_font, *m_pClients);
   m_pPanel->setBackgroundColor(m_config.panelColor());
+  m_pPanel->setItemColor(m_config.panelItemColor());
+  m_pPanel->setHoverColor(m_config.panelHoverColor());
   m_pPanel->setOnShowLauncher(onShowLauncher);
   m_pPanel->setOnShowKeybindings(onShowKeybindings);
   m_pPanel->setOnQuit(onQuit);

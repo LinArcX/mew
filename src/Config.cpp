@@ -82,6 +82,22 @@ void Config::load()
       }
       m_panelColor = std::strtoul(val.c_str(), nullptr, 0);
     }
+    else if (key == "panel_item_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_panelItemColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "panel_hover_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_panelHoverColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
     else if (key == "background_image")
     {
       m_backgroundImage = Util::expandHome(val);

@@ -38,6 +38,29 @@ public:
   void setBackgroundColor(unsigned long color);
 
   /**
+   * @brief Set default item (text/icon) color.
+   * @param color 0xRRGGBB pixel value.
+   */
+  void setItemColor(unsigned long color);
+
+  /**
+   * @brief Set hovered item highlight color.
+   * @param color 0xRRGGBB pixel value.
+   */
+  void setHoverColor(unsigned long color);
+
+  /**
+   * @brief Handle pointer motion over the panel (hover highlight + tooltip).
+   * @param x Pointer x in panel coordinates.
+   */
+  void handleMotion(int x);
+
+  /**
+   * @brief Clear hover state when pointer leaves the panel.
+   */
+  void handleLeave();
+
+  /**
    * @brief Callback when user picks Apps in the start menu.
    */
   void setOnShowLauncher(void (*fn)()) { m_onShowLauncher = fn; }
@@ -150,6 +173,9 @@ private:
   void doReboot();
   void doPoweroff();
   void toggleDesktop();
+  int hitTest(int x) const;
+  void showTooltip(int x, const char* text);
+  void hideTooltip();
 
   XConnection& m_xconn;
   FontRenderer& m_font;
@@ -157,10 +183,14 @@ private:
 
   Window m_window = None;
   unsigned long m_bgColor = 0x222222;
+  unsigned long m_itemColor = 0xffffff;
+  unsigned long m_hoverColor = 0x0a64c8;
   time_t m_lastTime = 0;
   bool m_desktopShowing = false;
   int m_volumePercent = -1;
   bool m_volumeMuted = false;
+  int m_hoverZone = -1; // 0=start 1=volume 2=desktop -1=none
+  Window m_tooltip = None;
 
   Window m_startMenu = None;
   bool m_startMenuActive = false;
