@@ -1,4 +1,8 @@
 #include "AppLauncher.hpp"
+#include "stb_image.h"
+#include <X11/Xutil.h>
+#include <cstdlib>
+#include <map>
 #include "Util.hpp"
 
 #include <X11/keysym.h>
@@ -80,6 +84,7 @@ void AppLauncher::scanDir(const std::string& dir)
 
     std::string appName = desktopField(content, "Name");
     std::string exec = desktopField(content, "Exec");
+    std::string icon = desktopField(content, "Icon");
     if (appName.empty() || exec.empty())
     {
       continue;
@@ -100,6 +105,7 @@ void AppLauncher::scanDir(const std::string& dir)
     DesktopApp app;
     app.name = appName;
     app.exec = exec;
+    app.icon = icon;
     m_apps.push_back(app);
   }
   closedir(d);
@@ -116,8 +122,13 @@ void AppLauncher::scanApps()
   scanDir("/usr/share/applications");
   scanDir("/usr/local/share/applications");
 
+  loadFrequency();
   std::sort(m_apps.begin(), m_apps.end(),
     [](const DesktopApp& a, const DesktopApp& b) {
+      if (a.useCount != b.useCount)
+      {
+        return a.useCount > b.useCount;
+      }
       return a.name < b.name;
     });
 }
@@ -234,8 +245,14 @@ void AppLauncher::draw()
       XFillRectangle(d, m_window, gc, 4, y, kWidth - 8, kLineH);
     }
     int appIdx = m_filtered[i];
+    const DesktopApp& app = m_apps[static_cast<size_t>(appIdx)];
+    std::string iconPath = resolveIconPath(app.icon);
+    if (!iconPath.empty())
+    {
+      drawIcon(d, m_window, kPad + 4, y + 2, iconPath);
+    }
     int bl = y + (kLineH + (pFont ? pFont->ascent : 10)) / 2 - 2;
-    m_font.draw(d, m_xconn.screen(), m_window, kPad + 8, bl, m_apps[static_cast<size_t>(appIdx)].name);
+    m_font.draw(d, m_xconn.screen(), m_window, kPad + 28, bl, app.name);
   }
 
   XFreeGC(d, gc);
@@ -291,6 +308,8 @@ void AppLauncher::launchSelected()
     return;
   }
   int appIdx = m_filtered[m_index];
+  m_apps[static_cast<size_t>(appIdx)].useCount += 1;
+  saveFrequency();
   std::string cmd = m_apps[static_cast<size_t>(appIdx)].exec + " >/dev/null 2>&1 &";
   std::system(cmd.c_str());
   hide();
@@ -381,5 +400,149 @@ void AppLauncher::handleClick(XButtonEvent* pEvent)
   {
     m_index = idx;
     launchSelected();
+  }
+}
+
+
+void AppLauncher::loadFrequency()
+{
+  std::string path = Util::getConfigDirectory() + "/app_freq";
+  std::ifstream f(path);
+  if (!f.is_open())
+  {
+    return;
+  }
+  std::map<std::string, int> counts;
+  std::string line;
+  while (std::getline(f, line))
+  {
+    size_t tab = line.find('\t');
+    if (tab == std::string::npos)
+    {
+      continue;
+    }
+    std::string name = line.substr(0, tab);
+    int count = static_cast<int>(std::strtol(line.c_str() + static_cast<long>(tab) + 1, nullptr, 10));
+    counts[name] = count;
+  }
+  for (DesktopApp& app : m_apps)
+  {
+    auto it = counts.find(app.name);
+    if (it != counts.end())
+    {
+      app.useCount = it->second;
+    }
+  }
+}
+
+void AppLauncher::saveFrequency()
+{
+  std::string path = Util::getConfigDirectory() + "/app_freq";
+  std::ofstream f(path);
+  if (!f.is_open())
+  {
+    return;
+  }
+  for (const DesktopApp& app : m_apps)
+  {
+    if (app.useCount > 0)
+    {
+      f << app.name << '\t' << app.useCount << '\n';
+    }
+  }
+}
+
+std::string AppLauncher::resolveIconPath(const std::string& icon) const
+{
+  if (icon.empty())
+  {
+    return "";
+  }
+  if (icon[0] == '/' )
+  {
+    return icon;
+  }
+  // Try common icon theme paths (48px png)
+  const char* bases[] = {
+    "/usr/share/icons/hicolor/48x48/apps/",
+    "/usr/share/icons/hicolor/32x32/apps/",
+    "/usr/share/pixmaps/",
+    "/usr/share/icons/Adwaita/48x48/apps/",
+    nullptr
+  };
+  for (int i = 0; bases[i]; ++i)
+  {
+    std::string p = std::string(bases[i]) + icon + ".png";
+    std::ifstream test(p);
+    if (test.good())
+    {
+      return p;
+    }
+    // icon may already include extension
+    p = std::string(bases[i]) + icon;
+    std::ifstream test2(p);
+    if (test2.good())
+    {
+      return p;
+    }
+  }
+  return "";
+}
+
+void AppLauncher::drawIcon(Display* d, Window win, int x, int y, const std::string& path)
+{
+  int iw = 0;
+  int ih = 0;
+  int ch = 0;
+  unsigned char* data = stbi_load(path.c_str(), &iw, &ih, &ch, 4);
+  if (!data || iw <= 0 || ih <= 0)
+  {
+    GC gc = XCreateGC(d, win, 0, nullptr);
+    XSetForeground(d, gc, 0x6688aa);
+    XFillRectangle(d, win, gc, x, y, 20, 20);
+    XFreeGC(d, gc);
+    if (data)
+    {
+      stbi_image_free(data);
+    }
+    return;
+  }
+
+  const int size = 20;
+  char* xdata = static_cast<char*>(std::malloc(static_cast<size_t>(size * size * 4)));
+  if (!xdata)
+  {
+    stbi_image_free(data);
+    return;
+  }
+  for (int py = 0; py < size; ++py)
+  {
+    for (int px = 0; px < size; ++px)
+    {
+      int sx = px * iw / size;
+      int sy = py * ih / size;
+      unsigned char* s = data + (sy * iw + sx) * 4;
+      char* dst = xdata + (py * size + px) * 4;
+      dst[0] = static_cast<char>(s[2]);
+      dst[1] = static_cast<char>(s[1]);
+      dst[2] = static_cast<char>(s[0]);
+      dst[3] = 0;
+    }
+  }
+  stbi_image_free(data);
+
+  XImage* image = XCreateImage(
+    d, DefaultVisual(d, m_xconn.screen()), DefaultDepth(d, m_xconn.screen()),
+    ZPixmap, 0, xdata, size, size, 32, 0);
+  if (image)
+  {
+    GC gc = XCreateGC(d, win, 0, nullptr);
+    XPutImage(d, win, gc, image, 0, 0, x, y, size, size);
+    XFreeGC(d, gc);
+    XDestroyImage(image);
+  }
+  else
+  {
+    std::free(xdata);
   }
 }

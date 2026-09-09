@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ClientManager.hpp"
+#include "Config.hpp"
 #include "FontRenderer.hpp"
 #include "XConnection.hpp"
 
@@ -48,6 +49,18 @@ public:
    * @param color 0xRRGGBB pixel value.
    */
   void setHoverColor(unsigned long color);
+
+  /**
+   * @brief Config for volume commands from keybindings file.
+   * @param pConfig Non-owning pointer.
+   */
+  void setConfig(const Config* pConfig) { m_pConfig = pConfig; }
+
+  /**
+   * @brief Hide or show the panel (used during true fullscreen).
+   * @param visible true to map panel.
+   */
+  void setVisible(bool visible);
 
   /**
    * @brief Handle pointer motion over the panel (hover highlight + tooltip).
@@ -178,6 +191,8 @@ public:
 
   void drawNetworkMenu();
 
+  void runAudioCommand(const char* keyName);
+
 private:
   void updateVolume();
   void toggleMute();
@@ -216,6 +231,7 @@ private:
   std::string m_layoutName = "??";
   int m_layoutGroup = 0;
   int m_layoutCount = 1;
+  const Config* m_pConfig = nullptr;
 
   std::vector<std::string> m_netIfaces;
   std::string m_selectedIface;

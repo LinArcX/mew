@@ -43,6 +43,12 @@ public:
    */
   void setRaiseOverlay(void (*fn)()) { m_raiseOverlay = fn; }
 
+  /**
+   * @brief Called when a client enters/leaves true fullscreen (hide/show panel).
+   * @param fn Callback receiving true=enter fullscreen.
+   */
+  void setOnFullscreen(void (*fn)(bool)) { m_onFullscreen = fn; }
+
   /** @brief Adopt a top-level window into a decorated frame. */
   void manage(Window window);
 
@@ -127,5 +133,6 @@ private:
   std::vector<Client*> m_clients;
   int m_panelHeight = MewConst::panelHeight;
   void (*m_raiseOverlay)() = nullptr;
+  void (*m_onFullscreen)(bool) = nullptr;
   const Config* m_pConfig = nullptr;
 };

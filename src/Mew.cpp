@@ -93,6 +93,19 @@ void Mew::onRaiseOverlays()
   s_pInstance->raiseOverlays();
 }
 
+void Mew::onFullscreen(bool enter)
+{
+  if (!s_pInstance || !s_pInstance->m_pPanel)
+  {
+    return;
+  }
+  s_pInstance->m_pPanel->setVisible(!enter);
+  if (!enter)
+  {
+    s_pInstance->m_pPanel->raise();
+  }
+}
+
 int Mew::errorHandler(Display*, XErrorEvent*)
 {
   return 0;
@@ -680,6 +693,7 @@ int Mew::run()
   m_pClients->setPanelHeight(MewConst::panelHeight);
   m_pClients->setConfig(&m_config);
   m_pClients->setRaiseOverlay(onRaiseOverlays);
+  m_pClients->setOnFullscreen(onFullscreen);
 
   m_pSwitcher = new WindowSwitcher(m_xconn, m_font, *m_pClients);
   m_pKeybindings = new KeybindingsWindow(m_xconn, m_font, m_config);
@@ -688,6 +702,7 @@ int Mew::run()
   m_pPanel->setBackgroundColor(m_config.panelColor());
   m_pPanel->setItemColor(m_config.panelItemColor());
   m_pPanel->setHoverColor(m_config.panelHoverColor());
+  m_pPanel->setConfig(&m_config);
   m_pPanel->setOnShowLauncher(onShowLauncher);
   m_pPanel->setOnShowKeybindings(onShowKeybindings);
   m_pPanel->setOnQuit(onQuit);

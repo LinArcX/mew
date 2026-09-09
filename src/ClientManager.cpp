@@ -325,27 +325,37 @@ void ClientManager::setFullscreen(Client* pClient, bool enable)
     }
     pClient->fullscreen = true;
     pClient->maximized = true;
-    pClient->x = 0;
-    pClient->y = 0;
-    pClient->width = m_xconn.width();
-    pClient->height = m_xconn.height();
-    XMoveResizeWindow(d, pClient->frame, 0, 0, pClient->width, pClient->height);
-    XMoveResizeWindow(d, pClient->window, 0, 0, pClient->width, pClient->height);
-    XRaiseWindow(d, pClient->frame);
 
-    // Notify client of new size (mpv/SDL need this for true fullscreen)
+    // True fullscreen: client covers entire screen; frame and panel hidden
+    XReparentWindow(d, pClient->window, m_xconn.root(), 0, 0);
+    XMoveResizeWindow(d, pClient->window, 0, 0, m_xconn.width(), m_xconn.height());
+    XUnmapWindow(d, pClient->frame);
+    XRaiseWindow(d, pClient->window);
+    XSetInputFocus(d, pClient->window, RevertToPointerRoot, CurrentTime);
+
     XEvent ce{};
     ce.xconfigure.type = ConfigureNotify;
     ce.xconfigure.event = pClient->window;
     ce.xconfigure.window = pClient->window;
     ce.xconfigure.x = 0;
     ce.xconfigure.y = 0;
-    ce.xconfigure.width = pClient->width;
-    ce.xconfigure.height = pClient->height;
+    ce.xconfigure.width = m_xconn.width();
+    ce.xconfigure.height = m_xconn.height();
     ce.xconfigure.border_width = 0;
     ce.xconfigure.above = None;
     ce.xconfigure.override_redirect = False;
     XSendEvent(d, pClient->window, False, StructureNotifyMask, &ce);
+
+    // EWMH state
+    Atom state = m_xconn.atomNetWmState();
+    Atom fs = m_xconn.atomNetWmStateFullscreen();
+    XChangeProperty(d, pClient->window, state, XA_ATOM, 32, PropModeReplace,
+                    reinterpret_cast<unsigned char*>(&fs), 1);
+
+    if (m_onFullscreen)
+    {
+      m_onFullscreen(true);
+    }
   }
   else if (!enable && pClient->fullscreen)
   {
@@ -355,9 +365,22 @@ void ClientManager::setFullscreen(Client* pClient, bool enable)
     pClient->y = pClient->oldY;
     pClient->width = pClient->oldWidth;
     pClient->height = pClient->oldHeight;
+
+    XReparentWindow(
+      d, pClient->window, pClient->frame,
+      MewConst::borderWidth, MewConst::titleHeight);
+    XMapWindow(d, pClient->frame);
     resize(pClient);
+
+    Atom state = m_xconn.atomNetWmState();
+    XDeleteProperty(d, pClient->window, state);
+
+    if (m_onFullscreen)
+    {
+      m_onFullscreen(false);
+    }
+    focus(pClient);
   }
-  focus(pClient);
 }
 
 void ClientManager::snap(Client* pClient, const std::string& edge)

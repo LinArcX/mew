@@ -1,6 +1,11 @@
 ---------------------------------------------------------------------------------
 # v7
 ## general
+- You created ~/.config/mew/app_freq, but i can't see its effect. 
+  Still when i app Apps popup, i can't see most frequently apps on top. it is sorted alphabetically.
+  I want it to be sorted by most frequently used apps on top.
+- By adding application icons to Apps popup, it is sloooow now. can you keep icons but make the Apps popup faster?
+- In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
 - hover over date/time shows a popup, but i can't see panel_hover_color for date/time. fix it.
 - Image still strech in when i set ~/.config/mew/config: background_image
 - windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
@@ -22,8 +27,8 @@
   if there are empty space around the image, fill it with background_color setting.
 - [P] like apps pop-up, there should be a pop-up for powerManagement items.
   and i should be able to define shortcut for that in ~/.config/mew/keybindings also.
-- [ ] show application icons in Apps popup.
-- [ ] apps should be sorted by most frequent apps ran in the past.
+- [P] show application icons in Apps popup.
+- [P] apps should be sorted by most frequent apps ran in the past.
   for example if i ran firefox 5 times through apps pop-up and gedit 3 times, firefox should show me first, then gedit.
 - [ ] when keybindings pop-up window appears, i shuould be able to hit ESCAPE on keyboard to close it.
 
@@ -43,10 +48,16 @@
     mpv.height = 300
 
 ## panel
-- [ ] re-implement panel as a pluging system. (some plugins are mandatory. others are optional. this gives us this ability to enable/disable optional ones and recompile mew)
-  - [ ] So inside src/ folder, create another folder called panel/. and you should create for each panel widget a separate class and put these classes in src/panel directory.
-  - [ ] My idea is that, in future, if user wanted to create his own widget for panel, it should be easier for him. he just create another class under src/panel directory.
+- [Probably] re-implement panel as a pluging system. (some plugins are mandatory. others are optional. this gives us this ability to enable/disable optional ones and recompile mew)
+  - [Probably] So inside src/ folder, create another folder called panel/. and you should create for each panel widget a separate class and put these classes in src/panel directory.
+  - [Probably] My idea is that, in future, if user wanted to create his own widget for panel, it should be easier for him. he just create another class under src/panel directory.
     and Main panel class should be able to automatically brings all panel widgest at compile time and compile them.
+
+- [+] panel_item_color doesn't change panel items color.
+
+- [+] in language switcher plugin, when i switch to persian, it shows persian. but i want it to write IR insted. 
+  This is the command i use in ~/.config/mew/autostart:
+    setxkbmap -layout "us,ir" -option "grp:alt_shift_toggle" &
 
 - [ ] changing networks in networkmanager plugin doesn't take into account.
   for example i swtich to ethernet, but still i have internet!
@@ -55,23 +66,18 @@
 - [ ] bringing interfaces up/down in networkmanger plugin doesn't works. 
   Does it need root access? (CAP_NET_ADMIN) implement it with polkit-devel or any other similar and minimal/safe way.
 
-- [+] panel_item_color doesn't change panel items color.
-
-- [+] in language switcher plugin, when i switch to persian, it shows persian. but i want it to write IR insted. 
-  This is the command i use in ~/.config/mew/autostart:
-    setxkbmap -layout "us,ir" -option "grp:alt_shift_toggle" &
-
-- [P] hover over date/time widget in panel doesn't work and doesn't show anything. fix it.
-
 - [ ] instead of using amixer directly in Panel.cpp to mute audio, you should read the command from: ~/.config/mew/keybindings
   key="XF86AudioRaiseVolume", command="amixer set PCM 5%+" # pi5: amixer -D default set Master 5%+
   key="XF86AudioLowerVolume", command="amixer set PCM 5%-" # pi5: amixer -D default set Master 5%-
   key="XF86AudioMute", command="amixer -D pulse set Master toggle" # amixer -D pulse set Master toggle
   - [ ] Do the same process for RaiseVolue and LowerVolume.
     you need to update volume percentage number in panel when i increase/decrease the volume with keyboard shortcut. 
+  - [ ] Click again on sound icon, doesn't mute.
 
 - [ ] volume widget in panel doesn't show the actual volume.
   when i click on it (and it becomes mute), i still can hear the sound.
+
+- [P] hover over date/time widget in panel doesn't work and doesn't show anything. fix it.
 
 ## apps
 ### mpv

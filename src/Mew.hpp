@@ -66,6 +66,7 @@ private:
   static void onQuit();
   static void onReconfigure();
   static void onRaiseOverlays();
+  static void onFullscreen(bool enter);
   static int errorHandler(Display* pDisplay, XErrorEvent* pEvent);
 
   XConnection m_xconn;

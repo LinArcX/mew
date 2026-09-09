@@ -82,6 +82,18 @@ private:
   /** @brief Run Exec of the highlighted entry and hide. */
   void launchSelected();
 
+  /** @brief Load launch counts from ~/.config/mew/app_freq. */
+  void loadFrequency();
+
+  /** @brief Persist launch counts. */
+  void saveFrequency();
+
+  /** @brief Resolve Icon= to a readable PNG path. */
+  std::string resolveIconPath(const std::string& icon) const;
+
+  /** @brief Draw a small icon if path is a loadable image. */
+  void drawIcon(Display* d, Window win, int x, int y, const std::string& path);
+
   XConnection& m_xconn;
   FontRenderer& m_font;
 

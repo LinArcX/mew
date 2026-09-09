@@ -40,6 +40,8 @@ struct DesktopApp
 {
   std::string name;
   std::string exec;
+  std::string icon;   // Icon= from .desktop (name or path)
+  int useCount = 0;   // launch frequency
 };
 
 enum class ResizeDirection

@@ -109,6 +109,22 @@ void Panel::raise()
   }
 }
 
+void Panel::setVisible(bool visible)
+{
+  if (m_window == None)
+  {
+    return;
+  }
+  if (visible)
+  {
+    XMapRaised(m_xconn.display(), m_window);
+  }
+  else
+  {
+    XUnmapWindow(m_xconn.display(), m_window);
+  }
+}
+
 
 void Panel::refreshLayout()
 {
@@ -256,6 +272,37 @@ void Panel::cycleLayout()
 
 void Panel::updateVolume()
 {
+  // Prefer parsing amixer output (works with user's keybinding device)
+  FILE* pipe = popen("amixer sget Master 2>/dev/null || amixer sget PCM 2>/dev/null", "r");
+  if (pipe)
+  {
+    char line[256];
+    while (fgets(line, sizeof(line), pipe))
+    {
+      // look for [42%] and [on]/[off]
+      char* pct = std::strchr(line, '[');
+      if (!pct)
+      {
+        continue;
+      }
+      int v = 0;
+      if (std::sscanf(pct, "[%d%%]", &v) == 1)
+      {
+        m_volumePercent = v;
+      }
+      if (std::strstr(line, "[off]"))
+      {
+        m_volumeMuted = true;
+      }
+      else if (std::strstr(line, "[on]"))
+      {
+        m_volumeMuted = false;
+      }
+    }
+    pclose(pipe);
+    return;
+  }
+
   snd_mixer_t* handle = nullptr;
   if (snd_mixer_open(&handle, 0) < 0)
   {
@@ -320,76 +367,50 @@ void Panel::updateVolume()
   snd_mixer_close(handle);
 }
 
-void Panel::toggleMute()
+
+void Panel::runAudioCommand(const char* keyName)
 {
-  // Prefer amixer (works with Pulse/PipeWire bridges). Fall back to ALSA selem.
-  if (std::system("amixer -q set Master toggle 2>/dev/null") == 0
-      || std::system("amixer -q set Master playback toggle 2>/dev/null") == 0)
+  std::string cmd;
+  if (m_pConfig)
   {
-    updateVolume();
-    draw();
-    return;
-  }
-
-  snd_mixer_t* handle = nullptr;
-  if (snd_mixer_open(&handle, 0) < 0)
-  {
-    return;
-  }
-  if (snd_mixer_attach(handle, "default") < 0)
-  {
-    snd_mixer_close(handle);
-    return;
-  }
-  snd_mixer_selem_register(handle, nullptr, nullptr);
-  snd_mixer_load(handle);
-
-  snd_mixer_selem_id_t* sid = nullptr;
-  snd_mixer_selem_id_alloca(&sid);
-  snd_mixer_selem_id_set_index(sid, 0);
-  const char* names[] = {"Master", "PCM", "Speaker", "Headphone", nullptr};
-  snd_mixer_elem_t* elem = nullptr;
-  for (int i = 0; names[i]; ++i)
-  {
-    snd_mixer_selem_id_set_name(sid, names[i]);
-    elem = snd_mixer_find_selem(handle, sid);
-    if (elem)
+    for (const KeyBinding& b : m_pConfig->keybindings())
     {
-      break;
-    }
-  }
-
-  if (elem)
-  {
-    if (snd_mixer_selem_has_playback_switch(elem))
-    {
-      int on = 0;
-      snd_mixer_selem_get_playback_switch(elem, SND_MIXER_SCHN_FRONT_LEFT, &on);
-      snd_mixer_selem_set_playback_switch_all(elem, on ? 0 : 1);
-    }
-    else
-    {
-      // No mute switch: toggle volume 0 <-> saved level
-      long minv = 0;
-      long maxv = 0;
-      long valv = 0;
-      snd_mixer_selem_get_playback_volume_range(elem, &minv, &maxv);
-      snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_FRONT_LEFT, &valv);
-      if (valv <= minv)
+      if (b.display.find(keyName) != std::string::npos)
       {
-        long mid = minv + (maxv - minv) * 50 / 100;
-        snd_mixer_selem_set_playback_volume_all(elem, mid);
-      }
-      else
-      {
-        snd_mixer_selem_set_playback_volume_all(elem, minv);
+        cmd = b.command;
+        break;
       }
     }
   }
-
-  snd_mixer_close(handle);
+  if (cmd.empty())
+  {
+    if (std::strcmp(keyName, "XF86AudioMute") == 0)
+    {
+      cmd = "amixer -q set Master toggle";
+    }
+    else if (std::strcmp(keyName, "XF86AudioRaiseVolume") == 0)
+    {
+      cmd = "amixer -q set Master 5%+";
+    }
+    else if (std::strcmp(keyName, "XF86AudioLowerVolume") == 0)
+    {
+      cmd = "amixer -q set Master 5%-";
+    }
+  }
+  if (!cmd.empty())
+  {
+    std::system((cmd + " >/dev/null 2>&1").c_str());
+  }
+  // allow mixer to settle
+  struct timespec ts = {0, 80 * 1000 * 1000};
+  nanosleep(&ts, nullptr);
   updateVolume();
   draw();
+}
+
+void Panel::toggleMute()
+{
+  runAudioCommand("XF86AudioMute");
 }
 
 void Panel::draw()
