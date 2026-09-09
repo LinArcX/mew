@@ -1,5 +1,7 @@
 #include "Panel.hpp"
 
+#include <X11/XKBlib.h>
+
 #include <alsa/asoundlib.h>
 #include <sys/reboot.h>
 #include <linux/reboot.h>
@@ -96,6 +98,87 @@ void Panel::raise()
   {
     XRaiseWindow(m_xconn.display(), m_window);
   }
+}
+
+
+void Panel::refreshLayout()
+{
+  Display* d = m_xconn.display();
+  XkbStateRec state{};
+  if (XkbGetState(d, XkbUseCoreKbd, &state) == Success)
+  {
+    m_layoutGroup = static_cast<int>(state.group);
+  }
+
+  XkbDescPtr desc = XkbAllocKeyboard();
+  if (!desc)
+  {
+    m_layoutName = "??";
+    m_layoutCount = 1;
+    return;
+  }
+
+  desc->device_spec = XkbUseCoreKbd;
+  if (XkbGetNames(d, XkbGroupNamesMask, desc) != Success)
+  {
+    XkbFreeKeyboard(desc, 0, True);
+    m_layoutName = "??";
+    return;
+  }
+
+  m_layoutCount = 0;
+  for (int i = 0; i < XkbNumKbdGroups; ++i)
+  {
+    if (desc->names && desc->names->groups[i] != None)
+    {
+      ++m_layoutCount;
+    }
+  }
+  if (m_layoutCount < 1)
+  {
+    m_layoutCount = 1;
+  }
+
+  m_layoutName = "??";
+  if (desc->names
+      && m_layoutGroup >= 0
+      && m_layoutGroup < XkbNumKbdGroups
+      && desc->names->groups[m_layoutGroup] != None)
+  {
+    char* name = XGetAtomName(d, desc->names->groups[m_layoutGroup]);
+    if (name)
+    {
+      // Often "English (US)" — show a short token
+      m_layoutName = name;
+      if (m_layoutName.size() > 8)
+      {
+        // Prefer 2-letter codes if present in parentheses: English (US) -> US
+        size_t l = m_layoutName.rfind('(');
+        size_t r = m_layoutName.rfind(')');
+        if (l != std::string::npos && r != std::string::npos && r > l + 1)
+        {
+          m_layoutName = m_layoutName.substr(l + 1, r - l - 1);
+        }
+        else
+        {
+          m_layoutName = m_layoutName.substr(0, 6);
+        }
+      }
+      XFree(name);
+    }
+  }
+
+  XkbFreeKeyboard(desc, 0, True);
+}
+
+void Panel::cycleLayout()
+{
+  Display* d = m_xconn.display();
+  refreshLayout();
+  int next = (m_layoutGroup + 1) % m_layoutCount;
+  XkbLockGroup(d, XkbUseCoreKbd, static_cast<unsigned>(next));
+  refreshLayout();
+  draw();
 }
 
 void Panel::updateVolume()
@@ -269,6 +352,7 @@ void Panel::draw()
   m_font.draw(d, m_xconn.screen(), m_window, 12, baseline, "");
 
   // Hover highlight under interactive zones
+  // Layout from right: desktop | clock | volume | language
   if (m_hoverZone == 0)
   {
     XSetForeground(d, gc, m_hoverColor);
@@ -277,26 +361,36 @@ void Panel::draw()
   else if (m_hoverZone == 1)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, screenW - 340, 0, 95, MewConst::panelHeight);
+    XFillRectangle(d, m_window, gc, screenW - 380, 0, 30, MewConst::panelHeight);
   }
   else if (m_hoverZone == 2)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, screenW - 50, 0, 50, MewConst::panelHeight);
+    XFillRectangle(d, m_window, gc, screenW - 350, 0, 35, MewConst::panelHeight);
+  }
+  else if (m_hoverZone == 3)
+  {
+    XSetForeground(d, gc, m_hoverColor);
+    XFillRectangle(d, m_window, gc, screenW - 25, 0, 30, MewConst::panelHeight);
   }
 
+  refreshLayout();
   updateVolume();
+
+  // Language (left of volume)
+  m_font.draw(d, m_xconn.screen(), m_window, screenW - 375, baseline, m_layoutName);
+
   char volBuf[48];
   if (m_volumeMuted || m_volumePercent < 0)
   {
     // U+F0581 mute
-    snprintf(volBuf, sizeof(volBuf), "\xf3\xb0\x96\x81 mute");
+    snprintf(volBuf, sizeof(volBuf), "\xf3\xb0\x96\x81");
   }
   else
   {
     snprintf(volBuf, sizeof(volBuf), "%d%%", m_volumePercent);
   }
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 360, baseline, volBuf);
+  m_font.draw(d, m_xconn.screen(), m_window, screenW - 345, baseline, volBuf);
   m_font.draw(d, m_xconn.screen(), m_window, screenW - 305, baseline, buf);
   m_font.draw(d, m_xconn.screen(), m_window, screenW - 20, baseline, "");
 
@@ -515,10 +609,8 @@ void Panel::toggleDesktop()
 
 void Panel::handleClick(int x)
 {
-  int screenW = m_xconn.width();
-
-  // Start button (left)
-  if (x < 40)
+  int zone = hitTest(x);
+  if (zone == 0)
   {
     if (m_startMenuActive)
     {
@@ -530,17 +622,17 @@ void Panel::handleClick(int x)
     }
     return;
   }
-
-  // Volume drawn at screenW-320; clock at screenW-240; desktop at screenW-36
-  // Hit volume from just left of the text through before the clock.
-  if (x >= screenW - 340 && x < screenW - 245)
+  if (zone == 1)
+  {
+    cycleLayout();
+    return;
+  }
+  if (zone == 2)
   {
     toggleMute();
     return;
   }
-
-  // Desktop icon (far right)
-  if (x > screenW - 50)
+  if (zone == 3)
   {
     toggleDesktop();
   }
@@ -554,13 +646,17 @@ int Panel::hitTest(int x) const
   {
     return 0; // start
   }
+  if (x >= screenW - 400 && x < screenW - 345)
+  {
+    return 1; // language
+  }
   if (x >= screenW - 340 && x < screenW - 245)
   {
-    return 1; // volume
+    return 2; // volume
   }
   if (x > screenW - 50)
   {
-    return 2; // desktop
+    return 3; // desktop
   }
   return -1;
 }
@@ -632,9 +728,13 @@ void Panel::handleMotion(int x)
   }
   else if (zone == 1)
   {
-    showTooltip(x, "Volume (click to mute)");
+    showTooltip(x, "Keyboard layout (click to cycle)");
   }
   else if (zone == 2)
+  {
+    showTooltip(x, "Volume (click to mute)");
+  }
+  else if (zone == 3)
   {
     showTooltip(x, "Show desktop");
   }

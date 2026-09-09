@@ -10,7 +10,7 @@
 #include <vector>
 
 /**
- * @brief Bottom panel with start menu, volume, clock, and desktop toggle.
+ * @brief Bottom panel with start menu, language switcher, volume, clock, and desktop toggle.
  *
  * Owns the start menu and nested PowerManager submenu. External actions
  * (launcher, keybindings, quit, reconfigure) are invoked via callbacks.
@@ -176,6 +176,8 @@ private:
   int hitTest(int x) const;
   void showTooltip(int x, const char* text);
   void hideTooltip();
+  void refreshLayout();
+  void cycleLayout();
 
   XConnection& m_xconn;
   FontRenderer& m_font;
@@ -189,8 +191,11 @@ private:
   bool m_desktopShowing = false;
   int m_volumePercent = -1;
   bool m_volumeMuted = false;
-  int m_hoverZone = -1; // 0=start 1=volume 2=desktop -1=none
+  int m_hoverZone = -1; // 0=start 1=lang 2=volume 3=desktop -1=none
   Window m_tooltip = None;
+  std::string m_layoutName = "??";
+  int m_layoutGroup = 0;
+  int m_layoutCount = 1;
 
   Window m_startMenu = None;
   bool m_startMenuActive = false;

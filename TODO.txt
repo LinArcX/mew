@@ -99,7 +99,7 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 ## panel
 - [P] when i click on volume nothing happens. just when i click on  , it will works. why? the positioning is wrong?
   - [ ] it doesn't show the actual volume size, when i mute it, i can still hear the sound.
-- [P] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
+- [+] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
 - [+] define keybinding for each item in startmenu, like for apps, logout, etc..
 - [ ] apps in start menu works. but it has different problems:
   - [+] it doen's have vertical scrool. so when i use down arrow key and go at the end of the list, it stops there and doesn't show more items. (i think you didn't implementing vertical scrolling throug items, right? do it) 
@@ -123,11 +123,23 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 re-implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
   - [ ] currently start menu closes only when i click on it. but i want it to be close  also whenever i clicked on other applications or another part of mew desktop.
   - [ ] network manager (mandatory)
-  - [ ] language switcher (mandatory)
-  - [P] power manager (mandatory)
-    - [P] reboot
-    - [P] poweroff
-    - [P] mew --reconfigure
+    it should show a plugin in panel. that shows currently using network intreface. (you can access to all netowrk interfaces with: `ip a`)
+    then when i click on it, a pop-up window should shows and gives me all of the interfaces.
+    i can select one of them. and it can become my main network interface.
+
+    - there should be another plugin next to network manager plugin, i call it kill-switch for internet. so when i click on it, it should toggle between these states:
+    "stop internet")
+      sudo ip link set dev INTERFACE up
+    "stop internet")
+      sudo ip link set dev INTERFACE down
+    - the icon of kill switch should be green (if the selected interface is up and connected) and red(if the selected interface is down and disconnected)
+
+    
+  - [+] language switcher (mandatory)
+  - [Probably] power manager (mandatory)
+    - [Probably] reboot
+    - [Probably] poweroff
+    - [Probably] mew --reconfigure
       not working as expected. need to test it again.
 
 ## apps
@@ -160,8 +172,10 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 - [ ] hover over start menu, make start menu icon dissapear. fix it.
 
 ## panel
+- [ ] in language switcher plugin, when i switch to persian, it shows persian. but i want it to write IR insted. 
+  This is the command i use in ~/.config/mew/autostart:
+    setxkbmap -layout "us,ir" -option "grp:alt_shift_toggle" &
 - [ ] hover over date/time doesn't work.
-- [ ] hover over desktop icon and sound icon, is not matching their text lenght. 
 - [ ] panel_item_color doesn't change panel items color.
 - [ ] apps popup in start-menu only close when i press ESCAPE from keyboard. i want it to be close, when i click on other apps, or in general space also in WM.
 - [ ] instead of using amixer directly in Panel.cpp to mute audio, you should read the command from: ~/.config/mew/keybindings
@@ -174,6 +188,7 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
 ## apps
 ### mpv
 - [ ] Pressing Enter doesn't maximize the whole window (i expect when i press ENTER in neovim, it becomes a full screen window)
+  when i say fullscreen, i mean top frame(that contains close/max/min buttons) and panel also should be hidden.
   - this is part of my ~/.config/mpv/input.conf:
     # General
     ESC                 cycle fullscreen
