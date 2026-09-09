@@ -2,11 +2,18 @@
 a wm for x
 
 # dependencies
-## libs
+## buildtime
+  git
+  fzf
+  pkgconf
+  Bear
+  gcc
   libXft-devel
   freetype-devel
+  libXcursor-devel
+  alsa-lib-devel
+
 ## runtime
-  mpg123
 
 # run
 ## xephyr
