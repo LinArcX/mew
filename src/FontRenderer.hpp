@@ -40,6 +40,12 @@ public:
   /** @brief Underlying XftFont, or nullptr if load failed. */
   XftFont* font() const { return m_pFont; }
 
+  /**
+   * @brief Set text color for subsequent draw() calls (0xRRGGBB).
+   * @param color Pixel color.
+   */
+  void setColor(unsigned long color);
+
 private:
   FT_Library m_ftLibrary = nullptr;
   FT_Face m_ftFace = nullptr;

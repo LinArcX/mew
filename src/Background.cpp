@@ -1,12 +1,13 @@
 #include "Background.hpp"
 
+#include <X11/Xutil.h>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #include <cstdio>
 #include <cstdlib>
-
-#include <X11/Xutil.h>
+#include <cstring>
 
 Background::Background()
 {
@@ -38,6 +39,7 @@ void Background::apply(XConnection& xconn, const Config& config)
 
   int screenW = xconn.width();
   int screenH = xconn.height();
+  unsigned long bgColor = config.backgroundColor();
 
   if (config.useBackgroundImage() && !config.backgroundImage().empty())
   {
@@ -62,19 +64,47 @@ void Background::apply(XConnection& xconn, const Config& config)
 
       Visual* visual = DefaultVisual(pDisplay, screen);
       int depth = DefaultDepth(pDisplay, screen);
-      size_t bufSize = static_cast<size_t>(screenW) * screenH * 4;
+      size_t bufSize = static_cast<size_t>(screenW) * static_cast<size_t>(screenH) * 4;
       char* xdata = static_cast<char*>(malloc(bufSize));
 
       if (xdata)
       {
-        for (int y = 0; y < screenH; ++y)
+        // Fill with background_color (centered image, no stretch)
+        unsigned char br = static_cast<unsigned char>((bgColor >> 16) & 0xff);
+        unsigned char bg = static_cast<unsigned char>((bgColor >> 8) & 0xff);
+        unsigned char bb = static_cast<unsigned char>(bgColor & 0xff);
+        for (size_t i = 0; i < bufSize; i += 4)
         {
-          int sy = y * imgH / screenH;
-          for (int x = 0; x < screenW; ++x)
+          xdata[i + 0] = static_cast<char>(bb);
+          xdata[i + 1] = static_cast<char>(bg);
+          xdata[i + 2] = static_cast<char>(br);
+          xdata[i + 3] = 0;
+        }
+
+        // Center original image (clip if larger than screen)
+        int dstW = imgW;
+        int dstH = imgH;
+        int srcX = 0;
+        int srcY = 0;
+        if (dstW > screenW)
+        {
+          srcX = (dstW - screenW) / 2;
+          dstW = screenW;
+        }
+        if (dstH > screenH)
+        {
+          srcY = (dstH - screenH) / 2;
+          dstH = screenH;
+        }
+        int offsetX = (screenW - dstW) / 2;
+        int offsetY = (screenH - dstH) / 2;
+
+        for (int y = 0; y < dstH; ++y)
+        {
+          for (int x = 0; x < dstW; ++x)
           {
-            int sx = x * imgW / screenW;
-            unsigned char* src = data + (sy * imgW + sx) * 4;
-            char* dst = xdata + (y * screenW + x) * 4;
+            unsigned char* src = data + ((srcY + y) * imgW + (srcX + x)) * 4;
+            char* dst = xdata + ((offsetY + y) * screenW + (offsetX + x)) * 4;
             dst[0] = static_cast<char>(src[2]);
             dst[1] = static_cast<char>(src[1]);
             dst[2] = static_cast<char>(src[0]);
@@ -110,7 +140,7 @@ void Background::apply(XConnection& xconn, const Config& config)
       stbi_image_free(data);
       XSetWindowBackgroundPixmap(pDisplay, root, m_pixmap);
       XClearWindow(pDisplay, root);
-      printf("mew: background image set: %s\n", config.backgroundImage().c_str());
+      printf("mew: background image set (centered): %s\n", config.backgroundImage().c_str());
       return;
     }
 
@@ -122,6 +152,6 @@ void Background::apply(XConnection& xconn, const Config& config)
             config.backgroundImage().c_str());
   }
 
-  XSetWindowBackground(pDisplay, root, config.backgroundColor());
+  XSetWindowBackground(pDisplay, root, bgColor);
   XClearWindow(pDisplay, root);
 }

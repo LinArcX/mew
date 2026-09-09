@@ -119,6 +119,11 @@ public:
   void hideMenus();
 
   /**
+   * @brief Open PowerManager submenu (for keybindings).
+   */
+  void openPowerMenu();
+
+  /**
    * @brief Redraw start menu if active (Expose).
    */
   void drawStartMenu();

@@ -1,4 +1,5 @@
 #include "ClientManager.hpp"
+#include <X11/Xutil.h>
 
 #include <X11/Xatom.h>
 #include <algorithm>
@@ -748,6 +749,80 @@ void ClientManager::manage(Window window)
   pClient->transient = isTransient;
   pClient->noMaximize = isTransient;
 
+  // Per-app geometry from config (matched by WM_CLASS)
+  if (m_pConfig)
+  {
+    XClassHint hint{};
+    if (XGetClassHint(d, window, &hint))
+    {
+      std::string inst = hint.res_name ? hint.res_name : "";
+      std::string cls = hint.res_class ? hint.res_class : "";
+      if (hint.res_name)
+      {
+        XFree(hint.res_name);
+      }
+      if (hint.res_class)
+      {
+        XFree(hint.res_class);
+      }
+      const Config::AppGeometry* geo = m_pConfig->appGeometry(inst);
+      if (!geo)
+      {
+        geo = m_pConfig->appGeometry(cls);
+      }
+      if (geo)
+      {
+        if (geo->hasW)
+        {
+          w = geo->width;
+        }
+        if (geo->hasH)
+        {
+          h = geo->height;
+        }
+        if (w < MewConst::minWidth)
+        {
+          w = MewConst::minWidth;
+        }
+        if (h < MewConst::minHeight)
+        {
+          h = MewConst::minHeight;
+        }
+        frameW = w + MewConst::borderWidth * 2;
+        frameH = h + MewConst::titleHeight + MewConst::borderWidth;
+        if (geo->hasX)
+        {
+          x = geo->x;
+        }
+        else
+        {
+          x = (screenW - frameW) / 2;
+        }
+        if (geo->hasY)
+        {
+          y = geo->y;
+        }
+        else
+        {
+          y = (screenH - frameH) / 2;
+        }
+        pClient->x = x;
+        pClient->y = y;
+        pClient->width = w;
+        pClient->height = h;
+        pClient->oldX = x;
+        pClient->oldY = y;
+        pClient->oldWidth = w;
+        pClient->oldHeight = h;
+        XMoveResizeWindow(d, pClient->frame, x, y, frameW, frameH);
+        if (geo->maximized)
+        {
+          pClient->noMaximize = false;
+        }
+      }
+    }
+  }
+
   XSelectInput(d, pClient->frame, ExposureMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
   XAddToSaveSet(d, window);
   XSelectInput(d, window, StructureNotifyMask | PropertyChangeMask);
@@ -763,6 +838,33 @@ void ClientManager::manage(Window window)
   m_clients.push_back(pClient);
   resize(pClient);
   focus(pClient);
+
+  if (m_pConfig)
+  {
+    XClassHint hint{};
+    if (XGetClassHint(d, window, &hint))
+    {
+      std::string inst = hint.res_name ? hint.res_name : "";
+      std::string cls = hint.res_class ? hint.res_class : "";
+      if (hint.res_name)
+      {
+        XFree(hint.res_name);
+      }
+      if (hint.res_class)
+      {
+        XFree(hint.res_class);
+      }
+      const Config::AppGeometry* geo = m_pConfig->appGeometry(inst);
+      if (!geo)
+      {
+        geo = m_pConfig->appGeometry(cls);
+      }
+      if (geo && geo->maximized)
+      {
+        maximize(pClient);
+      }
+    }
+  }
 }
 
 void ClientManager::unmanage(Client* pClient)

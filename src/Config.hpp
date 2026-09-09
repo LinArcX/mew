@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 #include "Types.hpp"
@@ -49,6 +50,26 @@ public:
   /** @brief Parsed keybindings. */
   const std::vector<KeyBinding>& keybindings() const { return m_keybindings; }
 
+  struct AppGeometry
+  {
+    bool hasX = false;
+    bool hasY = false;
+    bool hasW = false;
+    bool hasH = false;
+    bool maximized = false;
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+  };
+
+  /**
+   * @brief Look up per-app geometry by WM_CLASS instance/class (lowercase).
+   * @param appName Application name key from config (e.g. "mpv", "meld").
+   * @return Pointer to geometry, or nullptr if unset.
+   */
+  const AppGeometry* appGeometry(const std::string& appName) const;
+
 private:
   bool parseKeybinding(const std::string& line, std::string& key, std::string& command);
   bool parseKey(const std::string& keyString, unsigned int& modifiers, std::string& keyName);
@@ -67,4 +88,5 @@ private:
   std::string m_logoutSound;
   std::string m_windowTheme;
   std::vector<KeyBinding> m_keybindings;
+  std::map<std::string, AppGeometry> m_appGeometry;
 };

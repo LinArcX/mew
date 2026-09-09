@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Config.hpp"
 #include "FontRenderer.hpp"
 #include "Types.hpp"
 #include "XConnection.hpp"
@@ -29,6 +30,12 @@ public:
    * @param height Panel height in pixels.
    */
   void setPanelHeight(int height) { m_panelHeight = height; }
+
+  /**
+   * @brief Optional config used for per-app geometry on manage().
+   * @param pConfig Config pointer (not owned), or nullptr.
+   */
+  void setConfig(const Config* pConfig) { m_pConfig = pConfig; }
 
   /**
    * @brief Optional callback so overlays stay on top after focus/map.
@@ -120,4 +127,5 @@ private:
   std::vector<Client*> m_clients;
   int m_panelHeight = MewConst::panelHeight;
   void (*m_raiseOverlay)() = nullptr;
+  const Config* m_pConfig = nullptr;
 };

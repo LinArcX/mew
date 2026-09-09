@@ -1,185 +1,68 @@
 ---------------------------------------------------------------------------------
-# v1
+# v7
 ## general
-- [+] open window in center of screen
-- [+] when do alt+tab and when i hold this key combination, it should shows all open windows in a pop-up window.
-  So i can cycle through them.(Alt+tab and Alt+Shift+tab for reverse cycle)
-- [+] font should be high quiality everywhere.
-- [+] right click for mew with these options:
-  - [+] exit
-- [P] keybinding file in: ~/.config/mew/keybindings
-  - [+] define snap windows to left/right/bottom/top
-  - [+] define maximize/minimize windows
-- [+] config file in: ~/.config/mew/config
-  - [+] background color
-  - [+] login_sound
-  - [+] logout_sound
-  - [P] windows title fonts
-    currently it's hard-coded. finally it should read from conf file.
-  - [P] mouse theme
-    currently it's hard-coded. finally it should read from conf file.
-- [+] panel:
-  - [+] show desktop (mandatory)
-  - [+] time and date (mandatory)
+- hover over date/time shows a popup, but i can't see panel_hover_color for date/time. fix it.
+- Image still strech in when i set ~/.config/mew/config: background_image
+- windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
+  - nemo
+  - meld
+- shortcut for powerManagement just open startMenu.
+  I want it to be a separate pop-up menu in center with search text input at top.
+  Like something you already did for apps popup:
+    key="W-a" command="apps"
+    key="W-p" command="power-manager"
 
-## apps
-### mpv
-- [+] Left/right/bottom resize doesn't work
-
-### nemo
-- [+] bottom resize doesn't work.
-- [+] left/right resize sometimes grab internal content, instead of grabbing the frame.
 ---------------------------------------------------------------------------------
-# v2
+# v6
 ## general
-- [+] remove entriely context menu.
-- [+] some windows are really small when you open them. put minimim size for all windows:
-    width = 2/3 width of screen, height = 2/3 height of screen.
+- [+] when i open meld app(which a gui diff tool), its size is very small. So, make it full screen. don't hard-code the name of meld in code.
+  if you can find a way to maximize the size of meld through config, it would be awesome.
+- [P] if i set background_image in ~/.config/mew/config, mew shows it to me streched. it's ugly. and it reduced the quality of image.
+  i don't want that. i want the image to be centeralized. without streching. to preserve it's initial high-quiality.
+  if there are empty space around the image, fill it with background_color setting.
+- [P] like apps pop-up, there should be a pop-up for powerManagement items.
+  and i should be able to define shortcut for that in ~/.config/mew/keybindings also.
+- [ ] show application icons in Apps popup.
+- [ ] apps should be sorted by most frequent apps ran in the past.
+  for example if i ran firefox 5 times through apps pop-up and gedit 3 times, firefox should show me first, then gedit.
+- [ ] when keybindings pop-up window appears, i shuould be able to hit ESCAPE on keyboard to close it.
 
-## ~/.config/mew/keybindings
-- [+] define shortcut for fullscreen windows
-
-## panel
-- [+] time doesn't update.
-- [+] when i click on desktop menu, it should show me desktop and minimze everything.
-  if i click it again, it should bring back all windows into their previous positions.
-- [+] logout currently doesn't logout when i click on it. when i click on time and date, it will logout.
-- [+] put Desktop at right corner.
-- [+] put logout at left corner.
-- [+] currently when i maximize the windows, the panel goes on top ot them. and i can't see the bottom of my windows. i don't want this behavriour.
-  panel should be reduce from whole screen size. every other window should calculate it's size and position based on remaining space in the screen(screen size should be minus panel size)
-
-## ~/.config/mew/config
-- [+] ability to define panel color.
-- [+] for login_sound and logout_sound, remove dependency from mpg123 and play audio internally.
-  if you want to use any library, it should be minimal and inform me before.
----------------------------------------------------------------------------------
-# v3
-- [+] create a start menu at left coerner. (Remove Logout and Keys from left of panel also)
-  The start menu should be like in xfce or windows. but very minimal.
-  what i want is that when i click on it, a pop up window should show. for the moment, it contains in vertical order.
-   - Logout (use this icon: 󰗼 instead of wriging "Logout")
-   - ShortKeys (use this icon:  instead of wriging "Keys")
-- [+] i should be able to define a keybinding to bring back windows to center. center means:
-        width = 2/3 width of screen, height = 2/3 height of screen.
-- [+] use this icon:  instead of writing "Desktop" on panel.
-- [+] put time after Desktop at right corner.
-  for month, use the month name. for example instad of 09 you should write september.
----------------------------------------------------------------------------------
-# v4
-## general
-- [+] when i do fullscreen, if i then press W-c to bring window to center, it won't work. (but snapping works, W-Left, W-Right, W-Up, W-Down)
-- [+] right corner of panel should have this order(from right): first put "Desktop" icon, then put time/date
-- [+] "Desktop" icon is on top of time/date. put some space between them. (bring time/data a little to the left to have more space between them)
-- [+] in switcher, show the icons of applications. not just their text.
-- [+] i can't see real icons in start menu and other places that should show the icon. fix it, if you can't at least tell me what should i do? 
-  should i use another font?
-
-## ~/.config/mew/config
-- [+] background image
-  choose a minimal approach. if you need extra libary to be use, just tell me know.
-
-## panel
-re-implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
-  - [P] volume icon (mandatory)
-  - [P] add another entry in Start menu called: apps.
-    when i click on it, a pop up window (in center of screen) should pops-up and it should shows all apps installed on my machine.
-      (by searching .desktop files)
-    it should have a search input text on top of itself. So i can type the name of the app.
-    it should look like rofi.
-  - [P] power manager (mandatory)
-    - [P] reboot
-    - [P] poweroff
-    - [+] logout (exit from mew)
-    - [Probably] mew --reconfigure
-      not working as expected. need to test it again.
-      - [+] put mew.pid in /tmp
----------------------------------------------------------------------------------
-# v5
-## panel
-- [P] when i click on volume nothing happens. just when i click on  , it will works. why? the positioning is wrong?
-  - [ ] it doesn't show the actual volume size, when i mute it, i can still hear the sound.
-- [+] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
-- [+] define keybinding for each item in startmenu, like for apps, logout, etc..
-- [ ] apps in start menu works. but it has different problems:
-  - [+] it doen's have vertical scrool. so when i use down arrow key and go at the end of the list, it stops there and doesn't show more items. (i think you didn't implementing vertical scrolling throug items, right? do it) 
-  - [+] when i start to type something, it can find the items. but it shows different frames(or windows) on top of each other.
-  - [ ] it should be close, when i click outside of it.
-  - [ ] power manager
-    these items just log out. reboot, doesn't reboot actually. poweroff doesn't poweroff actually!
-    - [ ] reboot
-    - [ ] poweroff
+## startmenu
+- [+] hover over start-menu, make the start-menu icon dissapear. fix it.
+- [ ] currently start-menu popup closes only when i click on it again.
+  start-menu popup should be close when i click outside of it (like on panel or clicking on other apps or even background of mew)
+  - [ ] and also when i hit ESCAPE from keyboard
+- [ ] apps popup in start-menu only close when i press ESCAPE from keyboard.
+  i want it to be close, when i click on other apps, or in general space also in WM.
 
 ## config
-- [P] ability to set panel items color + panel item hover color in config file.
-- [ ] windows theme
-- [ ] ability to define applications windows size or position. for example:
+- [+] ability to define applications windows size or position. for example:
     mpv.pos.x = 0
     mpv.pos.y = 0
     mpv.width = 200
     mpv.height = 300
 
 ## panel
-re-implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
-  - [ ] currently start menu closes only when i click on it. but i want it to be close  also whenever i clicked on other applications or another part of mew desktop.
-  - [P] network manager (mandatory)
-    it should show a plugin in panel. that shows currently using network intreface. (you can access to all netowrk interfaces with: `ip a`)
-    then when i click on it, a pop-up window should shows and gives me all of the interfaces.
-    i can select one of them. and it can become my main network interface.
-    - [P] there should be another plugin next to network manager plugin, i call it kill-switch for internet. so when i click on it, it should toggle between these states:
-    "stop internet")
-      sudo ip link set dev INTERFACE up
-    "stop internet")
-      sudo ip link set dev INTERFACE down
-    - [+] the icon of kill switch should be green (if the selected interface is up and connected) and red(if the selected interface is down and disconnected)
-    
-  - [+] language switcher (mandatory)
-  - [Probably] power manager (mandatory)
-    - [Probably] reboot
-    - [Probably] poweroff
-    - [Probably] mew --reconfigure
-      not working as expected. need to test it again.
+- [ ] re-implement panel as a pluging system. (some plugins are mandatory. others are optional. this gives us this ability to enable/disable optional ones and recompile mew)
+  - [ ] So inside src/ folder, create another folder called panel/. and you should create for each panel widget a separate class and put these classes in src/panel directory.
+  - [ ] My idea is that, in future, if user wanted to create his own widget for panel, it should be easier for him. he just create another class under src/panel directory.
+    and Main panel class should be able to automatically brings all panel widgest at compile time and compile them.
 
-## apps
-### nemo
-- [+] when i extract zip files, there's a extract window appears, and its size is width: 2/3, height: 2/3. i don't want that.
-    i want it to have the minimum size it can. and it shuould be centerized. also max button on it should be disabled.
+- [ ] changing networks in networkmanager plugin doesn't take into account.
+  for example i swtich to ethernet, but still i have internet!
+  Note: I expect when i switch to an interface which is down, my internet connection should be disconnected.
 
-### neovim
-- [Probably] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
-  but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
+- [ ] bringing interfaces up/down in networkmanger plugin doesn't works. 
+  Does it need root access? (CAP_NET_ADMIN) implement it with polkit-devel or any other similar and minimal/safe way.
 
----------------------------------------------------------------------------------
-# v6
-## general
-- [ ] when i open meld app, it's size is very small. make it full screen. don't hard-code the name of meld in code.
-  if you can find a way to maximize the size of meld through config, it would be awesome.
-- [ ] transfer my README file to a professional README. i want it to be:
-  - simple
-  - understandable
-  - attract peoples attention. (at the sime time minimal and not bloated)
-  - looks professional
-  - link to pateron
-- [ ] background color that loads with mew, streching all over the monitor background.
-  i don't want that. i want the image to be centeralized. without streching. to preserve it's initial high-quiality.
-- [ ] when keybindings window appears, i shuould be able to hit ESCAPE on keyboard, and it's window should be closs.
-- [ ] show apps icons in apps popup also.
-- [ ] apps should be sorted by running apps through it.
-  for example if i ran firefox 5 times through apps pop-up, then gedit 3 times, firefox should show me first, then gedit second item in the list.
-- [ ] like apps pop-up, there should be a pop-up for powerManagement items. and i should be able to define a shortcut for that in ~/.config/mew/keybindings also.
+- [+] panel_item_color doesn't change panel items color.
 
-## startmenu
-- [ ] hover over start menu, make start menu icon dissapear. fix it.
-
-## panel
-- [ ] changing networks in networkmanager plugin doesn't take into account. for example i swtich to ethernet, but still i have internet! (but i expect when i switch to an interface which is down, my internet connection should be disconnect)
-- [ ] bringing interfaces up/down doesn't works. does it need root access? implement it. CAP_NET_ADMIN (polkit-devel?).
-- [ ] in language switcher plugin, when i switch to persian, it shows persian. but i want it to write IR insted. 
+- [+] in language switcher plugin, when i switch to persian, it shows persian. but i want it to write IR insted. 
   This is the command i use in ~/.config/mew/autostart:
     setxkbmap -layout "us,ir" -option "grp:alt_shift_toggle" &
-- [ ] hover over date/time doesn't work.
-- [ ] panel_item_color doesn't change panel items color.
-- [ ] apps popup in start-menu only close when i press ESCAPE from keyboard. i want it to be close, when i click on other apps, or in general space also in WM.
+
+- [P] hover over date/time widget in panel doesn't work and doesn't show anything. fix it.
+
 - [ ] instead of using amixer directly in Panel.cpp to mute audio, you should read the command from: ~/.config/mew/keybindings
   key="XF86AudioRaiseVolume", command="amixer set PCM 5%+" # pi5: amixer -D default set Master 5%+
   key="XF86AudioLowerVolume", command="amixer set PCM 5%-" # pi5: amixer -D default set Master 5%-
@@ -187,11 +70,16 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
   - [ ] Do the same process for RaiseVolue and LowerVolume.
     you need to update volume percentage number in panel when i increase/decrease the volume with keyboard shortcut. 
 
+- [ ] volume widget in panel doesn't show the actual volume.
+  when i click on it (and it becomes mute), i still can hear the sound.
+
 ## apps
 ### mpv
-- [ ] Pressing Enter doesn't maximize the whole window (i expect when i press ENTER in neovim, it becomes a full screen window)
+- [ ] Still i have this issue. it didnt' fix it.
+  Details of issue: Pressing Enter when i was watching with mpv on other WM (likde dwm, openbox, etc..) make the mpv fullscreen.
+  But it's not the case in mew. Pressing Enter on mpv in mew doesn't maximize the whole mpv window (i expect when i press ENTER in mpv, it becomes a full screen window)
   when i say fullscreen, i mean top frame(that contains close/max/min buttons) and panel also should be hidden.
-  - this is part of my ~/.config/mpv/input.conf:
+  - This is part of my ~/.config/mpv/input.conf that can help you:
     # General
     ESC                 cycle fullscreen
     SPACE               cycle pause
@@ -243,3 +131,157 @@ re-implement panel as a pluging system. (some plugins are mandatory. others are 
     sigmoid-upscaling=yes
     deband=yes
     hwdec=no
+---------------------------------------------------------------------------------
+# v5
+## panel
+- [+] when i hover over panel items, their color should change. also a hover text should be pop up and dissapear when i leave the pop-up
+- [+] define keybinding for each item in startmenu, like for apps, logout, etc..
+- [+] apps in start menu works. but it has different problems:
+  - [+] it doen's have vertical scrool. so when i use down arrow key and go at the end of the list, it stops there and doesn't show more items. (i think you didn't implementing vertical scrolling throug items, right? do it) 
+  - [+] when i start to type something, it can find the items. but it shows different frames(or windows) on top of each other.
+
+## config
+- [P] ability to set panel items color + panel item hover color in config file.
+
+## panel
+- [+] language switcher (mandatory)
+- [+] when i click on volume icon in panel nothing happens. just when i click on  , it will works. why? the positioning is wrong?
+- [P] network manager (mandatory)
+    it should show a plugin in panel. that shows currently using network intreface. (you can access to all netowrk interfaces with: `ip a`)
+    then when i click on it, a pop-up window should shows and gives me all of the interfaces.
+    i can select one of them. and it can become my main network interface.
+    - [P] there should be another plugin next to network manager plugin, i call it kill-switch for internet. so when i click on it, it should toggle between these states:
+    "stop internet")
+      sudo ip link set dev INTERFACE up
+    "stop internet")
+      sudo ip link set dev INTERFACE down
+    - [+] the icon of kill switch should be green (if the selected interface is up and connected) and red(if the selected interface is down and disconnected)
+    
+## apps
+### nemo
+- [+] when i extract zip files, there's a extract window appears, and its size is width: 2/3, height: 2/3. i don't want that.
+    i want it to have the minimum size it can. and it shuould be centerized. also max button on it should be disabled.
+---------------------------------------------------------------------------------
+# v4
+## general
+- [+] when i do fullscreen, if i then press W-c to bring window to center, it won't work. (but snapping works, W-Left, W-Right, W-Up, W-Down)
+- [+] right corner of panel should have this order(from right): first put "Desktop" icon, then put time/date
+- [+] "Desktop" icon is on top of time/date. put some space between them. (bring time/data a little to the left to have more space between them)
+- [+] in switcher, show the icons of applications. not just their text.
+- [+] i can't see real icons in start menu and other places that should show the icon. fix it, if you can't at least tell me what should i do? 
+  should i use another font?
+
+## ~/.config/mew/config
+- [+] background image
+  choose a minimal approach. if you need extra libary to be use, just tell me know.
+
+## panel
+re-implement panel as a pluging system. (some plugins are mandatory. others are optional. you can enable/disable optional ones and recompile mew)
+  - [P] volume icon (mandatory)
+  - [P] add another entry in Start menu called: apps.
+    when i click on it, a pop up window (in center of screen) should pops-up and it should shows all apps installed on my machine.
+      (by searching .desktop files)
+    it should have a search input text on top of itself. So i can type the name of the app.
+    it should look like rofi.
+  - [P] power manager (mandatory)
+    - [P] reboot
+    - [P] poweroff
+    - [+] logout (exit from mew)
+    - [Probably] mew --reconfigure
+      not working as expected. need to test it again.
+      - [+] put mew.pid in /tmp
+---------------------------------------------------------------------------------
+# v3
+- [+] create a start menu at left coerner. (Remove Logout and Keys from left of panel also)
+  The start menu should be like in xfce or windows. but very minimal.
+  what i want is that when i click on it, a pop up window should show. for the moment, it contains in vertical order.
+   - [+] Logout (use this icon: 󰗼 instead of wriging "Logout")
+   - [+] ShortKeys (use this icon:  instead of wriging "Keys")
+- [+] i should be able to define a keybinding to bring back windows to center. center means:
+        width = 2/3 width of screen, height = 2/3 height of screen.
+- [+] use this icon:  instead of writing "Desktop" on panel.
+- [+] put time after Desktop at right corner.
+  for month, use the month name. for example instad of 09 you should write september.
+---------------------------------------------------------------------------------
+# v2
+## general
+- [+] remove entriely context menu.
+- [+] some windows are really small when you open them. put minimim size for all windows:
+    width = 2/3 width of screen, height = 2/3 height of screen.
+
+## ~/.config/mew/keybindings
+- [+] define shortcut for fullscreen windows
+
+## panel
+- [+] time doesn't update.
+- [+] when i click on desktop menu, it should show me desktop and minimze everything.
+  if i click it again, it should bring back all windows into their previous positions.
+- [+] logout currently doesn't logout when i click on it. when i click on time and date, it will logout.
+- [+] put Desktop at right corner.
+- [+] put logout at left corner.
+- [+] currently when i maximize the windows, the panel goes on top ot them. and i can't see the bottom of my windows. i don't want this behavriour.
+  panel should be reduce from whole screen size. every other window should calculate it's size and position based on remaining space in the screen(screen size should be minus panel size)
+
+## ~/.config/mew/config
+- [+] ability to define panel color.
+- [+] for login_sound and logout_sound, remove dependency from mpg123 and play audio internally.
+  if you want to use any library, it should be minimal and inform me before.
+---------------------------------------------------------------------------------
+# v1
+## general
+- [+] open window in center of screen
+- [+] when do alt+tab and when i hold this key combination, it should shows all open windows in a pop-up window.
+  So i can cycle through them.(Alt+tab and Alt+Shift+tab for reverse cycle)
+- [+] font should be high quiality everywhere.
+- [+] right click for mew with these options:
+  - [+] exit
+- [P] keybinding file in: ~/.config/mew/keybindings
+  - [+] define snap windows to left/right/bottom/top
+  - [+] define maximize/minimize windows
+- [+] config file in: ~/.config/mew/config
+  - [+] background color
+  - [+] login_sound
+  - [+] logout_sound
+  - [P] windows title fonts
+    currently it's hard-coded. finally it should read from conf file.
+  - [P] mouse theme
+    currently it's hard-coded. finally it should read from conf file.
+- [+] panel:
+  - [+] show desktop (mandatory)
+  - [+] time and date (mandatory)
+
+## apps
+### mpv
+- [+] Left/right/bottom resize doesn't work
+
+### nemo
+- [+] bottom resize doesn't work.
+- [+] left/right resize sometimes grab internal content, instead of grabbing the frame.
+---------------------------------------------------------------------------------
+# vRelease
+## general
+- [ ] transfer my README file to a professional README. i want it to be:
+  - simple
+  - understandable
+  - attract peoples attention. (at the sime time minimal and not bloated)
+  - looks professional
+  - link to pateron
+
+## config
+- [ ] impelemnt windows theme
+
+## start-menu
+- [Probably] power manager (mandatory)
+  these items just log out. reboot, doesn't reboot actually. poweroff doesn't poweroff actually!
+  - [Probably] reboot
+  - [Probably] poweroff
+  - [Probably] mew --reconfigure
+    not working as expected. need to test it again.
+
+## apps
+### neovim
+- [Probably] imagine i open neovim, and also i open mpv on top. i close mpv with close buton, it shows me neovim.
+  but cursor in neovim is empty rectangle instead of full rectangle.(maybe because the focus is not on neovim?)
+
+---------------------------------------------------------------------------------
+# vMAYBE

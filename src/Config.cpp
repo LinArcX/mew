@@ -10,6 +10,7 @@
 
 void Config::load()
 {
+  m_appGeometry.clear();
   m_backgroundColor = 0x425645;
   m_backgroundImage.clear();
   m_useBackgroundImage = false;
@@ -114,6 +115,48 @@ void Config::load()
     else if (key == "window_theme")
     {
       m_windowTheme = val;
+    }
+    else
+    {
+      // Per-app geometry: app.pos.x / app.pos.y / app.width / app.height / app.maximized
+      size_t dot1 = key.find('.');
+      if (dot1 != std::string::npos && dot1 > 0)
+      {
+        std::string app = key.substr(0, dot1);
+        std::string rest = key.substr(dot1 + 1);
+        for (char& c : app)
+        {
+          if (c >= 'A' && c <= 'Z')
+          {
+            c = static_cast<char>(c + 32);
+          }
+        }
+        AppGeometry& geo = m_appGeometry[app];
+        if (rest == "pos.x")
+        {
+          geo.x = static_cast<int>(std::strtol(val.c_str(), nullptr, 10));
+          geo.hasX = true;
+        }
+        else if (rest == "pos.y")
+        {
+          geo.y = static_cast<int>(std::strtol(val.c_str(), nullptr, 10));
+          geo.hasY = true;
+        }
+        else if (rest == "width")
+        {
+          geo.width = static_cast<int>(std::strtol(val.c_str(), nullptr, 10));
+          geo.hasW = true;
+        }
+        else if (rest == "height")
+        {
+          geo.height = static_cast<int>(std::strtol(val.c_str(), nullptr, 10));
+          geo.hasH = true;
+        }
+        else if (rest == "maximized")
+        {
+          geo.maximized = (val == "true" || val == "1" || val == "yes");
+        }
+      }
     }
   }
 }
@@ -322,4 +365,23 @@ void Config::loadKeybindings(Display* pDisplay)
 
     printf("mew: keybinding %s -> %s\n", keyString.c_str(), binding.command.c_str());
   }
+}
+
+
+const Config::AppGeometry* Config::appGeometry(const std::string& appName) const
+{
+  std::string key = appName;
+  for (char& c : key)
+  {
+    if (c >= 'A' && c <= 'Z')
+    {
+      c = static_cast<char>(c + 32);
+    }
+  }
+  auto it = m_appGeometry.find(key);
+  if (it == m_appGeometry.end())
+  {
+    return nullptr;
+  }
+  return &it->second;
 }

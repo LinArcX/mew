@@ -149,7 +149,76 @@ void Panel::refreshLayout()
   }
 
   m_layoutName = "??";
-  if (desc->names
+
+  // Prefer short codes from setxkbmap layout list (us,ir -> IR)
+  {
+    FILE* pipe = popen("setxkbmap -query 2>/dev/null", "r");
+    if (pipe)
+    {
+      char line[256];
+      std::string layoutsLine;
+      while (fgets(line, sizeof(line), pipe))
+      {
+        if (std::strncmp(line, "layout:", 7) == 0)
+        {
+          layoutsLine = line + 7;
+          break;
+        }
+      }
+      pclose(pipe);
+      // trim
+      size_t start = layoutsLine.find_first_not_of(" \t\n\r");
+      size_t end = layoutsLine.find_last_not_of(" \t\n\r");
+      if (start != std::string::npos)
+      {
+        layoutsLine = layoutsLine.substr(start, end - start + 1);
+        std::vector<std::string> codes;
+        std::string cur;
+        for (char c : layoutsLine)
+        {
+          if (c == ',')
+          {
+            if (!cur.empty())
+            {
+              codes.push_back(cur);
+              cur.clear();
+            }
+          }
+          else if (c != ' ')
+          {
+            cur.push_back(c);
+          }
+        }
+        if (!cur.empty())
+        {
+          codes.push_back(cur);
+        }
+        if (!codes.empty())
+        {
+          m_layoutCount = static_cast<int>(codes.size());
+          int idx = m_layoutGroup;
+          if (idx < 0)
+          {
+            idx = 0;
+          }
+          if (idx >= m_layoutCount)
+          {
+            idx = m_layoutCount - 1;
+          }
+          m_layoutName = codes[static_cast<size_t>(idx)];
+          for (char& c : m_layoutName)
+          {
+            if (c >= 'a' && c <= 'z')
+            {
+              c = static_cast<char>(c - 32);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (m_layoutName == "??" && desc->names
       && m_layoutGroup >= 0
       && m_layoutGroup < XkbNumKbdGroups
       && desc->names->groups[m_layoutGroup] != None)
@@ -157,21 +226,16 @@ void Panel::refreshLayout()
     char* name = XGetAtomName(d, desc->names->groups[m_layoutGroup]);
     if (name)
     {
-      // Often "English (US)" — show a short token
       m_layoutName = name;
-      if (m_layoutName.size() > 8)
+      size_t l = m_layoutName.rfind('(');
+      size_t r = m_layoutName.rfind(')');
+      if (l != std::string::npos && r != std::string::npos && r > l + 1)
       {
-        // Prefer 2-letter codes if present in parentheses: English (US) -> US
-        size_t l = m_layoutName.rfind('(');
-        size_t r = m_layoutName.rfind(')');
-        if (l != std::string::npos && r != std::string::npos && r > l + 1)
-        {
-          m_layoutName = m_layoutName.substr(l + 1, r - l - 1);
-        }
-        else
-        {
-          m_layoutName = m_layoutName.substr(0, 6);
-        }
+        m_layoutName = m_layoutName.substr(l + 1, r - l - 1);
+      }
+      else if (m_layoutName.size() > 6)
+      {
+        m_layoutName = m_layoutName.substr(0, 6);
       }
       XFree(name);
     }
@@ -352,6 +416,7 @@ void Panel::draw()
   XftFont* pFont = m_font.font();
   int textH = pFont ? (pFont->ascent + pFont->descent) : 12;
   int baseline = (MewConst::panelHeight + textH) / 2 - (pFont ? pFont->descent : 2);
+  m_font.setColor(m_itemColor);
 
   // Hover highlight under interactive zones
   // Layout from right: desktop | clock | volume | language | network | kill
@@ -504,6 +569,15 @@ void Panel::drawPowerMenu()
     "Logout"
   };
   drawMenuWindow(m_powerMenu, items, kPowerMenuW);
+}
+
+void Panel::openPowerMenu()
+{
+  if (!m_startMenuActive)
+  {
+    showStartMenu();
+  }
+  showPowerMenu();
 }
 
 void Panel::showPowerMenu()
@@ -787,11 +861,23 @@ void Panel::handleNetworkMenuClick(int y)
 {
   int index = y / kNetMenuItemH;
   hideNetworkMenu();
-  if (index >= 0 && index < static_cast<int>(m_netIfaces.size()))
+  if (index < 0 || index >= static_cast<int>(m_netIfaces.size()))
   {
-    m_selectedIface = m_netIfaces[static_cast<size_t>(index)];
-    draw();
+    return;
   }
+  std::string prev = m_selectedIface;
+  m_selectedIface = m_netIfaces[static_cast<size_t>(index)];
+
+  // Selecting a down interface: disconnect previous if it was up
+  if (!isInterfaceUp(m_selectedIface) && !prev.empty() && isInterfaceUp(prev))
+  {
+    std::string cmd = "ip link set dev " + prev + " down >/dev/null 2>&1";
+    if (std::system(cmd.c_str()) != 0)
+    {
+      std::system(("sudo -n " + cmd).c_str());
+    }
+  }
+  draw();
 }
 
 void Panel::toggleKillSwitch()
@@ -900,6 +986,10 @@ int Panel::hitTest(int x) const
   {
     return 4; // volume
   }
+  if (x >= screenW - 305 && x < screenW - 30)
+  {
+    return 6; // clock (tooltip only)
+  }
   if (x > screenW - 30)
   {
     return 5; // desktop
@@ -991,6 +1081,10 @@ void Panel::handleMotion(int x)
   else if (zone == 5)
   {
     showTooltip(x, "Show desktop");
+  }
+  else if (zone == 6)
+  {
+    showTooltip(x, "Date and time");
   }
   else
   {

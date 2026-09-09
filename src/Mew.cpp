@@ -244,6 +244,14 @@ bool Mew::handleCustomKeybinding(XKeyEvent* pEvent)
                   ">/dev/null 2>&1");
       return true;
     }
+    if (cmd == "power-manager" || cmd == "open-power")
+    {
+      if (m_pPanel)
+      {
+        m_pPanel->openPowerMenu();
+      }
+      return true;
+    }
 
     std::string command = cmd + " >/dev/null 2>&1 &";
     printf("mew: running: %s\n", cmd.c_str());
@@ -575,9 +583,33 @@ void Mew::processEvent(XEvent& event)
     case KeyPress:
     {
       XKeyEvent* key = &event.xkey;
+      KeySym keysymEarly = XLookupKeysym(key, 0);
+      if (keysymEarly == XK_Escape)
+      {
+        if (m_pLauncher && m_pLauncher->isActive())
+        {
+          m_pLauncher->hide();
+          break;
+        }
+        if (m_pKeybindings && m_pKeybindings->isActive())
+        {
+          m_pKeybindings->hide();
+          break;
+        }
+        if (m_pPanel && (m_pPanel->isStartMenuActive() || m_pPanel->isPowerMenuActive() || m_pPanel->isNetworkMenuActive()))
+        {
+          m_pPanel->hideMenus();
+          break;
+        }
+      }
       if (m_pLauncher && m_pLauncher->isActive())
       {
         m_pLauncher->handleKey(key);
+        break;
+      }
+      if (m_pKeybindings && m_pKeybindings->isActive())
+      {
+        m_pKeybindings->handleKey(key);
         break;
       }
       if (handleCustomKeybinding(key))
@@ -646,6 +678,7 @@ int Mew::run()
 
   m_pClients = new ClientManager(m_xconn, m_font);
   m_pClients->setPanelHeight(MewConst::panelHeight);
+  m_pClients->setConfig(&m_config);
   m_pClients->setRaiseOverlay(onRaiseOverlays);
 
   m_pSwitcher = new WindowSwitcher(m_xconn, m_font, *m_pClients);

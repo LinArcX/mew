@@ -57,6 +57,12 @@ public:
   void handleClick(XButtonEvent* pEvent);
 
   /**
+   * @brief Handle key while window is active (Escape closes).
+   * @param pEvent X key event.
+   */
+  void handleKey(XKeyEvent* pEvent);
+
+  /**
    * @brief Whether the window is mapped and active.
    */
   bool isActive() const { return m_active; }

@@ -42,7 +42,7 @@ void FontRenderer::load(Display* pDisplay, int screen, double pixelSize)
   }
 
   if (FT_New_Memory_Face(
-        m_ftLibrary, 
+        m_ftLibrary,
         hurmit_ttf,
         static_cast<FT_Long>(hurmit_ttf_len),
         0,
@@ -91,18 +91,7 @@ void FontRenderer::draw(
 
   if (!m_colorReady)
   {
-    XRenderColor renderColor;
-    renderColor.red = 0xffff;
-    renderColor.green = 0xffff;
-    renderColor.blue = 0xffff;
-    renderColor.alpha = 0xffff;
-    XftColorAllocValue(
-      pDisplay,
-      DefaultVisual(pDisplay, screen),
-      DefaultColormap(pDisplay, screen),
-      &renderColor,
-      &m_textColor);
-    m_colorReady = true;
+    setColor(0xffffff);
   }
 
   XftDraw* draw = XftDrawCreate(
@@ -121,4 +110,36 @@ void FontRenderer::draw(
     static_cast<int>(text.size()));
 
   XftDrawDestroy(draw);
+}
+
+
+void FontRenderer::setColor(unsigned long color)
+{
+  if (!m_pDisplay)
+  {
+    return;
+  }
+  if (m_colorReady)
+  {
+    XftColorFree(
+      m_pDisplay,
+      DefaultVisual(m_pDisplay, m_screen),
+      DefaultColormap(m_pDisplay, m_screen),
+      &m_textColor);
+    m_colorReady = false;
+  }
+  XRenderColor renderColor;
+  renderColor.red = static_cast<unsigned short>(((color >> 16) & 0xff) * 257);
+  renderColor.green = static_cast<unsigned short>(((color >> 8) & 0xff) * 257);
+  renderColor.blue = static_cast<unsigned short>((color & 0xff) * 257);
+  renderColor.alpha = 0xffff;
+  if (XftColorAllocValue(
+        m_pDisplay,
+        DefaultVisual(m_pDisplay, m_screen),
+        DefaultColormap(m_pDisplay, m_screen),
+        &renderColor,
+        &m_textColor))
+  {
+    m_colorReady = true;
+  }
 }

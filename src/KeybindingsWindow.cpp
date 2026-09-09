@@ -1,4 +1,5 @@
 #include "KeybindingsWindow.hpp"
+#include <X11/keysym.h>
 #include "Util.hpp"
 
 #include <algorithm>
@@ -227,4 +228,18 @@ void KeybindingsWindow::handleClick(XButtonEvent* pEvent)
   }
 
   moveInteractive();
+}
+
+
+void KeybindingsWindow::handleKey(XKeyEvent* pEvent)
+{
+  if (!pEvent || !m_active)
+  {
+    return;
+  }
+  KeySym sym = XLookupKeysym(pEvent, 0);
+  if (sym == XK_Escape)
+  {
+    hide();
+  }
 }
