@@ -1,8 +1,7 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
-- [+] Widgets in Panel every second, i see a flash on it, like a flickering or heart bit. it has a bad visual effect. 
-  i know that you're updating panel items regurarly, but can you fix this flickering, annoying artifact that annoy the eyes?
+- [ ] I can't add directories to bookmarks section in nemo anymore. (it works under gnome, kde, dwm, openbox, etc.. but under mew it doesn't work!)
 - [ ] change start menu icon to mew icon located in assets/mew.png
 - [ ] windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
   - nemo
@@ -11,6 +10,16 @@
   So check if the app, or window already has frame, if it has don't make any frame around it.
 
 ## panel
+- [ ] New Feature: Add new plugin to panel called weather. it should automatically detect current location and shows it's current weather.
+  use unicode icons for cloudy, sunny, etc.. conditions.
+- [ ] New Feature: When i hover over date/time in panel, shows a pop-up calendar window.
+  It should be close when i:
+    hit ESCAPE
+    click on other apps or other part of mew.
+  The interface should be like orage:
+    https://web.archive.org/web/20171007225154/http://www.kolumbus.fi:80/~w408237/orage/
+  or gsimplecal:
+    https://github.com/dmedvinsky/gsimplecal
 - [ ] trying to change network interface in networkmanager plugin leads to system freeze.
   Maybe because it needs sudo access under the hood? fix it then.
 
@@ -30,9 +39,13 @@
     key="W-a" command="apps"
     key="W-p" command="power-manager"
 - [ ] In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
+  - [ ] i know that some icons are SVG and stb_image doesn't support SVG.
+    tell me what is the best way(or minimal library maybe for svg loading?) to also show SVG icons.
 ---------------------------------------------------------------------------------
 # v8
 ## general
+- [+] images quality in Apps pop-up is very low. increase the quality of images.
+- [+] when i'm on top of list of Apss pop-up menu, if i click UP key on keyboard, it should goes to end of list(a cyclic behavior). implement it.
 - [+] When i fullscreen any window, i can't min/max/brining back again. i can't don't anything. i think it's a bug. fix it.
 - [+] images that have high resolutions, can fit good(but not perfect) on the screen. but images with lower resolution, becomes very strechy and ugly on background.
 - [+] if i set background_image in ~/.config/mew/config:
@@ -42,6 +55,8 @@
     if there are empty space around the image, fill it with background_color setting.
 
 ## panel
+- [+] Widgets in Panel every second, i see a flash on it, like a flickering or heart bit. it has a bad visual effect. 
+  i know that you're updating panel items regurarly, but can you fix this flickering, annoying artifact that annoy the eyes?
 - [+] instead of using amixer directly in Panel.cpp to mute audio, you should read the command from: ~/.config/mew/keybindings
   key="XF86AudioRaiseVolume", command="amixer set PCM 5%+" # pi5: amixer -D default set Master 5%+
   key="XF86AudioLowerVolume", command="amixer set PCM 5%-" # pi5: amixer -D default set Master 5%-

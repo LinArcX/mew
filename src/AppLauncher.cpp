@@ -353,9 +353,16 @@ void AppLauncher::handleKey(XKeyEvent* pEvent)
   }
   if (sym == XK_Up || sym == XK_KP_Up)
   {
-    if (m_index > 0)
+    if (!m_filtered.empty())
     {
-      --m_index;
+      if (m_index > 0)
+      {
+        --m_index;
+      }
+      else
+      {
+        m_index = m_filtered.size() - 1;
+      }
       ensureVisible();
     }
     draw();
@@ -363,9 +370,16 @@ void AppLauncher::handleKey(XKeyEvent* pEvent)
   }
   if (sym == XK_Down || sym == XK_KP_Down)
   {
-    if (!m_filtered.empty() && m_index + 1 < m_filtered.size())
+    if (!m_filtered.empty())
     {
-      ++m_index;
+      if (m_index + 1 < m_filtered.size())
+      {
+        ++m_index;
+      }
+      else
+      {
+        m_index = 0;
+      }
       ensureVisible();
     }
     draw();
@@ -482,14 +496,16 @@ std::string AppLauncher::resolveIconPath(const std::string& icon) const
     }
     return "";
   }
-  // Common icon theme paths (prefer small sizes for launcher)
+  // Prefer higher-res icons for better downscale quality
   const char* bases[] = {
+    "/usr/share/icons/hicolor/64x64/apps/",
     "/usr/share/icons/hicolor/48x48/apps/",
     "/usr/share/icons/hicolor/32x32/apps/",
-    "/usr/share/icons/hicolor/24x24/apps/",
     "/usr/share/icons/hicolor/scalable/apps/",
+    "/usr/share/icons/Adwaita/64x64/apps/",
     "/usr/share/icons/Adwaita/48x48/apps/",
     "/usr/share/icons/Adwaita/32x32/apps/",
+    "/usr/share/icons/Yaru/64x64/apps/",
     "/usr/share/icons/Yaru/48x48/apps/",
     "/usr/share/icons/Yaru/32x32/apps/",
     "/usr/share/pixmaps/",
@@ -514,7 +530,7 @@ std::string AppLauncher::resolveIconPath(const std::string& icon) const
 
 void AppLauncher::drawIcon(Display* d, Window win, int x, int y, const std::string& path)
 {
-  const int size = 20;
+  const int size = 24;
   auto it = m_iconCache.find(path);
   if (it != m_iconCache.end() && it->second != None)
   {
@@ -547,17 +563,46 @@ void AppLauncher::drawIcon(Display* d, Window win, int x, int y, const std::stri
     stbi_image_free(data);
     return;
   }
+  // Box-filter downsample for better quality
   for (int py = 0; py < size; ++py)
   {
     for (int px = 0; px < size; ++px)
     {
-      int sx = px * iw / size;
-      int sy = py * ih / size;
-      unsigned char* s = data + (sy * iw + sx) * 4;
+      int x0 = px * iw / size;
+      int y0 = py * ih / size;
+      int x1 = (px + 1) * iw / size;
+      int y1 = (py + 1) * ih / size;
+      if (x1 <= x0)
+      {
+        x1 = x0 + 1;
+      }
+      if (y1 <= y0)
+      {
+        y1 = y0 + 1;
+      }
+      unsigned int r = 0;
+      unsigned int g = 0;
+      unsigned int b = 0;
+      unsigned int n = 0;
+      for (int sy = y0; sy < y1; ++sy)
+      {
+        for (int sx = x0; sx < x1; ++sx)
+        {
+          unsigned char* s = data + (sy * iw + sx) * 4;
+          r += s[0];
+          g += s[1];
+          b += s[2];
+          ++n;
+        }
+      }
+      if (n == 0)
+      {
+        n = 1;
+      }
       char* dst = xdata + (py * size + px) * 4;
-      dst[0] = static_cast<char>(s[2]);
-      dst[1] = static_cast<char>(s[1]);
-      dst[2] = static_cast<char>(s[0]);
+      dst[0] = static_cast<char>(b / n);
+      dst[1] = static_cast<char>(g / n);
+      dst[2] = static_cast<char>(r / n);
       dst[3] = 0;
     }
   }
