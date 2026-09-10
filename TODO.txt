@@ -1,12 +1,9 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
+- [ ] change start menu icon to mew icon located in assets/mew.png
 - [ ] when there's a popup menu of nemo appears on screen that contains the image previous, the Ok and Cancel button doesn't appear correctly. i can't see ok button fully.
 - [ ] I can't add directories to bookmarks section in nemo anymore. (it works under gnome, kde, dwm, openbox, etc.. but under mew it doesn't work!)
-- [ ] change start menu icon to mew icon located in assets/mew.png
-- [ ] windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
-  - nemo
-  - meld
 - [ ] some gtk apps like gedit or meld, they already have frame and close/max/min buttons. in mew, we put an extra frame out of it which doesn't make sense.
   So check if the app, or window already has frame, if it has don't make any frame around it.
 
@@ -46,6 +43,10 @@
 ---------------------------------------------------------------------------------
 # v8
 ## general
+- [+] currently, the switcher pop-up shows apps by whol was launching first. when you select another window from switcher, it doesn't rank it to top. (which it should do) 
+- [+] windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
+  - nemo
+  - meld
 - [+] images quality in Apps pop-up is very low. increase the quality of images.
 - [+] when i'm on top of list of Apss pop-up menu, if i click UP key on keyboard, it should goes to end of list(a cyclic behavior). implement it.
 - [+] When i fullscreen any window, i can't min/max/brining back again. i can't don't anything. i think it's a bug. fix it.

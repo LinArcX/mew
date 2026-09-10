@@ -156,13 +156,50 @@ void WindowSwitcher::show()
   draw();
 }
 
+void WindowSwitcher::syncMru()
+{
+  auto& clients = m_clients.clients();
+
+  // Drop entries that are no longer managed
+  m_mru.erase(
+    std::remove_if(m_mru.begin(), m_mru.end(),
+      [&](Client* pClient) {
+        return std::find(clients.begin(), clients.end(), pClient) == clients.end();
+      }),
+    m_mru.end());
+
+  // Append newly managed clients at the end (least recently used)
+  for (Client* pClient : clients)
+  {
+    if (std::find(m_mru.begin(), m_mru.end(), pClient) == m_mru.end())
+    {
+      m_mru.push_back(pClient);
+    }
+  }
+
+  // Fold in any focus that happened outside the switcher
+  Client* pFocused = m_clients.focusedClient();
+  if (pFocused)
+  {
+    auto it = std::find(m_mru.begin(), m_mru.end(), pFocused);
+    if (it != m_mru.end() && it != m_mru.begin())
+    {
+      m_mru.erase(it);
+      m_mru.insert(m_mru.begin(), pFocused);
+    }
+  }
+}
+
 void WindowSwitcher::cycle(bool reverse)
 {
-  m_list.clear();
-  for (Client* pClient : m_clients.clients())
-  {
-    m_list.push_back(pClient);
-  }
+  syncMru();
+  m_list = m_mru;
+
+  //m_list.clear();
+  //for (Client* pClient : m_clients.clients())
+  //{
+  //  m_list.push_back(pClient);
+  //}
 
   if (m_list.empty())
   {
@@ -203,7 +240,17 @@ void WindowSwitcher::commit()
 {
   if (!m_list.empty() && m_index < m_list.size())
   {
-    m_clients.focus(m_list[m_index]);
+    Client* pSelected = m_list[m_index];
+    m_clients.focus(pSelected);
+
+    auto it = std::find(m_mru.begin(), m_mru.end(), pSelected);
+    if (it != m_mru.end())
+    {
+      m_mru.erase(it);
+    }
+    m_mru.insert(m_mru.begin(), pSelected);
+
+    //m_clients.focus(m_list[m_index]);
   }
   hide();
 }

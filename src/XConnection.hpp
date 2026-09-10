@@ -81,6 +81,9 @@ public:
   /** @brief Screen height in pixels. */
   int height() const;
 
+  /** @brief _NET_WM_MOVERESIZE atom. */
+  Atom atomNetWmMoveResize() const { return m_atomNetWmMoveResize; }
+
 private:
   Cursor loadCursor(const char* themeName, unsigned int fallbackShape);
 
@@ -98,6 +101,7 @@ private:
   Atom m_atomNetWmStateMaxHorz = None;
   Atom m_atomNetSupported = None;
   Atom m_atomNetSupportingWmCheck = None;
+  Atom m_atomNetWmMoveResize = None;
 
   Cursor m_cursorDefault = None;
   Cursor m_cursorResizeH = None;

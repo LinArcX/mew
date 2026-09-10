@@ -24,6 +24,7 @@ bool XConnection::open()
   m_screen = DefaultScreen(m_pDisplay);
   m_root = RootWindow(m_pDisplay, m_screen);
 
+  m_atomNetWmMoveResize = XInternAtom(m_pDisplay, "_NET_WM_MOVERESIZE", False);
   m_atomDeleteWindow = XInternAtom(m_pDisplay, "WM_DELETE_WINDOW", False);
   m_atomProtocols = XInternAtom(m_pDisplay, "WM_PROTOCOLS", False);
   m_atomNetWmName = XInternAtom(m_pDisplay, "_NET_WM_NAME", False);
@@ -61,6 +62,7 @@ void XConnection::setupEwmh()
     PropModeReplace, reinterpret_cast<unsigned char*>(&m_ewmhWmCheck), 1);
 
   Atom supported[] = {
+    m_atomNetWmMoveResize,
     m_atomNetSupported,
     m_atomNetSupportingWmCheck,
     m_atomNetWmName,

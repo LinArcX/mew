@@ -379,6 +379,16 @@ void Mew::processEvent(XEvent& event)
     case ClientMessage:
     {
       XClientMessageEvent* cm = &event.xclient;
+      if (cm->message_type == m_xconn.atomNetWmMoveResize())
+      {
+        Client* pClient = m_pClients->findClient(cm->window);
+        if (pClient && cm->data.l[2] == 8)  // _NET_WM_MOVERESIZE_MOVE
+        {
+          m_pClients->move(pClient);
+        }
+        break;
+      }
+
       if (cm->message_type == m_xconn.atomNetWmState())
       {
         Client* pClient = m_pClients->findClient(cm->window);
@@ -693,7 +703,7 @@ int Mew::run()
 {
   if (!m_xconn.open())
   {
-    return 1;
+    return -1;
   }
 
   XSetErrorHandler(errorHandler);

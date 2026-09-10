@@ -24,6 +24,7 @@ struct Client
   bool fullscreen = false;
   bool transient = false;   // dialog / transient window
   bool noMaximize = false;  // disable maximize button
+  bool csd = false;  // client-side decorations (GTK)
 
   // Expected UnmapNotify count to ignore (reparent/fullscreen transitions).
   int ignoreUnmap = 0;

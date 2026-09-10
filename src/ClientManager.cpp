@@ -52,15 +52,59 @@ Client* ClientManager::findClient(Window window)
 
 Client* ClientManager::focusedClient()
 {
+  Display* d = m_xconn.display();
   Window focused = None;
   int revert = 0;
-  XGetInputFocus(m_xconn.display(), &focused, &revert);
-  return findClient(focused);
+  XGetInputFocus(d, &focused, &revert);
+  if (focused == None || focused == PointerRoot)
+  {
+    return nullptr;
+  }
+
+  Client* pClient = findClient(focused);
+  if (pClient)
+  {
+    return pClient;
+  }
+
+  // GTK/CSD apps set focus on a child widget, not the top-level window.
+  // Walk up the parent chain until we hit a managed window or frame.
+  Window current = focused;
+  for (int depth = 0; depth < 16; ++depth)
+  {
+    Window rootReturn = None;
+    Window parentReturn = None;
+    Window* children = nullptr;
+    unsigned int nChildren = 0;
+    if (!XQueryTree(d, current, &rootReturn, &parentReturn, &children, &nChildren))
+    {
+      return nullptr;
+    }
+    if (children)
+    {
+      XFree(children);
+    }
+    if (parentReturn == None || parentReturn == rootReturn)
+    {
+      return nullptr;
+    }
+    pClient = findClient(parentReturn);
+    if (pClient)
+    {
+      return pClient;
+    }
+    current = parentReturn;
+  }
+  return nullptr;
+  //Window focused = None;
+  //int revert = 0;
+  //XGetInputFocus(m_xconn.display(), &focused, &revert);
+  //return findClient(focused);
 }
 
 void ClientManager::drawFrame(Client* pClient)
 {
-  if (!pClient || pClient->fullscreen)
+  if (!pClient || pClient->fullscreen || pClient->csd)
   {
     return;
   }
@@ -124,13 +168,21 @@ void ClientManager::resize(Client* pClient)
     return;
   }
 
+  int bx = pClient->csd ? 0 : MewConst::borderWidth;
+  int by = pClient->csd ? 0 : MewConst::titleHeight;
   Display* d = m_xconn.display();
-  XMoveResizeWindow(d, pClient->window, MewConst::borderWidth, MewConst::titleHeight, pClient->width, pClient->height);
+  XMoveResizeWindow(d, pClient->window,  bx, by, pClient->width, pClient->height);
+
+  //MewConst::borderWidth, MewConst::titleHeight, pClient->width, pClient->height);
   XMoveResizeWindow(
     d, pClient->frame, pClient->x, pClient->y,
-    pClient->width + MewConst::borderWidth * 2,
-    pClient->height + MewConst::titleHeight + MewConst::borderWidth);
-  drawFrame(pClient);
+    pClient->width + bx * 2,
+    pClient->height + by + bx);
+  if (!pClient->csd)
+  {
+    drawFrame(pClient);
+  }
+  //drawFrame(pClient);
 }
 
 void ClientManager::focus(Client* pClient)
@@ -306,15 +358,27 @@ void ClientManager::maximize(Client* pClient)
 
   if (!pClient->maximized)
   {
+    int bx = pClient->csd ? 0 : MewConst::borderWidth;
+    int by = pClient->csd ? 0 : MewConst::titleHeight;
     pClient->oldX = pClient->x;
     pClient->oldY = pClient->y;
     pClient->oldWidth = pClient->width;
     pClient->oldHeight = pClient->height;
     pClient->x = 0;
     pClient->y = 0;
-    pClient->width = m_xconn.width() - MewConst::borderWidth * 2;
-    pClient->height = usableHeight() - MewConst::titleHeight - MewConst::borderWidth;
+    pClient->width = m_xconn.width() - bx * 2;
+    pClient->height = usableHeight() - by - bx;
     pClient->maximized = true;
+
+    //pClient->oldX = pClient->x;
+    //pClient->oldY = pClient->y;
+    //pClient->oldWidth = pClient->width;
+    //pClient->oldHeight = pClient->height;
+    //pClient->x = 0;
+    //pClient->y = 0;
+    //pClient->width = m_xconn.width() - MewConst::borderWidth * 2;
+    //pClient->height = usableHeight() - MewConst::titleHeight - MewConst::borderWidth;
+    //pClient->maximized = true;
   }
   else
   {
@@ -396,21 +460,38 @@ void ClientManager::setFullscreen(Client* pClient, bool enable)
     // Reparent back can emit UnmapNotify; ignore expected ones.
     pClient->ignoreUnmap += 2;
 
-    XReparentWindow(
-      d, pClient->window, pClient->frame,
-      MewConst::borderWidth, MewConst::titleHeight);
-    // Reparent may leave client unmapped; force both mapped + raised.
+    int bx = pClient->csd ? 0 : MewConst::borderWidth;
+    int by = pClient->csd ? 0 : MewConst::titleHeight;
+    XReparentWindow(d, pClient->window, pClient->frame, bx, by);
     XMapWindow(d, pClient->window);
     XMapRaised(d, pClient->frame);
     XMoveResizeWindow(
-      d, pClient->window,
-      MewConst::borderWidth, MewConst::titleHeight,
+      d, pClient->window, bx, by,
       pClient->width, pClient->height);
     XMoveResizeWindow(
       d, pClient->frame, pClient->x, pClient->y,
-      pClient->width + MewConst::borderWidth * 2,
-      pClient->height + MewConst::titleHeight + MewConst::borderWidth);
-    drawFrame(pClient);
+      pClient->width + bx * 2,
+      pClient->height + by + bx);
+    if (!pClient->csd)
+    {
+      drawFrame(pClient);
+    }
+
+    //XReparentWindow(
+    //  d, pClient->window, pClient->frame,
+    //  MewConst::borderWidth, MewConst::titleHeight);
+    //// Reparent may leave client unmapped; force both mapped + raised.
+    //XMapWindow(d, pClient->window);
+    //XMapRaised(d, pClient->frame);
+    //XMoveResizeWindow(
+    //  d, pClient->window,
+    //  MewConst::borderWidth, MewConst::titleHeight,
+    //  pClient->width, pClient->height);
+    //XMoveResizeWindow(
+    //  d, pClient->frame, pClient->x, pClient->y,
+    //  pClient->width + MewConst::borderWidth * 2,
+    //  pClient->height + MewConst::titleHeight + MewConst::borderWidth);
+    //drawFrame(pClient);
 
     Atom state = m_xconn.atomNetWmState();
     XDeleteProperty(d, pClient->window, state);
@@ -434,6 +515,11 @@ void ClientManager::snap(Client* pClient, const std::string& edge)
   {
     setFullscreen(pClient, false);
   }
+  int bx = pClient->csd ? 0 : MewConst::borderWidth;
+  int by = pClient->csd ? 0 : MewConst::titleHeight;
+  int bx2 = bx * 2;
+  int byb = by + bx;
+
 
   int screenW = m_xconn.width();
   int screenH = usableHeight();
@@ -451,30 +537,58 @@ void ClientManager::snap(Client* pClient, const std::string& edge)
   {
     pClient->x = 0;
     pClient->y = 0;
-    pClient->width = screenW / 2 - MewConst::borderWidth * 2;
-    pClient->height = screenH - MewConst::titleHeight - MewConst::borderWidth;
+    pClient->width = screenW / 2 - bx2;
+    pClient->height = screenH - byb;
   }
   else if (edge == "right")
   {
     pClient->x = screenW / 2;
     pClient->y = 0;
-    pClient->width = screenW / 2 - MewConst::borderWidth * 2;
-    pClient->height = screenH - MewConst::titleHeight - MewConst::borderWidth;
+    pClient->width = screenW / 2 - bx2;
+    pClient->height = screenH - byb;
   }
   else if (edge == "top")
   {
     pClient->x = 0;
     pClient->y = 0;
-    pClient->width = screenW - MewConst::borderWidth * 2;
-    pClient->height = screenH / 2 - MewConst::titleHeight - MewConst::borderWidth;
+    pClient->width = screenW - bx2;
+    pClient->height = screenH / 2 - byb;
   }
   else if (edge == "bottom")
   {
     pClient->x = 0;
     pClient->y = screenH / 2;
-    pClient->width = screenW - MewConst::borderWidth * 2;
-    pClient->height = screenH / 2 - MewConst::titleHeight - MewConst::borderWidth;
+    pClient->width = screenW - bx2;
+    pClient->height = screenH / 2 - byb;
   }
+  //if (edge == "left")
+  //{
+  //  pClient->x = 0;
+  //  pClient->y = 0;
+  //  pClient->width = screenW / 2 - MewConst::borderWidth * 2;
+  //  pClient->height = screenH - MewConst::titleHeight - MewConst::borderWidth;
+  //}
+  //else if (edge == "right")
+  //{
+  //  pClient->x = screenW / 2;
+  //  pClient->y = 0;
+  //  pClient->width = screenW / 2 - MewConst::borderWidth * 2;
+  //  pClient->height = screenH - MewConst::titleHeight - MewConst::borderWidth;
+  //}
+  //else if (edge == "top")
+  //{
+  //  pClient->x = 0;
+  //  pClient->y = 0;
+  //  pClient->width = screenW - MewConst::borderWidth * 2;
+  //  pClient->height = screenH / 2 - MewConst::titleHeight - MewConst::borderWidth;
+  //}
+  //else if (edge == "bottom")
+  //{
+  //  pClient->x = 0;
+  //  pClient->y = screenH / 2;
+  //  pClient->width = screenW - MewConst::borderWidth * 2;
+  //  pClient->height = screenH / 2 - MewConst::titleHeight - MewConst::borderWidth;
+  //}
   else
   {
     return;
@@ -513,8 +627,14 @@ void ClientManager::center(Client* pClient)
   int screenH = usableHeight();
   pClient->width = (screenW * 2) / 3;
   pClient->height = (screenH * 2) / 3;
-  int frameW = pClient->width + MewConst::borderWidth * 2;
-  int frameH = pClient->height + MewConst::titleHeight + MewConst::borderWidth;
+
+  int bx = pClient->csd ? 0 : MewConst::borderWidth;
+  int by = pClient->csd ? 0 : MewConst::titleHeight;
+  int frameW = pClient->width + bx * 2;
+  int frameH = pClient->height + by + bx;
+
+  //int frameW = pClient->width + MewConst::borderWidth * 2;
+  //int frameH = pClient->height + MewConst::titleHeight + MewConst::borderWidth;
   pClient->x = (screenW - frameW) / 2;
   pClient->y = (screenH - frameH) / 2;
   if (pClient->x < 0)
@@ -758,6 +878,42 @@ void ClientManager::manage(Window window)
     return;
   }
 
+  // Detect client-side decorations (GTK, etc.) early so all geometry below uses it.
+  bool hasCSD = false;
+  {
+    Atom gtkExtents = XInternAtom(d, "_GTK_FRAME_EXTENTS", False);
+    Atom actualType;
+    int actualFormat;
+    unsigned long nitems;
+    unsigned long bytesAfter;
+    unsigned char* data = nullptr;
+    if (XGetWindowProperty(d, window, gtkExtents, 0, 4, False, XA_CARDINAL,
+        &actualType, &actualFormat, &nitems, &bytesAfter, &data) == Success && data)
+    {
+      hasCSD = true;
+      XFree(data);
+    }
+  }
+  int bx = hasCSD ? 0 : MewConst::borderWidth;
+  int by = hasCSD ? 0 : MewConst::titleHeight;
+
+  //// Detect client-side decorations (GTK, etc.)
+  //bool hasCSD = false;
+  //{
+  //  Atom gtkExtents = XInternAtom(d, "_GTK_FRAME_EXTENTS", False);
+  //  Atom actualType;
+  //  int actualFormat;
+  //  unsigned long nitems;
+  //  unsigned long bytesAfter;
+  //  unsigned char* data = nullptr;
+  //  if (XGetWindowProperty(d, window, gtkExtents, 0, 4, False, XA_CARDINAL,
+  //      &actualType, &actualFormat, &nitems, &bytesAfter, &data) == Success && data)
+  //  {
+  //    hasCSD = true;
+  //    XFree(data);
+  //  }
+  //}
+
   int screenW = m_xconn.width();
   int screenH = usableHeight();
 
@@ -778,17 +934,17 @@ void ClientManager::manage(Window window)
   }
 
   // Clamp to usable screen
-  if (w > screenW - MewConst::borderWidth * 2)
+  if (w > screenW - bx * 2)
   {
-    w = screenW - MewConst::borderWidth * 2;
+    w = screenW - bx * 2;
   }
-  if (h > screenH - MewConst::titleHeight - MewConst::borderWidth)
+  if (h > screenH - by - bx)
   {
-    h = screenH - MewConst::titleHeight - MewConst::borderWidth;
+    h = screenH - by - bx;
   }
 
-  int frameW = w + MewConst::borderWidth * 2;
-  int frameH = h + MewConst::titleHeight + MewConst::borderWidth;
+  int frameW = w + bx * 2;
+  int frameH = h + by + bx;
   int x = (screenW - frameW) / 2;
   int y = (screenH - frameH) / 2;
   if (x < 0)
@@ -802,9 +958,12 @@ void ClientManager::manage(Window window)
 
   Client* pClient = new Client{};
   pClient->window = window;
+  pClient->csd = hasCSD;
   pClient->frame = XCreateSimpleWindow(
     d, m_xconn.root(), x, y, frameW, frameH, 0,
-    MewConst::colorBorder, MewConst::colorTitle);
+    hasCSD ? 0 : MewConst::colorBorder,
+    hasCSD ? 0 : MewConst::colorTitle);
+    //MewConst::colorBorder, MewConst::colorTitle);
   pClient->x = x;
   pClient->y = y;
   pClient->width = w;
@@ -814,7 +973,8 @@ void ClientManager::manage(Window window)
   pClient->oldWidth = w;
   pClient->oldHeight = h;
   pClient->transient = isTransient;
-  pClient->noMaximize = isTransient;
+  pClient->noMaximize = hasCSD ? true : isTransient;
+    //hasCSD ? true : isTransient;//isTransient;
 
   // Per-app geometry from config (matched by WM_CLASS)
   if (m_pConfig)
@@ -893,7 +1053,11 @@ void ClientManager::manage(Window window)
   XSelectInput(d, pClient->frame, ExposureMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
   XAddToSaveSet(d, window);
   XSelectInput(d, window, StructureNotifyMask | PropertyChangeMask);
-  XReparentWindow(d, window, pClient->frame, MewConst::borderWidth, MewConst::titleHeight);
+
+  int insetX = hasCSD ? 0 : MewConst::borderWidth;
+  int insetY = hasCSD ? 0 : MewConst::titleHeight;
+  XReparentWindow(d, window, pClient->frame, insetX, insetY);
+      //MewConst::borderWidth, MewConst::titleHeight);
   XMapWindow(d, pClient->frame);
   XMapWindow(d, window);
 
@@ -969,6 +1133,11 @@ void ClientManager::handleButtonPress(XButtonEvent* pEvent)
   }
 
   focus(pClient);
+  if (pClient->csd)
+  {
+    return;  // CSD app handles its own titlebar
+  }
+
   ResizeDirection direction = resizeDirection(pClient, pEvent->x, pEvent->y);
 
   if (pEvent->button == Button1 && direction != ResizeDirection::NoEdge)
@@ -1028,7 +1197,7 @@ void ClientManager::handleMotion(XMotionEvent* pEvent)
     return;
   }
   Client* pClient = findClient(pEvent->window);
-  if (!pClient)
+  if (!pClient || pClient->csd)
   {
     return;
   }

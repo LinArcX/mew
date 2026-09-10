@@ -71,7 +71,11 @@ public:
 
 private:
   void show();
+
   std::string titleFor(Client* pClient) const;
+
+  /** @brief Rebuild m_mru from managed clients and move focused client to front. */
+  void syncMru();
 
   XConnection& m_xconn;
   FontRenderer& m_font;
@@ -81,6 +85,9 @@ private:
   bool m_active = false;
   size_t m_index = 0;
   std::vector<Client*> m_list;
+
+  // most-recently-used order, front = top
+  std::vector<Client*> m_mru;   
 
   static constexpr int kWidth = 420;
   static constexpr int kLineH = 30;
