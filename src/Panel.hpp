@@ -252,6 +252,9 @@ private:
   Window m_powerMenu = None;
   bool m_powerMenuActive = false;
 
+  Pixmap m_backBuffer = None;
+  int m_backBufferW = 0;
+
   void (*m_onShowLauncher)() = nullptr;
   void (*m_onShowKeybindings)() = nullptr;
   void (*m_onQuit)() = nullptr;

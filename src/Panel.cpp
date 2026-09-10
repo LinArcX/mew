@@ -50,6 +50,11 @@ Panel::~Panel()
     XDestroyWindow(d, m_tooltip);
     m_tooltip = None;
   }
+  if (m_backBuffer != None)
+  {
+    XFreePixmap(d, m_backBuffer);
+    m_backBuffer = None;
+  }
   if (m_window != None)
   {
     XDestroyWindow(d, m_window);
@@ -500,14 +505,23 @@ void Panel::draw()
   }
   Display* d = m_xconn.display();
   int screenW = m_xconn.width();
-  GC gc = XCreateGC(d, m_window, 0, nullptr);
+
+  if (m_backBuffer == None || m_backBufferW != screenW)
+  {
+    if (m_backBuffer != None)
+    {
+      XFreePixmap(d, m_backBuffer);
+    }
+    m_backBuffer = XCreatePixmap(d, m_window, screenW, MewConst::panelHeight, DefaultDepth(d, m_xconn.screen()));
+    m_backBufferW = screenW;
+  }
+
+  GC gc = XCreateGC(d, m_backBuffer, 0, nullptr);
   XSetForeground(d, gc, m_bgColor);
-  XFillRectangle(d, m_window, gc, 0, 0, screenW, MewConst::panelHeight);
+  XFillRectangle(d, m_backBuffer, gc, 0, 0, screenW, MewConst::panelHeight);
   time_t now = time(nullptr);
   struct tm* tm = localtime(&now);
   char buf[64];
-  // Full month name, e.g. "2026-September-07  23:57:01"
-  // Icons: U+EAB0, U+E641 (Nerd Font PUA)
   char datePart[48];
   strftime(datePart, sizeof(datePart), "%Y-%B-%d", tm);
   char timePart[16];
@@ -518,83 +532,75 @@ void Panel::draw()
   int baseline = (MewConst::panelHeight + textH) / 2 - (pFont ? pFont->descent : 2);
   m_font.setColor(m_itemColor);
 
-  // Hover highlight under interactive zones
-  // Layout from right: desktop | clock | volume | language | network | kill
   if (m_hoverZone == 0)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, 0, 0, 40, MewConst::panelHeight);
+    XFillRectangle(d, m_backBuffer, gc, 0, 0, 40, MewConst::panelHeight);
   }
   else if (m_hoverZone == 1)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, screenW - 480, 0, 28, MewConst::panelHeight);
+    XFillRectangle(d, m_backBuffer, gc, screenW - 480, 0, 28, MewConst::panelHeight);
   }
   else if (m_hoverZone == 2)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, screenW - 450, 0, 70, MewConst::panelHeight);
+    XFillRectangle(d, m_backBuffer, gc, screenW - 450, 0, 70, MewConst::panelHeight);
   }
   else if (m_hoverZone == 3)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, screenW - 380, 0, 30, MewConst::panelHeight);
+    XFillRectangle(d, m_backBuffer, gc, screenW - 380, 0, 30, MewConst::panelHeight);
   }
   else if (m_hoverZone == 4)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, screenW - 350, 0, 35, MewConst::panelHeight);
+    XFillRectangle(d, m_backBuffer, gc, screenW - 350, 0, 35, MewConst::panelHeight);
   }
   else if (m_hoverZone == 5)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, screenW - 25, 0, 30, MewConst::panelHeight);
+    XFillRectangle(d, m_backBuffer, gc, screenW - 25, 0, 30, MewConst::panelHeight);
   }
   else if (m_hoverZone == 6)
   {
     XSetForeground(d, gc, m_hoverColor);
-    XFillRectangle(d, m_window, gc, screenW - 305, 0, 275, MewConst::panelHeight);
+    XFillRectangle(d, m_backBuffer, gc, screenW - 305, 0, 275, MewConst::panelHeight);
   }
 
-  // U+EB94 start icon
-  m_font.draw(d, m_xconn.screen(), m_window, 12, baseline, "\xee\xae\x94");
+  m_font.draw(d, m_xconn.screen(), m_backBuffer, 12, baseline, "\xee\xae\x94");
 
   refreshLayout();
   updateVolume();
   refreshNetwork();
 
-  // Kill-switch (green=up, red=down)
   bool ifaceUp = !m_selectedIface.empty() && isInterfaceUp(m_selectedIface);
-  const char* killIcon = ifaceUp ? "\xf3\xb0\x8c\xa0" : "\xf3\xb0\x8c\xa1"; // placeholder; color via prefix text
-  // Draw colored indicator using GC + short label
   XSetForeground(d, gc, ifaceUp ? 0x22cc44 : 0xcc2222);
-  XFillRectangle(d, m_window, gc, screenW - 476, 6, 16, 16);
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 478, baseline, " ");
+  XFillRectangle(d, m_backBuffer, gc, screenW - 476, 6, 16, 16);
+  m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 478, baseline, " ");
 
-  // Network interface name
   std::string netLabel = m_selectedIface.empty() ? "net" : m_selectedIface;
   if (netLabel.size() > 8)
   {
     netLabel = netLabel.substr(0, 8);
   }
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 448, baseline, netLabel);
-
-  // Language (left of volume)
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 375, baseline, m_layoutName);
+  m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 448, baseline, netLabel);
+  m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 375, baseline, m_layoutName);
 
   char volBuf[48];
   if (m_volumeMuted || m_volumePercent < 0)
   {
-    // U+F0581 mute
     snprintf(volBuf, sizeof(volBuf), "\xf3\xb0\x96\x81");
   }
   else
   {
     snprintf(volBuf, sizeof(volBuf), "%d%%", m_volumePercent);
   }
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 345, baseline, volBuf);
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 305, baseline, buf);
-  m_font.draw(d, m_xconn.screen(), m_window, screenW - 20, baseline, "\xef\x92\xa9");
+  m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 345, baseline, volBuf);
+  m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 305, baseline, buf);
+  m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 20, baseline, "\xef\x92\xa9");
+
+  XCopyArea(d, m_backBuffer, m_window, gc, 0, 0, screenW, MewConst::panelHeight, 0, 0);
   XFreeGC(d, gc);
   m_lastTime = now;
 }

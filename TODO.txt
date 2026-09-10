@@ -1,25 +1,23 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
+- [+] Widgets in Panel every second, i see a flash on it, like a flickering or heart bit. it has a bad visual effect. 
+  i know that you're updating panel items regurarly, but can you fix this flickering, annoying artifact that annoy the eyes?
+- [ ] change start menu icon to mew icon located in assets/mew.png
 - [ ] windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
   - nemo
   - meld
-- Widgets in Panel every second, i see a flash on it, like a flickering or heart bit. it has a bad visual effect. 
-  i know that you're updateing panel items regurarly, but can you fix this flickering, annoying artifact that annoy the eyes?
-- some gtk apps like gedit or meld, they already have frame and close/max/min buttons. in mew, we put an extra frame out of it which doesn't make sense.
+- [ ] some gtk apps like gedit or meld, they already have frame and close/max/min buttons. in mew, we put an extra frame out of it which doesn't make sense.
   So check if the app, or window already has frame, if it has don't make any frame around it.
-- change start menu icon to mew icon located in assets/mew.png
 
 ## panel
-- [ ] changing networks in networkmanager plugin doesn't take into account. (it causes windows freezes. i think because it needs sudo under the hood. right? fix it)
-  for example i swtich to ethernet, but still i have internet!
-  Note: I expect when i switch to an interface which is down, my internet connection should be disconnected.
+- [ ] trying to change network interface in networkmanager plugin leads to system freeze.
+  Maybe because it needs sudo access under the hood? fix it then.
 
-- [ ] bringing interfaces up/down in networkmanger plugin doesn't works. 
+- [ ] trying to use kill-switch network widget in panel leads to system freeze.
   Does it need root access? (CAP_NET_ADMIN) implement it with polkit-devel or any other similar and minimal/safe way.
 
 ## startMenu
-- [ ] In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
 - [ ] when keybindings pop-up window appears, i shuould be able to hit ESCAPE on keyboard to close it.
 - [ ] currently, start-menu popup closes only when i click on it again.
   start-menu popup should be close when i click outside of it (like on panel or clicking on other apps or even background of mew)
@@ -31,8 +29,7 @@
   Like something you already did for apps popup:
     key="W-a" command="apps"
     key="W-p" command="power-manager"
-
-
+- [ ] In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
 ---------------------------------------------------------------------------------
 # v8
 ## general
