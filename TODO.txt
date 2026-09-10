@@ -1,7 +1,6 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
-- [ ] change start menu icon to mew icon located in assets/mew.png
 - [ ] when there's a popup menu of nemo appears on screen that contains the image previous, the Ok and Cancel button doesn't appear correctly. i can't see ok button fully.
 - [ ] I can't add directories to bookmarks section in nemo anymore. (it works under gnome, kde, dwm, openbox, etc.. but under mew it doesn't work!)
 - [ ] some gtk apps like gedit or meld, they already have frame and close/max/min buttons. in mew, we put an extra frame out of it which doesn't make sense.
@@ -43,6 +42,7 @@
 ---------------------------------------------------------------------------------
 # v8
 ## general
+- [+] change start menu icon to mew icon located in assets/mew.png
 - [+] currently, the switcher pop-up shows apps by whol was launching first. when you select another window from switcher, it doesn't rank it to top. (which it should do) 
 - [+] windows shortcuts doesn't work anymore for these apps: (what happened? i already told yo don't introduce bugs and regressions from wokring code)
   - nemo

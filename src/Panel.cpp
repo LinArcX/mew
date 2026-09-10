@@ -1,10 +1,14 @@
 #include "Panel.hpp"
+#include "mew_icon_data.h"
+
 #include <ctime>
 #include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <dirent.h>
 
+#include "stb_image.h"
+#include <X11/Xutil.h>
 #include <X11/XKBlib.h>
 
 #include <alsa/asoundlib.h>
@@ -62,6 +66,126 @@ Panel::~Panel()
   }
 }
 
+void Panel::loadStartIcon()
+{
+  if (!m_startIconRgba.empty())
+  {
+    return;
+  }
+
+  int w = 0;
+  int h = 0;
+  int ch = 0;
+  unsigned char* data = stbi_load_from_memory(mew_icon_png,
+    static_cast<int>(mew_icon_png_len),
+    &w, &h, &ch, 4);
+  if (!data || w <= 0 || h <= 0)
+  {
+    if (data)
+    {
+      stbi_image_free(data);
+    }
+    fprintf(stderr, "mew: could not decode embedded mew.png\n");
+    return;
+  }
+
+
+  //if (!m_startIconRgba.empty())
+  //{
+  //  return;
+  //}
+
+  //int w = 0;
+  //int h = 0;
+  //int ch = 0;
+  //unsigned char* data = stbi_load("assets/mew.png", &w, &h, &ch, 4);
+  //if (!data || w <= 0 || h <= 0)
+  //{
+  //  if (data)
+  //  {
+  //    stbi_image_free(data);
+  //  }
+  //  fprintf(stderr, "mew: could not load assets/mew.png\n");
+  //  return;
+  //}
+
+  // If the PNG has no alpha, treat its black background as transparent
+  // (unpremultiply from black).
+  bool hasAlpha = false;
+  for (int i = 0; i < w * h; ++i)
+  {
+    if (data[i * 4 + 3] != 255)
+    {
+      hasAlpha = true;
+      break;
+    }
+  }
+  if (!hasAlpha)
+  {
+    for (int i = 0; i < w * h; ++i)
+    {
+      unsigned char* p = data + i * 4;
+      unsigned char mx = p[0];
+      if (p[1] > mx) mx = p[1];
+      if (p[2] > mx) mx = p[2];
+      if (mx == 0)
+      {
+        p[0] = p[1] = p[2] = 0;
+        p[3] = 0;
+      }
+      else
+      {
+        p[0] = static_cast<unsigned char>(p[0] * 255 / mx);
+        p[1] = static_cast<unsigned char>(p[1] * 255 / mx);
+        p[2] = static_cast<unsigned char>(p[2] * 255 / mx);
+        p[3] = mx;
+      }
+    }
+  }
+
+  // Box-filter downscale to kStartIconSize x kStartIconSize (premultiplied by alpha).
+  const int size = kStartIconSize;
+  m_startIconRgba.assign(static_cast<size_t>(size) * size * 4, 0);
+  for (int py = 0; py < size; ++py)
+  {
+    for (int px = 0; px < size; ++px)
+    {
+      int x0 = px * w / size;
+      int y0 = py * h / size;
+      int x1 = (px + 1) * w / size;
+      int y1 = (py + 1) * h / size;
+      if (x1 <= x0) x1 = x0 + 1;
+      if (y1 <= y0) y1 = y0 + 1;
+      unsigned int r = 0;
+      unsigned int g = 0;
+      unsigned int b = 0;
+      unsigned int a = 0;
+      unsigned int n = 0;
+      for (int sy = y0; sy < y1; ++sy)
+      {
+        for (int sx = x0; sx < x1; ++sx)
+        {
+          const unsigned char* s = data + (sy * w + sx) * 4;
+          // Premultiply by alpha so averaging is correct.
+          r += static_cast<unsigned int>(s[0]) * s[3] / 255;
+          g += static_cast<unsigned int>(s[1]) * s[3] / 255;
+          b += static_cast<unsigned int>(s[2]) * s[3] / 255;
+          a += s[3];
+          ++n;
+        }
+      }
+      if (n == 0) n = 1;
+      unsigned char* d = m_startIconRgba.data() + (py * size + px) * 4;
+      d[0] = static_cast<unsigned char>(r / n);
+      d[1] = static_cast<unsigned char>(g / n);
+      d[2] = static_cast<unsigned char>(b / n);
+      d[3] = static_cast<unsigned char>(a / n);
+    }
+  }
+
+  stbi_image_free(data);
+}
+
 void Panel::setBackgroundColor(unsigned long color)
 {
   m_bgColor = color;
@@ -104,6 +228,7 @@ void Panel::create()
     &attrs);
 
   XMapRaised(d, m_window);
+  loadStartIcon();
   draw();
 }
 
@@ -568,7 +693,53 @@ void Panel::draw()
     XFillRectangle(d, m_backBuffer, gc, screenW - 305, 0, 275, MewConst::panelHeight);
   }
 
-  m_font.draw(d, m_xconn.screen(), m_backBuffer, 12, baseline, "\xee\xae\x94");
+  if (!m_startIconRgba.empty())
+  {
+    const int sz = kStartIconSize;
+    unsigned char bgR = static_cast<unsigned char>((m_bgColor >> 16) & 0xff);
+    unsigned char bgG = static_cast<unsigned char>((m_bgColor >> 8) & 0xff);
+    unsigned char bgB = static_cast<unsigned char>(m_bgColor & 0xff);
+
+    char* xdata = static_cast<char*>(std::malloc(static_cast<size_t>(sz) * sz * 4));
+    if (xdata)
+    {
+      for (int i = 0; i < sz * sz; ++i)
+      {
+        const unsigned char* s = m_startIconRgba.data() + i * 4;
+        unsigned int a = s[3];
+        // s[0..2] are premultiplied by alpha.
+        unsigned int inv = 255 - a;
+        unsigned char outB = static_cast<unsigned char>(s[2] + bgB * inv / 255);
+        unsigned char outG = static_cast<unsigned char>(s[1] + bgG * inv / 255);
+        unsigned char outR = static_cast<unsigned char>(s[0] + bgR * inv / 255);
+        char* dst = xdata + i * 4;
+        dst[0] = static_cast<char>(outB);
+        dst[1] = static_cast<char>(outG);
+        dst[2] = static_cast<char>(outR);
+        dst[3] = 0;
+      }
+      XImage* img = XCreateImage(
+        d, DefaultVisual(d, m_xconn.screen()),
+        DefaultDepth(d, m_xconn.screen()), ZPixmap, 0,
+        xdata, sz, sz, 32, 0);
+      if (img)
+      {
+        const int ix = (MewConst::panelHeight - sz) / 2;  // centered vertically
+        const int iy = (MewConst::panelHeight - sz) / 2;
+        XPutImage(d, m_backBuffer, gc, img, 0, 0, ix, iy, sz, sz);
+        XDestroyImage(img);  // frees xdata
+      }
+      else
+      {
+        std::free(xdata);
+      }
+    }
+  }
+  else
+  {
+    // Fallback if the icon failed to load.
+    m_font.draw(d, m_xconn.screen(), m_backBuffer, 12, baseline, "\xee\xae\x94");
+  }
 
   refreshLayout();
   updateVolume();

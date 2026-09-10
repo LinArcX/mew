@@ -109,6 +109,8 @@ menu () {
 
       echo ">>> generating font data"
       xxd -i -n hurmit_ttf ./assets/fonts/Hermit/HurmitNerdFont-Regular.otf > src/hurmit_font_data.h
+      xxd -i -n mew_icon_png ./assets/images/logo.jpg > src/mew_icon_data.h
+
       #xxd -i -n sofia_sans_ttf ./assets/fonts/SofiaSans/SofiaSans-Regular.ttf > src/sofia_sans_font_data.h
       #xxd -i -n jetbrains_ttf ./assets/fonts/JetBrainsMono/JetBrainsMono-Regular.ttf > src/jetbrains_font_data.h
 

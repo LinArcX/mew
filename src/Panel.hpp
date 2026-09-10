@@ -221,6 +221,12 @@ private:
   bool isInterfaceUp(const std::string& name) const;
   void runAudioCommand(const char* keyName);
 
+  /** @brief Load assets/mew.png, downscale to kStartIconSize, store RGBA. */
+  void loadStartIcon();
+
+  static constexpr int kStartIconSize = 26;
+  std::vector<unsigned char> m_startIconRgba;  // 20x20x4, empty if unavailable
+                                               
   XConnection& m_xconn;
   FontRenderer& m_font;
   ClientManager& m_clients;
