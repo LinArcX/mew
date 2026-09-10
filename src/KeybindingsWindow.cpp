@@ -188,6 +188,7 @@ void KeybindingsWindow::show()
   }
 
   XMapRaised(d, m_window);
+  XGrabKeyboard(d, m_window, True, GrabModeAsync, GrabModeAsync, CurrentTime);
   m_active = true;
   draw();
 }
@@ -198,6 +199,7 @@ void KeybindingsWindow::hide()
   {
     XUnmapWindow(m_xconn.display(), m_window);
   }
+  XUngrabKeyboard(m_xconn.display(), CurrentTime);
   m_active = false;
 }
 
