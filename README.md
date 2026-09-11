@@ -1,6 +1,10 @@
 # mew
 A minimal, fast desktop environment for X.
 
+<p align="center">
+  <img src="assets/images/screenshot.png" width="800">
+</p>
+
 # dependencies
 ## tools
 ```
