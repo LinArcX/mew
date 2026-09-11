@@ -26,6 +26,7 @@ alsa-lib-devel
 
 ## build
 First you need to clone the project:
+
   `git clone https://github.com/LinArcX/mew`
 
 Then, for building it there are two possible ways:
@@ -41,6 +42,7 @@ chmod +x p
 ```
 
 Note: You should give `mew` the execute permission:
+
   `chmod +x ./build/debug/mew`
 
 # run
@@ -49,12 +51,15 @@ Note: You should give `mew` the execute permission:
 
 ## tty
 put this line into: `~/.xinitrc.mew`
+
   `exec <PATH>/mew`
 
 Then:
+
   `startx ~/.xinitrc.mew`
 
-Note: to make life easier, you can put this line into your `~/.bashrc`:
+**Note**: to make life easier, you can put this line into your `~/.bashrc`:
+
   `alias startmew="startx ~/.xinitrc.mew"`
 
 And simply run: `startmew`
@@ -63,13 +68,13 @@ And simply run: `startmew`
 configuration files reside here:
   `~/.config/mew`
 
-1. `~/.config/mew/autostart`: the things you want to start automatically when mew starts:
+1. `~/.config/mew/autostart` --> contains the tools/software/scritps that you want to run at start-up time:
 ```
 # terminal
 wezterm &
 ```
 
-2. `~/.config/mew/keybindings`: for defining keybindings:
+2. `~/.config/mew/keybindings` --> you can define your custom keybindings here:
 ```
 # Available modifers: W(indow, Meta), A(lt), C(ontrol), S(hift)
 
@@ -99,7 +104,7 @@ key="W-k" command="keybindings"
 key="W-p" command="power-manager"
 ```
 
-3. `~/.config/mew/config`: for general configurations:
+3. `~/.config/mew/config` --> contains general configurations:
 ```
 title_font_size=15
 
@@ -120,5 +125,6 @@ panel_item_color=#ffffff #9FA192  #CC8B88
 panel_hover_color=#0a64c8 #6E6481  
 ```
 
-Note: mew only supports `.wav` audio files. you can convert any format to `.wav` with ffmpeg:
+**Note**: mew only supports `.wav` audio files. you can convert any format to `.wav` with ffmpeg:
+
   `ffmpeg -i xp_shutdown.mp3 xp_shutdown.wav`

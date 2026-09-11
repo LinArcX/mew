@@ -1,6 +1,8 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
+- [ ] ability to change font size/name for active/inactive windows.
+- [ ] ability to change color of frame for active/inactive windows.
 - [ ] add persian glyphs to current font.
 - [ ] instead of having a default color for mew background, use a default image.
   assets/images/mew.png
