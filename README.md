@@ -1,12 +1,12 @@
 # mew
-A minimal, fast desktop environment for X.
+A minimal, fast widnwos manager for X.
 
 <p align="center">
   <img src="assets/images/screenshot.png" width="800">
 </p>
 
-# dependencies
-## tools
+## dependencies
+### tools
 ```
 git
 gcc
@@ -16,7 +16,7 @@ xxd
 fzf (optioanl)
 ```
 
-## build-time
+### build-time
 ```
 libXft-devel
 freetype-devel
@@ -45,11 +45,11 @@ Note: You should give `mew` the execute permission:
 
   `chmod +x ./build/debug/mew`
 
-# run
-## xephyr
+## run
+### xephyr
   `./start_xephyr.sh`
 
-## tty
+### tty
 put this line into: `~/.xinitrc.mew`
 
   `exec <PATH>/mew`
@@ -70,7 +70,6 @@ configuration files reside here:
 
 1. `~/.config/mew/autostart` --> contains the tools/software/scritps that you want to run at start-up time:
 ```
-# terminal
 wezterm &
 ```
 
@@ -125,6 +124,49 @@ panel_item_color=#ffffff #9FA192  #CC8B88
 panel_hover_color=#0a64c8 #6E6481  
 ```
 
-**Note**: mew only supports `.wav` audio files. you can convert any format to `.wav` with ffmpeg:
+## gtk customization
+Gtk applications has their own way of configuration. you may need to customize:
+- theme
+- icon-theme
+- font-name
+
+**NOTE**: to install thems/fonts, you have different options:
+- through your system package manger
+- through websites like: https://www.gnome-look.org, https://fonts.google.com/, etc..
+
+### cursor-theme
+For example let's install this package with void xbps package manager:
+
+  `sudo xbps-install -S xcursor-vanilla-dmz`
+
+Then to set this icon-theme, you have two options:
+1. by using some apps like **lxappearance**. 
+2. manually editing `~/.config/gtk-3.0/settings.ini` by adding this line into it:
+  
+  `gtk-cursor-theme-name=Vanilla-DMZ`
+
+### windows-theme
+Let's install this package:
+
+  `sudo xbps-install -S xcursor-vanilla-dmz`
+
+Again, to set this theme, you have two options:
+1. by using some apps like **lxappearance**. 
+2. manually editing `~/.config/gtk-3.0/settings.ini` by adding this line into it:
+  
+  `gtk-theme-name=Yaru-dark`
+
+### font
+Let's:
+- download [sofia-sans font](https://fonts.google.com/specimen/Sofia+Sans).
+- extract it and put it in your `~/.fonts` directory.
+- to set this font, you have two options:
+  - by using some apps like **lxappearance**. 
+  - manually editing `~/.config/gtk-3.0/settings.ini` by adding this line into it:
+ 
+    `gtk-font-name=Sofia Sans Light 11`
+
+## Limitations
+- mew only supports `.wav` audio files. you can convert any format to `.wav` with ffmpeg:
 
   `ffmpeg -i xp_shutdown.mp3 xp_shutdown.wav`
