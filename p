@@ -103,31 +103,7 @@ menu () {
   
   case $selected in
     "build(debug)")
-      clear
-      echo ">>> creating build/debug directory"
-      mkdir -p build/debug
-
-      echo ">>> generating font data"
-      xxd -i -n hurmit_ttf ./assets/fonts/Hermit/HurmitNerdFont-Regular.otf > src/hurmit_font_data.h
-      xxd -i -n mew_icon_png ./assets/images/logo.jpg > src/mew_icon_data.h
-
-      #xxd -i -n sofia_sans_ttf ./assets/fonts/SofiaSans/SofiaSans-Regular.ttf > src/sofia_sans_font_data.h
-      #xxd -i -n jetbrains_ttf ./assets/fonts/JetBrainsMono/JetBrainsMono-Regular.ttf > src/jetbrains_font_data.h
-
-      echo ">>> deleting old .gcda/.gcno files in build/debug directory"
-      find . -name "*.gcda" -delete
-      find . -name "*.gcno" -delete
-
-      echo ">>> compiling (debug mode)"
-      bear -- g++ -std=c++23 -g -pg -O0 -DDEBUG --coverage \
-        src/*.cpp $(pkg-config --cflags --libs x11 xft fontconfig freetype2 xcursor) -lasound -o build/debug/mew
-
-      #-Wall -Wextra -Werror \
-
-      ##-Wformat=2 -Wunused-function -Wpedantic -Wno-unused-parameter \
-      #-Wredundant-decls -Wmissing-include-dirs -Wlogical-op \
-      #-Wshadow -Wwrite-strings -Wunused-result \
-      # -ldl -pthread -lmagic -lm \
+      ./scripts/build_debug.sh 
       if [ $? -eq 1 ]; then
         # error
         mpg123 -f 3000 /home/linarcx/VoidConf/assets/error2.mp3 > /dev/null 2>&1 
@@ -233,7 +209,7 @@ menu () {
       DISPLAY=:1 wezterm start &
       ;;
     "stop xephyr")
-      ./stop_xephyr.sh
+      ./scripts/stop_xephyr.sh
       ;;
     "doxygen(generate)")
       doxygen
