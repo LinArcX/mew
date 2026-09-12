@@ -6,6 +6,8 @@
 #include "../Config.hpp"
 #include "../EmbeddedFont.hpp"
 
+#include <sys/un.h>
+#include <sys/socket.h>
 #include <ctime>
 #include <string>
 #include <vector>
@@ -25,16 +27,26 @@ public:
   bool tick() override;
   void configure(const Config& config) override;
   bool handleEscape() override;
-  Window popupWindow() const override { return m_popup; }
+  Window popupWindow() const override
+  {
+    if (m_seekPopupActive) return m_seekPopup;
+    return m_popup;
+  }
+
   void drawPopup() override;
-  bool handlePopupKey(XKeyEvent* pEvent) override;
+  bool handlePopupMotion(XMotionEvent* pEvent) override;
   bool handlePopupClick(XButtonEvent* pEvent) override;
+  bool handlePopupKey(XKeyEvent* pEvent) override;
   bool hasFocusedPopup() const override { return m_popupActive; }
+  int eqWidth() const { return m_eqBars * (kEqBarW + kEqBarGap) + 8; }
   void playPrev();
   void playNext();
   void togglePause();
   void stopPlayback();
   void showPopup(int screenX);
+  void showSeekPopup(int screenX);
+  void hideSeekPopup();
+  void commitSeek();
 
 private:
   enum class Btn { NoBtn, Note, Prev, Play, Stop, Next, Label };
@@ -45,6 +57,9 @@ private:
   void scanFiles();
   void playIndex(size_t idx);
   void hidePopup();
+  double queryMpv(const char* property) const;
+  bool sendMpvSeek(double seconds) const;
+  void drawSeekPopup();
 
   XConnection& m_xconn;
   FontRenderer& m_font;
@@ -68,6 +83,14 @@ private:
   long long m_lastEqMs = 0;
 
   Window m_popup = None;
+  Window m_seekPopup = None;
+  bool m_seekPopupActive = false;
+  bool m_seekDragging = false;
+  double m_position = -1.0;
+  double m_duration = -1.0;
+  long long m_lastQueryMs = 0;
+  std::string m_mpvSocket;
+
   bool m_popupActive = false;
   int m_popupW = 0;
   int m_popupH = 0;
@@ -77,17 +100,13 @@ private:
   pid_t m_pendingKill = -1;
   time_t m_playStart = 0;
 
+  static constexpr int kSeekPopupW = 320;
+  static constexpr int kSeekPopupH = 60;
+
   static constexpr int kMusicIconW = 24;
   static constexpr int kBtnW = 24;
   static constexpr int kEqBarW = 4;
   static constexpr int kEqBarGap = 3;
-
-  //static constexpr int kWidth = 160;
-  //static constexpr int kMusicIconW = 24;
-  //static constexpr int kBtnW = 24;
-  //static constexpr int kEqBars = 4;
-  //static constexpr int kEqBarW = 4;
-  //static constexpr int kEqBarGap = 3;
 
   static constexpr int kPopupWidth = 420;
   static constexpr int kPopupRowH = 22;

@@ -11,7 +11,10 @@
   So check if the app, or window already has frame, if it has don't make any frame around it.
 
 ## panel
-- [ ] when i click on equilizer, a pop-up with a horzintal slider should shows me. i can use this slider to move in different section of currently playing music.
+- [ ] equilizer slider pop-up doesn't automatically update slider. i need to click on it to see updated value in slider.
+  So, as long as slider is open, it should update itself each second.
+- [ ] slider of equilizer, should be close by hitting escape key from keyboard.
+- [ ] slider of equilizer, should be close by clicking on equilizer itself again.
 - [ ] implement cpu widget as optioanl for panel. (when you click on it, it should shows you all cores and usage of each)
 - [ ] implement ram widget as optioanl for panel. (when you click on it, it should show you the 10 top apps --sorted-- that uses most ram)
 - [ ] New Feature: When i hover over date/time in panel, shows a pop-up calendar window.
@@ -70,6 +73,7 @@
   - [+] and also when i hit ESCAPE from keyboard
 
 ## panel
+- [+] when i click on equilizer, a pop-up with a horzintal slider should shows me. i can use this slider to move in different section of currently playing music.
 - [+] implement a minimal music player as optional widget in panel. next after weather widget.
 - [+] add music icon to the leff to music player.
 - [+] add minimal sound equalizer at the left of audio player.

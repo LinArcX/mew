@@ -1253,6 +1253,10 @@ void Panel::handleClick(int x)
         {
           pm->playNext();
         }
+        else if (localX < 120 + pm->eqWidth())
+        {
+          pm->showSeekPopup(widgetX);
+        }
 
         draw();
         return;

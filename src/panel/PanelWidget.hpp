@@ -63,6 +63,8 @@ public:
   /** @brief Route a ButtonPress on the popup. Return true if consumed. */
   virtual bool handlePopupClick(XButtonEvent* pEvent) { (void)pEvent; return false; }
 
+  virtual bool handlePopupMotion(XMotionEvent* pEvent) { (void)pEvent; return false; }
+
   /** @brief True if this widget's popup currently has keyboard focus. */
   virtual bool hasFocusedPopup() const { return false; }
 

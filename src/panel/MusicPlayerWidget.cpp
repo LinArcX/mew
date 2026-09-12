@@ -19,6 +19,54 @@
 
 namespace
 {
+  double parseMpvDouble(const std::string& response)
+  {
+    size_t p = response.find("\"data\":");
+    if (p == std::string::npos) return -1.0;
+    p += 7;
+    while (p < response.size() && (response[p] == ' ' || response[p] == '\t')) p++;
+    if (p >= response.size() || response[p] == 'n') return -1.0;
+    return std::atof(response.c_str() + p);
+  }
+
+  std::string mpvSend(const std::string& socketPath, const std::string& jsonCmd)
+  {
+    if (socketPath.empty()) return "";
+
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) return "";
+
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 80000;
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+    struct sockaddr_un addr;
+    std::memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    std::strncpy(addr.sun_path, socketPath.c_str(), sizeof(addr.sun_path) - 1);
+
+    if (connect(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0)
+    {
+      close(fd);
+      return "";
+    }
+
+    std::string req = jsonCmd + "\n";
+    if (write(fd, req.c_str(), req.size()) < 0)
+    {
+      close(fd);
+      return "";
+    }
+
+    char buf[1024] = {};
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (n <= 0) return "";
+    return std::string(buf, static_cast<size_t>(n));
+  }
+
   const char* kExts[] = {".mp3", ".flac", ".ogg", ".wav", ".m4a", ".opus", nullptr};
 
   bool hasAudioExt(const std::string& name)
@@ -167,7 +215,7 @@ void MusicPlayerWidget::scanFiles()
   if (m_current >= m_files.size()) m_current = 0;
 }
 
-pid_t spawnPlayer(const std::string& path)
+pid_t spawnPlayer(const std::string& path, const std::string& socketPath)
 {
   pid_t pid = fork();
   if (pid != 0)
@@ -180,21 +228,17 @@ pid_t spawnPlayer(const std::string& path)
   freopen("/dev/null", "w", stdout);
   freopen("/dev/null", "w", stderr);
 
-  // mpg123 first (pure audio CLI, no window possible).
-  execlp("mpg123", "mpg123", "-q", path.c_str(),
-         static_cast<char*>(nullptr));
-
-  // mpv fallback with every window-suppressing flag.
+  std::string ipc = "--input-ipc-server=" + socketPath;
   execlp("mpv", "mpv",
-         "--no-video", "--no-terminal", "--really-quiet",
-         "--audio-display=no", "--force-window=no",
+         "--no-video",
+         "--vo=null",
+         "--no-terminal",
+         "--really-quiet",
+         "--audio-display=no",
+         "--force-window=no",
          "--no-resume-playback",
+         ipc.c_str(),
          path.c_str(), static_cast<char*>(nullptr));
-
-  // ffplay last resort.
-  execlp("ffplay", "ffplay", "-nodisp", "-autoexit",
-         "-loglevel", "quiet", path.c_str(),
-         static_cast<char*>(nullptr));
 
   _exit(1);
 }
@@ -205,7 +249,11 @@ void MusicPlayerWidget::playIndex(size_t idx)
   if (m_files.empty()) return;
   if (idx >= m_files.size()) idx = 0;
   m_current = idx;
-  m_playerPid = spawnPlayer(m_files[m_current]);
+
+  m_mpvSocket = "/tmp/mew-mpv-" + std::to_string(static_cast<long>(getpid())) + ".sock";
+  unlink(m_mpvSocket.c_str());
+
+  m_playerPid = spawnPlayer(m_files[m_current], m_mpvSocket);
   m_paused = false;
   m_trackName = baseName(m_files[m_current]);
   m_playStart = time(nullptr);
@@ -368,6 +416,8 @@ void MusicPlayerWidget::draw(Display* display, Window panel, int x, int baseline
 
 bool MusicPlayerWidget::tick()
 {
+  bool needRedraw = false;
+
   if (m_pendingKill > 0)
   {
     int status = 0;
@@ -378,13 +428,18 @@ bool MusicPlayerWidget::tick()
     }
   }
 
-  bool needRedraw = false;
-
   if (m_playerPid > 0 && !m_paused)
   {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     long long ms = static_cast<long long>(ts.tv_sec) * 1000 + ts.tv_nsec / 1000000;
+    if (ms - m_lastQueryMs >= 500)
+    {
+      m_lastQueryMs = ms;
+      m_position = queryMpv("time-pos");
+      m_duration = queryMpv("duration");
+      needRedraw = true;
+    }
     if (ms - m_lastEqMs >= 100)
     {
       m_lastEqMs = ms;
@@ -416,6 +471,70 @@ bool MusicPlayerWidget::tick()
   return needRedraw;
 }
 
+//bool MusicPlayerWidget::tick()
+//{
+//  if (m_pendingKill > 0)
+//  {
+//    int status = 0;
+//    pid_t r = waitpid(m_pendingKill, &status, WNOHANG);
+//    if (r == m_pendingKill || r == -1)
+//    {
+//      m_pendingKill = -1;
+//    }
+//  }
+//  if (m_playerPid > 0 && !m_paused)
+//  {
+//    struct timespec ts;
+//    clock_gettime(CLOCK_MONOTONIC, &ts);
+//    long long ms = static_cast<long long>(ts.tv_sec) * 1000 + ts.tv_nsec / 1000000;
+//    if (ms - m_lastQueryMs >= 500)
+//    {
+//      m_lastQueryMs = ms;
+//      m_position = queryMpv("time-pos");
+//      m_duration = queryMpv("duration");
+//      needRedraw = true;
+//    }
+//  }
+//
+//
+//  bool needRedraw = false;
+//
+//  if (m_playerPid > 0 && !m_paused)
+//  {
+//    struct timespec ts;
+//    clock_gettime(CLOCK_MONOTONIC, &ts);
+//    long long ms = static_cast<long long>(ts.tv_sec) * 1000 + ts.tv_nsec / 1000000;
+//    if (ms - m_lastEqMs >= 100)
+//    {
+//      m_lastEqMs = ms;
+//      m_eqFrame++;
+//      needRedraw = true;
+//    }
+//  }
+//
+//  if (m_playerPid <= 0)
+//  {
+//    return needRedraw;
+//  }
+//
+//  int status = 0;
+//  pid_t r = waitpid(m_playerPid, &status, WNOHANG);
+//  if (r != m_playerPid)
+//  {
+//    return needRedraw;
+//  }
+//
+//  m_playerPid = -1;
+//  m_paused = false;
+//
+//  if (m_playStart == 0 || (time(nullptr) - m_playStart) >= 1)
+//  {
+//    playNext();
+//    needRedraw = true;
+//  }
+//  return needRedraw;
+//}
+
 bool MusicPlayerWidget::onClick(int screenX)
 {
   (void)screenX;
@@ -442,6 +561,11 @@ std::string MusicPlayerWidget::tooltip() const
 
 bool MusicPlayerWidget::handleEscape()
 {
+  if (m_seekPopupActive)
+  {
+    hideSeekPopup();
+    return true;
+  }
   if (m_popupActive)
   {
     hidePopup();
@@ -675,12 +799,55 @@ bool MusicPlayerWidget::handlePopupKey(XKeyEvent* pEvent)
   return true;
 }
 
-bool MusicPlayerWidget::handlePopupClick(XButtonEvent* pEvent)
+bool MusicPlayerWidget::handlePopupMotion(XMotionEvent* pEvent)
 {
-  if (!pEvent || !m_popupActive)
+  if (!pEvent || !m_seekPopupActive || !m_seekDragging)
   {
     return false;
   }
+  const int barX = 12;
+  const int barW = kSeekPopupW - 24;
+  if (m_duration > 0 && pEvent->x >= barX && pEvent->x <= barX + barW)
+  {
+    double frac = static_cast<double>(pEvent->x - barX) / barW;
+    if (frac < 0) frac = 0;
+    if (frac > 1) frac = 1;
+    m_position = frac * m_duration;
+    drawSeekPopup();
+  }
+  return true;
+}
+
+void MusicPlayerWidget::commitSeek()
+{
+  if (m_seekPopupActive && m_seekDragging && m_duration > 0)
+  {
+    sendMpvSeek(m_position);
+  }
+  m_seekDragging = false;
+}
+
+bool MusicPlayerWidget::handlePopupClick(XButtonEvent* pEvent)
+{
+  if (!pEvent) return false;
+
+  if (m_seekPopupActive && pEvent->window == m_seekPopup)
+  {
+    const int barX = 12;
+    const int barW = kSeekPopupW - 24;
+    if (m_duration > 0 && pEvent->x >= barX && pEvent->x <= barX + barW)
+    {
+      double frac = static_cast<double>(pEvent->x - barX) / barW;
+      if (frac < 0) frac = 0;
+      if (frac > 1) frac = 1;
+      m_position = frac * m_duration;
+      drawSeekPopup();
+      m_seekDragging = true;
+    }
+    return true;
+  }
+
+  if (!m_popupActive) return false;
 
   // Rows start right after the header row.
   int ascent = m_font.font() ? m_font.font()->ascent : 10;
@@ -717,6 +884,125 @@ bool MusicPlayerWidget::handlePopupClick(XButtonEvent* pEvent)
   scanFiles();
   drawPopup();
   return true;
+}
+
+double MusicPlayerWidget::queryMpv(const char* property) const
+{
+  if (m_playerPid <= 0 || m_mpvSocket.empty()) return -1.0;
+  std::string cmd = std::string("{\"command\":[\"get_property\",\"") + property + "\"]}";
+  std::string resp = mpvSend(m_mpvSocket, cmd);
+  return parseMpvDouble(resp);
+}
+
+bool MusicPlayerWidget::sendMpvSeek(double seconds) const
+{
+  if (m_playerPid <= 0 || m_mpvSocket.empty()) return false;
+  char buf[128];
+  std::snprintf(buf, sizeof(buf),
+    "{\"command\":[\"seek\",%.3f,\"absolute\"]}", seconds);
+  std::string resp = mpvSend(m_mpvSocket, buf);
+  return resp.find("\"error\":\"success\"") != std::string::npos;
+}
+
+void MusicPlayerWidget::showSeekPopup(int screenX)
+{
+  Display* d = m_xconn.display();
+
+  int screenW = m_xconn.width();
+  int screenH = m_xconn.height();
+  int px = screenX + m_computedWidth / 2 - kSeekPopupW / 2;
+  int py = screenH - MewConst::panelHeight - kSeekPopupH - 4;
+  if (px < 0) px = 0;
+  if (px + kSeekPopupW > screenW) px = screenW - kSeekPopupW;
+
+  if (m_seekPopup == None)
+  {
+    XSetWindowAttributes attrs{};
+    attrs.override_redirect = True;
+    attrs.background_pixel = 0x1e1e1e;
+    attrs.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
+
+    m_seekPopup = XCreateWindow(
+      d, m_xconn.root(),
+      px, py, kSeekPopupW, kSeekPopupH, 1,
+      CopyFromParent, InputOutput, CopyFromParent,
+      CWOverrideRedirect | CWBackPixel | CWEventMask,
+      &attrs);
+  }
+  else
+  {
+    XMoveResizeWindow(d, m_seekPopup, px, py, kSeekPopupW, kSeekPopupH);
+  }
+
+  XMapRaised(d, m_seekPopup);
+  m_seekPopupActive = true;
+  m_seekDragging = false;
+  drawSeekPopup();
+}
+
+void MusicPlayerWidget::hideSeekPopup()
+{
+  if (m_seekPopup != None && m_seekPopupActive)
+  {
+    XUnmapWindow(m_xconn.display(), m_seekPopup);
+  }
+  m_seekPopupActive = false;
+  m_seekDragging = false;
+}
+
+void MusicPlayerWidget::drawSeekPopup()
+{
+  if (m_seekPopup == None || !m_seekPopupActive) return;
+
+  Display* d = m_xconn.display();
+  int screen = m_xconn.screen();
+  GC gc = XCreateGC(d, m_seekPopup, 0, nullptr);
+
+  XSetForeground(d, gc, 0x1e1e1e);
+  XFillRectangle(d, m_seekPopup, gc, 0, 0, kSeekPopupW, kSeekPopupH);
+  XSetForeground(d, gc, 0x555555);
+  XDrawRectangle(d, m_seekPopup, gc, 0, 0, kSeekPopupW - 1, kSeekPopupH - 1);
+
+  const int barX = 12;
+  const int barW = kSeekPopupW - 24;
+  const int barY = 20;
+  const int barH = 8;
+
+  double pos = m_position < 0 ? 0 : m_position;
+  double dur = m_duration <= 0 ? 1 : m_duration;
+  if (pos > dur) pos = dur;
+
+  int fillW = static_cast<int>((pos / dur) * barW);
+
+  XSetForeground(d, gc, 0x2a2a2a);
+  XFillRectangle(d, m_seekPopup, gc, barX, barY, barW, barH);
+
+  XSetForeground(d, gc, m_noteColor);
+  XFillRectangle(d, m_seekPopup, gc, barX, barY, fillW, barH);
+
+  XSetForeground(d, gc, 0xffffff);
+  XFillRectangle(d, m_seekPopup, gc,
+                 barX + fillW - 2, barY - 3, 4, barH + 6);
+
+  auto fmtTime = [](double s) -> std::string {
+    if (s < 0) s = 0;
+    int total = static_cast<int>(s);
+    int m = total / 60;
+    int sec = total % 60;
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "%d:%02d", m, sec);
+    return buf;
+  };
+
+  m_font.setColor(0xaaaaaa);
+  m_font.draw(d, screen, m_seekPopup, barX, kSeekPopupH - 10, fmtTime(pos));
+
+  std::string durStr = fmtTime(dur);
+  m_font.draw(d, screen, m_seekPopup,
+              barX + barW - static_cast<int>(durStr.size()) * 9,
+              kSeekPopupH - 10, durStr);
+
+  XFreeGC(d, gc);
 }
 
 static PanelWidget* createMusic(XConnection& xconn, FontRenderer& font)
