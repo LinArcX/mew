@@ -1,5 +1,5 @@
 #include "Panel.hpp"
-#include "mew_icon_data.h"
+#include "logo_data.h"
 
 #include <ctime>
 #include <algorithm>
@@ -76,8 +76,8 @@ void Panel::loadStartIcon()
   int w = 0;
   int h = 0;
   int ch = 0;
-  unsigned char* data = stbi_load_from_memory(mew_icon_png,
-    static_cast<int>(mew_icon_png_len),
+  unsigned char* data = stbi_load_from_memory(logo_png,
+    static_cast<int>(logo_png_len),
     &w, &h, &ch, 4);
   if (!data || w <= 0 || h <= 0)
   {

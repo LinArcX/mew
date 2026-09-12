@@ -10,10 +10,11 @@
 
 void Config::load()
 {
-  m_appGeometry.clear();
-  m_backgroundColor = 0x425645;
+  m_backgroundColor = 0x222222;
   m_backgroundImage.clear();
   m_useBackgroundImage = false;
+  m_useEmbeddedBackground = true;
+  m_appGeometry.clear();
 
   std::string path = Util::getConfigDirectory() + "/config";
   std::ifstream file(path);
@@ -74,6 +75,7 @@ void Config::load()
       }
       m_backgroundColor = std::strtoul(val.c_str(), nullptr, 0);
       m_useBackgroundImage = false;
+      m_useEmbeddedBackground = false;
     }
     else if (key == "panel_color")
     {
@@ -103,6 +105,7 @@ void Config::load()
     {
       m_backgroundImage = Util::expandHome(val);
       m_useBackgroundImage = true;
+      m_useEmbeddedBackground = false;
     }
     else if (key == "login_sound")
     {

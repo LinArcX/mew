@@ -50,6 +50,8 @@ public:
   /** @brief Parsed keybindings. */
   const std::vector<KeyBinding>& keybindings() const { return m_keybindings; }
 
+  bool useEmbeddedBackground() const { return m_useEmbeddedBackground; }
+
   struct AppGeometry
   {
     bool hasX = false;
@@ -78,12 +80,13 @@ private:
   double m_titleFontSize = 17.0;
   std::string m_mouseTheme;
   int m_mouseSize = 24;
-  unsigned long m_backgroundColor = 0x425645;
+  unsigned long m_backgroundColor = 0x222222;
   unsigned long m_panelColor = 0x222222;
   unsigned long m_panelItemColor = 0xffffff;
   unsigned long m_panelHoverColor = 0x0a64c8;
   std::string m_backgroundImage;
   bool m_useBackgroundImage = false;
+  bool m_useEmbeddedBackground = true;
   std::string m_loginSound;
   std::string m_logoutSound;
   std::string m_windowTheme;
