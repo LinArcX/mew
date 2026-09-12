@@ -816,6 +816,10 @@ int Mew::run()
     {
       m_pPanel->draw();
     }
+    if (m_pPanel)
+    {
+      m_pPanel->tick();
+    }
 
     if (XPending(m_xconn.display()) == 0)
     {

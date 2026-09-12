@@ -34,6 +34,11 @@ Panel::~Panel()
   {
     return;
   }
+  for (PanelWidget* pWidget : m_widgets)
+  {
+    delete pWidget;
+  }
+  m_widgets.clear();
   if (m_startMenu != None)
   {
     XDestroyWindow(d, m_startMenu);
@@ -229,6 +234,17 @@ void Panel::create()
 
   XMapRaised(d, m_window);
   loadStartIcon();
+  m_widgets = PanelWidgetRegistry::instance().create(
+    m_pConfig ? m_pConfig->panelWidgets() : std::vector<std::string>{},
+    m_xconn,
+    m_font);
+  for (PanelWidget* pWidget : m_widgets)
+  {
+    if (m_pConfig)
+    {
+      pWidget->configure(*m_pConfig);
+    }
+  }
   draw();
 }
 
@@ -771,6 +787,12 @@ void Panel::draw()
   m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 305, baseline, buf);
   m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 20, baseline, "\xef\x92\xa9");
 
+  int widgetX = 44;
+  for (PanelWidget* pWidget : m_widgets)
+  {
+    pWidget->draw(d, m_backBuffer, widgetX, baseline);
+    widgetX += pWidget->width();
+  }
   XCopyArea(d, m_backBuffer, m_window, gc, 0, 0, screenW, MewConst::panelHeight, 0, 0);
   XFreeGC(d, gc);
   m_lastTime = now;
@@ -1208,6 +1230,19 @@ void Panel::toggleKillSwitch()
 
 void Panel::handleClick(int x)
 {
+  int widgetX = 44;
+  for (PanelWidget* pWidget : m_widgets)
+  {
+    int w = pWidget->width();
+    if (x >= widgetX && x < widgetX + w)
+    {
+      pWidget->onClick();
+      draw();
+      return;
+    }
+    widgetX += w;
+  }
+
   int zone = hitTest(x);
   if (zone == 0)
   {
@@ -1344,6 +1379,14 @@ void Panel::showTooltip(int x, const char* text)
   XFillRectangle(d, m_tooltip, gc, 0, 0, tw, th);
   m_font.draw(d, m_xconn.screen(), m_tooltip, 8, 16, text);
   XFreeGC(d, gc);
+}
+
+void Panel::tick()
+{
+  for (PanelWidget* pWidget : m_widgets)
+  {
+    pWidget->tick();
+  }
 }
 
 void Panel::handleMotion(int x)

@@ -2,6 +2,7 @@
 
 #include <X11/Xlib.h>
 #include <string>
+#include "../Config.hpp"
 
 /**
  * @brief Interface for a panel plugin widget.
@@ -40,4 +41,9 @@ public:
    * @brief Tooltip text when hovered, or empty.
    */
   virtual std::string tooltip() const { return {}; }
+
+  /** @brief Optional per-event-loop-tick hook. */
+  virtual void tick() {}
+
+  virtual void configure(const Config& config) { (void)config; }
 };

@@ -17,6 +17,7 @@ void Config::load()
   m_useEmbeddedSound = true;
   m_useEmbeddedLogoutSound = true;
   m_appGeometry.clear();
+  m_panelWidgets.clear();
 
   std::string path = Util::getConfigDirectory() + "/config";
   std::ifstream file(path);
@@ -55,6 +56,24 @@ void Config::load()
       if (m_titleFontSize < 8.0)
       {
         m_titleFontSize = 8.0;
+      }
+    }
+    else if (key == "weather_location")
+    {
+      m_weatherLocation = val;
+    }
+    else if (key == "panel_widgets")
+    {
+      m_panelWidgets.clear();
+      std::stringstream ss(val);
+      std::string item;
+      while (std::getline(ss, item, ','))
+      {
+        item = Util::trim(item);
+        if (!item.empty())
+        {
+          m_panelWidgets.push_back(item);
+        }
       }
     }
     else if (key == "mouse_theme")

@@ -4,6 +4,7 @@
 #include "Config.hpp"
 #include "FontRenderer.hpp"
 #include "XConnection.hpp"
+#include "panel/PanelWidgetRegistry.hpp"
 
 #include <X11/Xlib.h>
 #include <ctime>
@@ -198,6 +199,8 @@ public:
    */
   time_t lastTime() const { return m_lastTime; }
 
+  void tick();
+
 private:
   void updateVolume();
   void resolveVolumeControl(std::string& device, std::string& control) const;
@@ -260,6 +263,7 @@ private:
 
   Pixmap m_backBuffer = None;
   int m_backBufferW = 0;
+  std::vector<PanelWidget*> m_widgets;
 
   void (*m_onShowLauncher)() = nullptr;
   void (*m_onShowKeybindings)() = nullptr;

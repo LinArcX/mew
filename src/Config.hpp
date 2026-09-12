@@ -59,6 +59,8 @@ public:
   bool useEmbeddedSound() const { return m_useEmbeddedSound; }
   bool useEmbeddedLogoutSound() const { return m_useEmbeddedLogoutSound; }
 
+  const std::vector<std::string>& panelWidgets() const { return m_panelWidgets;}
+
   struct AppGeometry
   {
     bool hasX = false;
@@ -78,6 +80,7 @@ public:
    * @return Pointer to geometry, or nullptr if unset.
    */
   const AppGeometry* appGeometry(const std::string& appName) const;
+  const std::string& weatherLocation() const { return m_weatherLocation; }
 
 private:
   bool parseKeybinding(const std::string& line, std::string& key, std::string& command);
@@ -101,6 +104,8 @@ private:
   std::string m_windowTheme;
   std::vector<KeyBinding> m_keybindings;
   std::map<std::string, AppGeometry> m_appGeometry;
+  std::vector<std::string> m_panelWidgets;
+  std::string m_weatherLocation;
 
   unsigned long m_activeBorderColor = 0x333333;
   unsigned long m_activeTitleColor = 0x444444;
