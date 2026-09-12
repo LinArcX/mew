@@ -821,6 +821,10 @@ void Panel::hideMenus()
   {
     XUnmapWindow(m_xconn.display(), m_startMenu);
   }
+  if (m_startMenuActive)
+  {
+    XUngrabKeyboard(m_xconn.display(), CurrentTime);
+  }
   m_startMenuActive = false;
 }
 
@@ -921,6 +925,7 @@ void Panel::showStartMenu()
   }
 
   XMapRaised(d, m_startMenu);
+  XGrabKeyboard(d, m_startMenu, True, GrabModeAsync, GrabModeAsync, CurrentTime);
   m_startMenuActive = true;
   drawStartMenu();
 }
@@ -1215,6 +1220,11 @@ void Panel::handleClick(int x)
       showStartMenu();
     }
     return;
+  }
+  // Any other click on the panel closes any open menus first.
+  if (m_startMenuActive || m_powerMenuActive || m_netMenuActive)
+  {
+    hideMenus();
   }
   if (zone == 1)
   {
