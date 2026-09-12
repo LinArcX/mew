@@ -5,6 +5,16 @@
 
 EmbeddedFont::~EmbeddedFont()
 {
+  if (m_colorReady && m_pDisplay)
+  {
+    XftColorFree(
+      m_pDisplay,
+      DefaultVisual(m_pDisplay, m_screen),
+      DefaultColormap(m_pDisplay, m_screen),
+      &m_color);
+    m_colorReady = false;
+  }
+
   if (m_pFont && m_pDisplay)
   {
     XftFontClose(m_pDisplay, m_pFont);
@@ -66,20 +76,60 @@ void EmbeddedFont::draw(Display* pDisplay, int screen, Window window,
     DefaultVisual(pDisplay, screen),
     DefaultColormap(pDisplay, screen));
 
-  XftColor color;
-  XRenderColor rc;
-  rc.red = 0xffff;
-  rc.green = 0xffff;
-  rc.blue = 0xffff;
-  rc.alpha = 0xffff;
-  XftColorAllocValue(pDisplay, DefaultVisual(pDisplay, screen),
-                     DefaultColormap(pDisplay, screen), &rc, &color);
+  if (!m_colorReady)
+  {
+    setColor(0xffffff);
+  }
 
-  XftDrawStringUtf8(pDraw, &color, m_pFont, x, y,
+  XftDrawStringUtf8(pDraw, &m_color, m_pFont, x, y,
     reinterpret_cast<const FcChar8*>(text.c_str()),
     static_cast<int>(text.size()));
 
-  XftColorFree(pDisplay, DefaultVisual(pDisplay, screen),
-               DefaultColormap(pDisplay, screen), &color);
+  //XftColor color;
+  //XRenderColor rc;
+  //rc.red = 0xffff;
+  //rc.green = 0xffff;
+  //rc.blue = 0xffff;
+  //rc.alpha = 0xffff;
+  //XftColorAllocValue(pDisplay, DefaultVisual(pDisplay, screen),
+  //                   DefaultColormap(pDisplay, screen), &rc, &color);
+
+  //XftDrawStringUtf8(pDraw, &color, m_pFont, x, y,
+  //  reinterpret_cast<const FcChar8*>(text.c_str()),
+  //  static_cast<int>(text.size()));
+
+  //XftColorFree(pDisplay, DefaultVisual(pDisplay, screen),
+  //             DefaultColormap(pDisplay, screen), &color);
   XftDrawDestroy(pDraw);
+}
+
+void EmbeddedFont::setColor(unsigned long color)
+{
+  if (!m_pDisplay)
+  {
+    return;
+  }
+  if (m_colorReady)
+  {
+    XftColorFree(
+      m_pDisplay,
+      DefaultVisual(m_pDisplay, m_screen),
+      DefaultColormap(m_pDisplay, m_screen),
+      &m_color);
+    m_colorReady = false;
+  }
+  XRenderColor rc;
+  rc.red   = static_cast<unsigned short>(((color >> 16) & 0xff) * 257);
+  rc.green = static_cast<unsigned short>(((color >> 8)  & 0xff) * 257);
+  rc.blue  = static_cast<unsigned short>(( color        & 0xff) * 257);
+  rc.alpha = 0xffff;
+  if (XftColorAllocValue(
+        m_pDisplay,
+        DefaultVisual(m_pDisplay, m_screen),
+        DefaultColormap(m_pDisplay, m_screen),
+        &rc,
+        &m_color))
+  {
+    m_colorReady = true;
+  }
 }

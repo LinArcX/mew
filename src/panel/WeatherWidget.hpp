@@ -27,7 +27,7 @@ public:
   const char* id() const override { return "weather"; }
   int width() const override { return kWidth; }
   void draw(Display* display, Window panel, int x, int baseline) override;
-  bool onClick() override;
+  bool onClick(int screenX) override;
   std::string tooltip() const override;
   void tick() override;
   void configure(const Config& config) override;
@@ -59,6 +59,8 @@ private:
 
   std::vector<ForecastDay> m_forecast;
   EmbeddedFont m_iconFont;
+  unsigned long m_iconColor = 0xffffff;
+  unsigned long m_textColor = 0xffffff;
 
   Window m_popup = None;
   int m_popupW = 0;
@@ -68,7 +70,7 @@ private:
 
   static constexpr int kRefreshSeconds = 30 * 60;
   static constexpr int kWidth = 140;
-  static constexpr int kPopupWidth = 240;
-  static constexpr int kPopupRowH = 22;
+  static constexpr int kPopupWidth = 280;
+  static constexpr int kPopupRowH = 28;
   static constexpr int kPopupPad = 8;
 };

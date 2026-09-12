@@ -58,6 +58,22 @@ void Config::load()
         m_titleFontSize = 8.0;
       }
     }
+    else if (key == "weather_icon_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_weatherIconColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "weather_text_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_weatherTextColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
     else if (key == "weather_location")
     {
       m_weatherLocation = val;

@@ -793,9 +793,22 @@ void Panel::draw()
   int widgetX = 44;
   for (PanelWidget* pWidget : m_widgets)
   {
+    int w = pWidget->width();
+    if (pWidget == m_pHoverWidget)
+    {
+      XSetForeground(d, gc, m_hoverColor);
+      XFillRectangle(d, m_backBuffer, gc, widgetX, 0, w, MewConst::panelHeight);
+    }
     pWidget->draw(d, m_backBuffer, widgetX, baseline);
-    widgetX += pWidget->width();
+    widgetX += w;
   }
+
+  //int widgetX = 44;
+  //for (PanelWidget* pWidget : m_widgets)
+  //{
+  //  pWidget->draw(d, m_backBuffer, widgetX, baseline);
+  //  widgetX += pWidget->width();
+  //}
   XCopyArea(d, m_backBuffer, m_window, gc, 0, 0, screenW, MewConst::panelHeight, 0, 0);
   XFreeGC(d, gc);
   m_lastTime = now;
@@ -1239,7 +1252,7 @@ void Panel::handleClick(int x)
     int w = pWidget->width();
     if (x >= widgetX && x < widgetX + w)
     {
-      pWidget->onClick();
+      pWidget->onClick(widgetX);
       draw();
       return;
     }
@@ -1394,6 +1407,7 @@ void Panel::tick()
 
 void Panel::handleMotion(int x)
 {
+  // Widget strip hover (highest priority)
   int widgetX = 44;
   PanelWidget* pOver = nullptr;
   for (PanelWidget* pWidget : m_widgets)
@@ -1406,7 +1420,9 @@ void Panel::handleMotion(int x)
     }
     widgetX += w;
   }
-  if (pOver != m_pHoverWidget)
+
+  bool widgetChanged = (pOver != m_pHoverWidget);
+  if (widgetChanged)
   {
     if (m_pHoverWidget)
     {
@@ -1417,8 +1433,24 @@ void Panel::handleMotion(int x)
     {
       pOver->onHover(widgetX);
     }
+    draw();
   }
 
+  if (pOver)
+  {
+    std::string tip = pOver->tooltip();
+    if (!tip.empty())
+    {
+      showTooltip(x, tip.c_str());
+    }
+    else
+    {
+      hideTooltip();
+    }
+    return;
+  }
+
+  // Existing zone-based hover
   int zone = hitTest(x);
   if (zone == m_hoverZone)
   {
@@ -1459,6 +1491,74 @@ void Panel::handleMotion(int x)
     hideTooltip();
   }
 }
+
+//void Panel::handleMotion(int x)
+//{
+//  int widgetX = 44;
+//  PanelWidget* pOver = nullptr;
+//  for (PanelWidget* pWidget : m_widgets)
+//  {
+//    int w = pWidget->width();
+//    if (x >= widgetX && x < widgetX + w)
+//    {
+//      pOver = pWidget;
+//      break;
+//    }
+//    widgetX += w;
+//  }
+//  if (pOver != m_pHoverWidget)
+//  {
+//    if (m_pHoverWidget)
+//    {
+//      m_pHoverWidget->onUnhover();
+//    }
+//    m_pHoverWidget = pOver;
+//    if (pOver)
+//    {
+//      pOver->onHover(widgetX);
+//    }
+//  }
+//
+//  int zone = hitTest(x);
+//  if (zone == m_hoverZone)
+//  {
+//    return;
+//  }
+//  m_hoverZone = zone;
+//  draw();
+//  if (zone == 0)
+//  {
+//    showTooltip(x, "Start menu");
+//  }
+//  else if (zone == 1)
+//  {
+//    showTooltip(x, "Internet kill-switch");
+//  }
+//  else if (zone == 2)
+//  {
+//    showTooltip(x, "Network interface");
+//  }
+//  else if (zone == 3)
+//  {
+//    showTooltip(x, "Keyboard layout (click to cycle)");
+//  }
+//  else if (zone == 4)
+//  {
+//    showTooltip(x, "Volume (click to mute)");
+//  }
+//  else if (zone == 5)
+//  {
+//    showTooltip(x, "Show desktop");
+//  }
+//  else if (zone == 6)
+//  {
+//    showTooltip(x, "Date and time");
+//  }
+//  else
+//  {
+//    hideTooltip();
+//  }
+//}
 
 bool Panel::handleEscape()
 {

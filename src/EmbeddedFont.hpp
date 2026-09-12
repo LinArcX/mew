@@ -24,10 +24,13 @@ public:
   void draw(Display* pDisplay, int screen, Window window,
             int x, int y, const std::string& text);
 
+  void setColor(unsigned long color);
 private:
   FT_Library m_ftLibrary = nullptr;
   FT_Face m_ftFace = nullptr;
   XftFont* m_pFont = nullptr;
   Display* m_pDisplay = nullptr;
   int m_screen = 0;
+  XftColor m_color{};
+  bool m_colorReady = false;
 };

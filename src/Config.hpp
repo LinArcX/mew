@@ -81,6 +81,8 @@ public:
    */
   const AppGeometry* appGeometry(const std::string& appName) const;
   const std::string& weatherLocation() const { return m_weatherLocation; }
+  unsigned long weatherIconColor() const { return m_weatherIconColor; }
+  unsigned long weatherTextColor() const { return m_weatherTextColor; }
 
 private:
   bool parseKeybinding(const std::string& line, std::string& key, std::string& command);
@@ -106,6 +108,8 @@ private:
   std::map<std::string, AppGeometry> m_appGeometry;
   std::vector<std::string> m_panelWidgets;
   std::string m_weatherLocation;
+  unsigned long m_weatherIconColor = 0xffffff;
+  unsigned long m_weatherTextColor = 0xffffff;
 
   unsigned long m_activeBorderColor = 0x333333;
   unsigned long m_activeTitleColor = 0x444444;

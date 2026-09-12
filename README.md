@@ -86,7 +86,6 @@ wezterm &
 # Available modifers: W(indow, Meta), A(lt), C(ontrol), S(hift)
 
 # Apps Shortcuts
-key="W-q", command="/home/$USER/scripts/power_manager.sh"
 key="W-t", command="wezterm start"
 key="W-n", command="nemo"
 
@@ -113,23 +112,20 @@ key="W-p" command="power-manager"
 
 3. `~/.config/mew/config` --> contains general configurations:
 ```ini
-title_font_size=15
-
-background_color=#3B3C3C
-background_image=~/Pictures/logo.jpg
-
-panel_color=0x222222
-
-mouse_size=24
-mouse_theme=dmz-white
-
-login_sound=/home/audio/startup.wav
-logout_sound=/home/audio/shutdown.wav
+# general
+title_font_size    = 15
+mouse_size         = 24
+mouse_theme        = dmz-white
 
 # panel
-panel_color=#222222 #524C4B  
-panel_item_color=#ffffff #9FA192  #CC8B88 
-panel_hover_color=#0a64c8 #6E6481  
+panel_widgets      = weather #,cpu,memory
+
+weather_location   = Antibes
+weather_icon_color = #ffcc44
+weather_text_color = #ffffff
+
+# apps
+meld.maximized     = true  
 ```
 
 ## gtk customization

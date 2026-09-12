@@ -35,7 +35,7 @@ public:
    * @brief Handle a click inside the widget.
    * @return true if handled.
    */
-  virtual bool onClick() = 0;
+  virtual bool onClick(int screenX) = 0;
 
   /**
    * @brief Tooltip text when hovered, or empty.

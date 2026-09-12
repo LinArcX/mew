@@ -219,45 +219,11 @@ const char* WeatherWidget::iconForCode(int code)
   return "\xef\x80\x93";
 }
 
-//const char* WeatherWidget::iconForDesc(const std::string& desc)
-//{
-//  if (desc.find("Sunny") != std::string::npos || desc.find("Clear") != std::string::npos)
-//    return "\xe2\x98\x80";
-//  if (desc.find("Partly") != std::string::npos || desc.find("Patchy") != std::string::npos)
-//    return "\xe2\x9b\x85";
-//  if (desc.find("Cloudy") != std::string::npos || desc.find("Overcast") != std::string::npos)
-//    return "\xe2\x98\x81";
-//  if (desc.find("rain") != std::string::npos || desc.find("drizzle") != std::string::npos
-//      || desc.find("sleet") != std::string::npos)
-//    return "\xe2\x98\x94";
-//  if (desc.find("snow") != std::string::npos || desc.find("blizzard") != std::string::npos
-//      || desc.find("ice") != std::string::npos)
-//    return "\xe2\x98\x83";
-//  if (desc.find("Thunder") != std::string::npos || desc.find("storm") != std::string::npos)
-//    return "\xe2\x9a\xa1";
-//  if (desc.find("Fog") != std::string::npos || desc.find("Mist") != std::string::npos)
-//    return "\xf0\x9f\x8c\x81";
-//  return "\xe2\x98\x81";
-//}
-//
-//const char* WeatherWidget::iconForCode(int code)
-//{
-//  if (code == 0) return "\xe2\x98\x80";                        // Clear
-//  if (code <= 2) return "\xe2\x9b\x85";                        // Partly cloudy
-//  if (code == 3) return "\xe2\x98\x81";                        // Overcast
-//  if (code == 45 || code == 48) return "\xf0\x9f\x8c\x81";     // Fog
-//  if (code >= 51 && code <= 57) return "\xe2\x98\x94";         // Drizzle
-//  if (code >= 61 && code <= 67) return "\xe2\x98\x94";         // Rain
-//  if (code >= 71 && code <= 77) return "\xe2\x98\x83";         // Snow
-//  if (code >= 80 && code <= 82) return "\xe2\x98\x94";         // Showers
-//  if (code >= 85 && code <= 86) return "\xe2\x98\x83";         // Snow showers
-//  if (code >= 95) return "\xe2\x9a\xa1";                       // Thunderstorm
-//  return "\xe2\x98\x81";
-//}
-
 void WeatherWidget::configure(const Config& config)
 {
   m_locationOverride = config.weatherLocation();
+  m_iconColor = config.weatherIconColor();
+  m_textColor = config.weatherTextColor();
 }
 
 bool WeatherWidget::fetch()
@@ -362,73 +328,77 @@ void WeatherWidget::tick()
   fetch();
 }
 
-void WeatherWidget::draw(Display* display, Window panel, int x, int baseline)
+void WeatherWidget::drawPopup()
 {
-  if (!m_valid)
+  if (m_popup == None || !m_popupActive)
   {
     return;
   }
+
+  Display* d = m_xconn.display();
   int screen = m_xconn.screen();
+  GC gc = XCreateGC(d, m_popup, 0, nullptr);
 
-  XftDraw* xftDraw = XftDrawCreate(
-    display, panel,
-    DefaultVisual(display, screen),
-    DefaultColormap(display, screen));
+  XSetForeground(d, gc, 0x1e1e1e);
+  XFillRectangle(d, m_popup, gc, 0, 0, m_popupW, m_popupH);
+  XSetForeground(d, gc, 0x555555);
+  XDrawRectangle(d, m_popup, gc, 0, 0, m_popupW - 1, m_popupH - 1);
 
-  XftColor white;
-  XRenderColor rc;
-  rc.red = 0xffff; rc.green = 0xffff; rc.blue = 0xffff; rc.alpha = 0xffff;
-  XftColorAllocValue(display, DefaultVisual(display, screen),
-                     DefaultColormap(display, screen), &rc, &white);
-
-  if (m_iconFont.font())
-  {
-    m_iconFont.draw(display, screen, panel, x, baseline, m_icon);
-    x += m_iconFont.advanceWidth() + 4;
-  }
-
-  //if (m_pIconFont)
-  //{
-  //  XftDrawStringUtf8(xftDraw, &white, m_pIconFont, x, baseline,
-  //    reinterpret_cast<const FcChar8*>(m_icon.c_str()),
-  //    static_cast<int>(m_icon.size()));
-  //  x += m_pIconFont->max_advance_width + 4;
-  //}
-
-  std::string text = m_location + " " + m_temp + "\xc2\xb0" + "C";
   XftFont* pFont = m_font.font();
-  if (pFont)
+  int ascent = pFont ? pFont->ascent : 10;
+  int iconW = m_iconFont.advanceWidth();
+  if (iconW <= 0)
   {
-    XftDrawStringUtf8(xftDraw, &white, pFont, x, baseline,
-      reinterpret_cast<const FcChar8*>(text.c_str()),
-      static_cast<int>(text.size()));
+    iconW = 18;
   }
 
-  XftColorFree(display, DefaultVisual(display, screen),
-               DefaultColormap(display, screen), &white);
-  XftDrawDestroy(xftDraw);
-}
+  const int colDate = kPopupPad + 4;
+  const int colIcon = kPopupPad + 78;
+  const int colTemp = colIcon + iconW + 14;
 
-//void WeatherWidget::draw(Display* display, Window panel, int x, int baseline)
-//{
-//  if (!m_valid)
-//  {
-//    return;
-//  }
-//  std::string text = m_icon + " " + m_location + " " + m_temp + "\xc2\xb0" + "C";
-//  m_font.draw(display, m_xconn.screen(), panel, x, baseline, text);
-//}
+  for (size_t i = 0; i < m_forecast.size(); ++i)
+  {
+    const ForecastDay& day = m_forecast[i];
 
-bool WeatherWidget::onClick()
-{
-  m_lastFetch = 0;
-  fetch();
-  return true;
-}
+    int rowTop = kPopupPad + static_cast<int>(i) * kPopupRowH;
+    int baseline = rowTop + ascent;
 
-std::string WeatherWidget::tooltip() const
-{
-  return {};
+    int t = std::atoi(day.max.c_str());
+
+    unsigned long rowBg = 0x1e1e1e;
+    unsigned long textColor = 0xffffff;
+
+    if (t >= 40)        { rowBg = 0xcc2222; textColor = 0xffffff; }
+    else if (t >= 29)   { rowBg = 0xdd8822; textColor = 0x000000; }
+    else if (t >= 18)   { rowBg = 0x22aa44; textColor = 0x000000; }
+    else if (t >= 8)    { rowBg = 0xffffff; textColor = 0x000000; }
+    else if (t >= 0)    { rowBg = 0xaaddff; textColor = 0x000000; }
+    else if (t >= -10)  { rowBg = 0x2266cc; textColor = 0xffffff; }
+    else if (t >= -30)  { rowBg = 0x662299; textColor = 0xffffff; }
+    else                { rowBg = 0x3a1a55; textColor = 0xffffff; }
+
+    if (rowBg != 0x1e1e1e)
+    {
+      XSetForeground(d, gc, rowBg);
+      XFillRectangle(d, m_popup, gc, 2, rowTop, m_popupW - 4, kPopupRowH);
+    }
+
+    m_font.setColor(textColor);
+    m_font.draw(d, screen, m_popup, colDate, baseline, day.date);
+
+    if (m_iconFont.font())
+    {
+      m_iconFont.setColor(textColor);
+      m_iconFont.draw(d, screen, m_popup, colIcon, baseline, day.icon);
+    }
+
+    std::string temps = day.max + "\xc2\xb0" + " / " + day.min + "\xc2\xb0";
+    m_font.draw(d, screen, m_popup, colTemp, baseline, temps);
+  }
+
+  m_font.setColor(0xffffff);
+
+  XFreeGC(d, gc);
 }
 
 void WeatherWidget::showPopup(int screenX)
@@ -504,138 +474,38 @@ void WeatherWidget::hidePopup()
   m_popupActive = false;
 }
 
-void WeatherWidget::drawPopup()
-{
-  if (m_popup == None || !m_popupActive)
-  {
-    return;
-  }
-
-  Display* d = m_xconn.display();
-  int screen = m_xconn.screen();
-  GC gc = XCreateGC(d, m_popup, 0, nullptr);
-
-  XSetForeground(d, gc, 0x1e1e1e);
-  XFillRectangle(d, m_popup, gc, 0, 0, m_popupW, m_popupH);
-  XSetForeground(d, gc, 0x555555);
-  XDrawRectangle(d, m_popup, gc, 0, 0, m_popupW - 1, m_popupH - 1);
-
-  XftFont* pFont = m_font.font();
-  int iconW = m_iconFont.advanceWidth();
-  if (iconW <= 0)
-  {
-    iconW = 14;
-  }
-
-  int baseline0 = kPopupPad + (pFont ? pFont->ascent : 10);
-
-  for (size_t i = 0; i < m_forecast.size(); ++i)
-  {
-    const ForecastDay& day = m_forecast[i];
-    int y = baseline0 + static_cast<int>(i) * kPopupRowH;
-    int x = kPopupPad + 4;
-
-    m_font.draw(d, screen, m_popup, x, y, day.date);
-    x += 60;
-
-    if (m_iconFont.font())
-    {
-      m_iconFont.draw(d, screen, m_popup, x, y, day.icon);
-    }
-    x += iconW + 8;
-
-    std::string temps = day.max + "\xc2\xb0" + " / " + day.min + "\xc2\xb0";
-    m_font.draw(d, screen, m_popup, x, y, temps);
-  }
-
-  XFreeGC(d, gc);
-}
-
-//void WeatherWidget::drawPopup()
-//{
-//  if (m_popup == None || !m_popupActive)
-//  {
-//    return;
-//  }
-//  Display* d = m_xconn.display();
-//  int screen = m_xconn.screen();
-//  GC gc = XCreateGC(d, m_popup, 0, nullptr);
-//
-//  XSetForeground(d, gc, 0x1e1e1e);
-//  XFillRectangle(d, m_popup, gc, 0, 0, m_popupW, m_popupH);
-//  XSetForeground(d, gc, 0x555555);
-//  XDrawRectangle(d, m_popup, gc, 0, 0, m_popupW - 1, m_popupH - 1);
-//
-//  XftFont* pFont = m_font.font();
-//  XftDraw* xftDraw = XftDrawCreate(
-//    d, m_popup,
-//    DefaultVisual(d, screen),
-//    DefaultColormap(d, screen));
-//
-//  XftColor white;
-//  XRenderColor rc;
-//  rc.red = 0xffff; rc.green = 0xffff; rc.blue = 0xffff; rc.alpha = 0xffff;
-//  XftColorAllocValue(d, DefaultVisual(d, screen), DefaultColormap(d, screen), &rc, &white);
-//
-//  int iconW = m_pIconFont ? m_pIconFont->max_advance_width : 12;
-//  int baseline0 = kPopupPad + (pFont ? pFont->ascent : 10);
-//
-//  for (size_t i = 0; i < m_forecast.size(); ++i)
-//  {
-//    const ForecastDay& day = m_forecast[i];
-//    int y = baseline0 + static_cast<int>(i) * kPopupRowH;
-//    int x = kPopupPad + 4;
-//
-//    // Date
-//    XftDrawStringUtf8(xftDraw, &white, pFont, x, y,
-//      reinterpret_cast<const FcChar8*>(day.date.c_str()),
-//      static_cast<int>(day.date.size()));
-//    x += 60;
-//
-//    // Icon (fallback font)
-//    if (m_pIconFont)
-//    {
-//      XftDrawStringUtf8(xftDraw, &white, m_pIconFont, x, y,
-//        reinterpret_cast<const FcChar8*>(day.icon.c_str()),
-//        static_cast<int>(day.icon.size()));
-//    }
-//    else
-//    {
-//      m_font.draw(d, screen, m_popup, x, y, day.icon);
-//    }
-//    x += iconW + 8;
-//
-//    // Max / min
-//    std::string temps = day.max + "\xc2\xb0" + " / " + day.min + "\xc2\xb0";
-//    XftDrawStringUtf8(xftDraw, &white, pFont, x, y,
-//      reinterpret_cast<const FcChar8*>(temps.c_str()),
-//      static_cast<int>(temps.size()));
-//  }
-//
-//  XftColorFree(d, DefaultVisual(d, screen), DefaultColormap(d, screen), &white);
-//  XftDrawDestroy(xftDraw);
-//  XFreeGC(d, gc);
-//}
-
 void WeatherWidget::onHover(int screenX)
 {
-  if (m_forecast.empty())
-  {
-    // First hover: fetch forecast if we don't have it yet.
-    if (!m_valid)
-    {
-      fetch();
-    }
-  }
-  if (!m_forecast.empty())
-  {
-    showPopup(screenX);
-  }
+  (void)screenX;
 }
 
 void WeatherWidget::onUnhover()
 {
-  hidePopup();
+  // Popup stays open until ESC or click outside. Nothing to do here.
+}
+
+std::string WeatherWidget::tooltip() const
+{
+  if (!m_valid)
+  {
+    return "Weather: loading...";
+  }
+  return m_location + ": " + m_desc + ", " + m_temp + "C";
+}
+
+bool WeatherWidget::onClick(int screenX)
+{
+  time_t now = time(nullptr);
+  if (!m_valid || (now - m_lastFetch) >= kRefreshSeconds)
+  {
+    fetch();
+  }
+  if (m_forecast.empty())
+  {
+    return false;
+  }
+  showPopup(screenX);
+  return true;
 }
 
 bool WeatherWidget::handleEscape()
@@ -648,9 +518,32 @@ bool WeatherWidget::handleEscape()
   return false;
 }
 
+void WeatherWidget::draw(Display* display, Window panel, int x, int baseline)
+{
+  if (!m_valid)
+  {
+    return;
+  }
+
+  int screen = m_xconn.screen();
+
+  if (m_iconFont.font())
+  {
+    m_iconFont.setColor(m_iconColor);
+    m_iconFont.draw(display, screen, panel, x, baseline, m_icon);
+    x += m_iconFont.advanceWidth() + 4;
+  }
+
+  m_font.setColor(m_textColor);
+  std::string text = m_location + " " + m_temp + "\xc2\xb0" + "C";
+  m_font.draw(display, screen, panel, x, baseline, text);
+}
+
 static PanelWidget* createWeather(XConnection& xconn, FontRenderer& font)
 {
   return new WeatherWidget(xconn, font);
 }
 
 static PanelWidgetRegistrar s_weatherRegistrar("weather", createWeather);
+
+
