@@ -684,6 +684,20 @@ void Mew::processEvent(XEvent& event)
     case KeyPress:
     {
       XKeyEvent* key = &event.xkey;
+      if (m_pPanel)
+      {
+        bool handled = false;
+        for (PanelWidget* pW : m_pPanel->widgets())
+        {
+          if (pW->hasFocusedPopup() && pW->handlePopupKey(key))
+          {
+            handled = true;
+            break;
+          }
+        }
+        if (handled) break;
+      }
+
       KeySym keysymEarly = XLookupKeysym(key, 0);
       if (keysymEarly == XK_Escape)
       {

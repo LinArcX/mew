@@ -1,5 +1,6 @@
 #include "Panel.hpp"
 #include "logo_data.h"
+#include "panel/MusicPlayerWidget.hpp"
 
 #include <ctime>
 #include <algorithm>
@@ -1247,17 +1248,53 @@ void Panel::toggleKillSwitch()
 void Panel::handleClick(int x)
 {
   int widgetX = 44;
-  for (PanelWidget* pWidget : m_widgets)
+   for (PanelWidget* pWidget : m_widgets)
   {
     int w = pWidget->width();
     if (x >= widgetX && x < widgetX + w)
     {
+      std::string id = pWidget->id();
+      if (id == "music")
+      {
+        int localX = x - widgetX;
+        MusicPlayerWidget* pm = static_cast<MusicPlayerWidget*>(pWidget);
+        if (localX < 4 * 24)
+        {
+          int idx = localX / 24;
+          if (idx == 0) pm->playPrev();
+          else if (idx == 1) pm->togglePause();
+          else if (idx == 2) pm->stopPlayback();
+          else if (idx == 3) pm->playNext();
+          if (idx == 0 && pm->tooltip() == "Music player (no files)")
+          {
+            pm->playPrev();
+          }
+        }
+        else
+        {
+          pm->showPopup(widgetX);
+        }
+        draw();
+        return;
+      }
       pWidget->onClick(widgetX);
       draw();
       return;
     }
     widgetX += w;
   }
+
+  //for (PanelWidget* pWidget : m_widgets)
+  //{
+  //  int w = pWidget->width();
+  //  if (x >= widgetX && x < widgetX + w)
+  //  {
+  //    pWidget->onClick(widgetX);
+  //    draw();
+  //    return;
+  //  }
+  //  widgetX += w;
+  //}
 
   int zone = hitTest(x);
   if (zone == 0)

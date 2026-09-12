@@ -8,6 +8,7 @@ garbage/*
 # auto-generated fonts
 src/hurmit_font_data.h
 src/weather_font_data.h
+src/symbols_font_data.h
 
 # auto-generated images
 src/logoFull_data.h

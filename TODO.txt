@@ -4,7 +4,6 @@
 - [ ] add icons to power-managment pop-up.
 - [ ] add icons to switcher pop-up.
 - [ ] add icons to start-menu items.
-- [ ] implement a music player widget in panel.
 - [ ] sometimes, i want to upload files to some website, so normally nemo pops up with image preview panel inside it.
   in this cases, the buttons in bottom(Canel, Ok) are not fully visible. for example just half of OK button is visilbe. fix it.
 - [ ] ability to change font size/name for active/inactive windows.
@@ -12,7 +11,8 @@
   So check if the app, or window already has frame, if it has don't make any frame around it.
 
 ## panel
-- [ ] implement a minimal music player as optional widget panel. next after weather widget.
+- [ ] implement cpu widget as optioanl for panel. (when you click on it, it should shows you all cores and usage of each)
+- [ ] implement ram widget as optioanl for panel. (when you click on it, it should show you the 10 top apps --sorted-- that uses most ram)
 - [ ] New Feature: When i hover over date/time in panel, shows a pop-up calendar window.
   It should be close when i:
     hit ESCAPE
@@ -69,6 +69,7 @@
   - [+] and also when i hit ESCAPE from keyboard
 
 ## panel
+- [+] implement a minimal music player as optional widget in panel. next after weather widget.
 - [+] New Feature: Add new plugin to panel called weather. it should automatically detect current location and shows it's current weather.
   use unicode icons for cloudy, sunny, etc.. conditions.
 - [+] show pop-up menu when you click on weather widget, showing the next 10 days forecast.

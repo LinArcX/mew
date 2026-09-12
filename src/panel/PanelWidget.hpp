@@ -56,6 +56,13 @@ public:
 
   /** @brief Redraw popup contents (Expose). */
   virtual void drawPopup() {}
+
+  /** @brief Route a KeyPress to a focused popup. Return true if consumed. */
+  virtual bool handlePopupKey(XKeyEvent* pEvent) { (void)pEvent; return false; }
+
+  /** @brief True if this widget's popup currently has keyboard focus. */
+  virtual bool hasFocusedPopup() const { return false; }
+
   /** @brief Optional per-event-loop-tick hook. */
   virtual void tick() {}
 
