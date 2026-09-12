@@ -1,6 +1,10 @@
 gmon.out
 compile_commands.json
 
+src/hurmit_font_data.h
+src/logoFull_data.h
+src/logo_data.h
+
 build/*
 .cache/*
 garbage/*
