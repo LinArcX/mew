@@ -112,17 +112,38 @@ void ClientManager::drawFrame(Client* pClient)
   Display* d = m_xconn.display();
   GC gc = XCreateGC(d, pClient->frame, 0, nullptr);
 
-  XSetForeground(d, gc, MewConst::colorBorder);
+  bool active = (focusedClient() == pClient);
+  unsigned long borderColor = MewConst::colorBorder;
+  unsigned long titleColor = MewConst::colorTitle;
+  if (m_pConfig)
+  {
+    borderColor = active ? m_pConfig->activeBorderColor() : m_pConfig->inactiveBorderColor();
+    titleColor  = active ? m_pConfig->activeTitleColor()  : m_pConfig->inactiveTitleColor();
+  }
+
+  XSetForeground(d, gc, borderColor);
   XFillRectangle(
     d, pClient->frame, gc, 0, 0,
     pClient->width + MewConst::borderWidth * 2,
     pClient->height + MewConst::titleHeight + MewConst::borderWidth);
 
-  XSetForeground(d, gc, MewConst::colorTitle);
+  XSetForeground(d, gc, titleColor);
   XFillRectangle(
     d, pClient->frame, gc,
     MewConst::borderWidth, MewConst::borderWidth,
     pClient->width, MewConst::titleHeight - MewConst::borderWidth);
+
+  //XSetForeground(d, gc, MewConst::colorBorder);
+  //XFillRectangle(
+  //  d, pClient->frame, gc, 0, 0,
+  //  pClient->width + MewConst::borderWidth * 2,
+  //  pClient->height + MewConst::titleHeight + MewConst::borderWidth);
+
+  //XSetForeground(d, gc, MewConst::colorTitle);
+  //XFillRectangle(
+  //  d, pClient->frame, gc,
+  //  MewConst::borderWidth, MewConst::borderWidth,
+  //  pClient->width, MewConst::titleHeight - MewConst::borderWidth);
 
   int closeX = MewConst::borderWidth + pClient->width - MewConst::buttonWidth;
   int maxX = closeX - MewConst::buttonWidth;
@@ -192,6 +213,8 @@ void ClientManager::focus(Client* pClient)
     return;
   }
 
+  Client* pPrev = focusedClient();
+
   Display* d = m_xconn.display();
 
   if (pClient->minimized)
@@ -202,12 +225,15 @@ void ClientManager::focus(Client* pClient)
 
   if (pClient->fullscreen)
   {
-    // Frame is unmapped; raise and focus the client window on root.
     XRaiseWindow(d, pClient->window);
     XSetInputFocus(d, pClient->window, RevertToPointerRoot, CurrentTime);
     if (m_raiseOverlay)
     {
       m_raiseOverlay();
+    }
+    if (pPrev && pPrev != pClient)
+    {
+      drawFrame(pPrev);
     }
     return;
   }
@@ -218,7 +244,6 @@ void ClientManager::focus(Client* pClient)
     m_raiseOverlay();
   }
 
-  // Prefer explicit focus; also send WM_TAKE_FOCUS for clients that need it (e.g. neovim)
   XSetInputFocus(d, pClient->window, RevertToPointerRoot, CurrentTime);
 
   Atom* protocols = nullptr;
@@ -248,7 +273,77 @@ void ClientManager::focus(Client* pClient)
   }
 
   drawFrame(pClient);
+  if (pPrev && pPrev != pClient)
+  {
+    drawFrame(pPrev);
+  }
 }
+
+
+//void ClientManager::focus(Client* pClient)
+//{
+//  if (!pClient)
+//  {
+//    return;
+//  }
+//
+//  Display* d = m_xconn.display();
+//
+//  if (pClient->minimized)
+//  {
+//    pClient->minimized = false;
+//    XMapWindow(d, pClient->frame);
+//  }
+//
+//  if (pClient->fullscreen)
+//  {
+//    // Frame is unmapped; raise and focus the client window on root.
+//    XRaiseWindow(d, pClient->window);
+//    XSetInputFocus(d, pClient->window, RevertToPointerRoot, CurrentTime);
+//    if (m_raiseOverlay)
+//    {
+//      m_raiseOverlay();
+//    }
+//    return;
+//  }
+//
+//  XRaiseWindow(d, pClient->frame);
+//  if (m_raiseOverlay)
+//  {
+//    m_raiseOverlay();
+//  }
+//
+//  // Prefer explicit focus; also send WM_TAKE_FOCUS for clients that need it (e.g. neovim)
+//  XSetInputFocus(d, pClient->window, RevertToPointerRoot, CurrentTime);
+//
+//  Atom* protocols = nullptr;
+//  int count = 0;
+//  if (XGetWMProtocols(d, pClient->window, &protocols, &count))
+//  {
+//    Atom takeFocus = XInternAtom(d, "WM_TAKE_FOCUS", False);
+//    for (int i = 0; i < count; ++i)
+//    {
+//      if (protocols[i] == takeFocus)
+//      {
+//        XEvent ev{};
+//        ev.xclient.type = ClientMessage;
+//        ev.xclient.window = pClient->window;
+//        ev.xclient.message_type = m_xconn.atomProtocols();
+//        ev.xclient.format = 32;
+//        ev.xclient.data.l[0] = static_cast<long>(takeFocus);
+//        ev.xclient.data.l[1] = CurrentTime;
+//        XSendEvent(d, pClient->window, False, NoEventMask, &ev);
+//        break;
+//      }
+//    }
+//    if (protocols)
+//    {
+//      XFree(protocols);
+//    }
+//  }
+//
+//  drawFrame(pClient);
+//}
 
 void ClientManager::focusNext()
 {

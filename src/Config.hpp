@@ -50,6 +50,11 @@ public:
   /** @brief Parsed keybindings. */
   const std::vector<KeyBinding>& keybindings() const { return m_keybindings; }
 
+  unsigned long activeBorderColor() const { return m_activeBorderColor; }
+  unsigned long activeTitleColor() const { return m_activeTitleColor; }
+  unsigned long inactiveBorderColor() const { return m_inactiveBorderColor; }
+  unsigned long inactiveTitleColor() const { return m_inactiveTitleColor; }
+
   bool useEmbeddedBackground() const { return m_useEmbeddedBackground; }
 
   struct AppGeometry
@@ -92,4 +97,9 @@ private:
   std::string m_windowTheme;
   std::vector<KeyBinding> m_keybindings;
   std::map<std::string, AppGeometry> m_appGeometry;
+
+  unsigned long m_activeBorderColor = 0x333333;
+  unsigned long m_activeTitleColor = 0x444444;
+  unsigned long m_inactiveBorderColor = 0x1a1a1a;
+  unsigned long m_inactiveTitleColor = 0x222222;
 };

@@ -324,6 +324,13 @@ void Mew::reconfigure()
     m_pPanel->setHoverColor(m_config.panelHoverColor());
     m_pPanel->draw();
   }
+  if (m_pClients)
+  {
+    for (Client* pClient : m_pClients->clients())
+    {
+      m_pClients->drawFrame(pClient);
+    }
+  }
   grabKeys();
 }
 

@@ -101,6 +101,38 @@ void Config::load()
       }
       m_panelHoverColor = std::strtoul(val.c_str(), nullptr, 0);
     }
+    else if (key == "active_border_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_activeBorderColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "active_title_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_activeTitleColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "inactive_border_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_inactiveBorderColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "inactive_title_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_inactiveTitleColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
     else if (key == "background_image")
     {
       m_backgroundImage = Util::expandHome(val);
