@@ -56,6 +56,8 @@ public:
   unsigned long inactiveTitleColor() const { return m_inactiveTitleColor; }
 
   bool useEmbeddedBackground() const { return m_useEmbeddedBackground; }
+  bool useEmbeddedSound() const { return m_useEmbeddedSound; }
+  bool useEmbeddedLogoutSound() const { return m_useEmbeddedLogoutSound; }
 
   struct AppGeometry
   {
@@ -92,6 +94,8 @@ private:
   std::string m_backgroundImage;
   bool m_useBackgroundImage = false;
   bool m_useEmbeddedBackground = true;
+  bool m_useEmbeddedSound = true;
+  bool m_useEmbeddedLogoutSound = true;
   std::string m_loginSound;
   std::string m_logoutSound;
   std::string m_windowTheme;

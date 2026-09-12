@@ -34,7 +34,15 @@ Mew::~Mew()
   delete m_pClients;
   m_pClients = nullptr;
 
-  m_sound.play(m_config.logoutSound());
+  if (m_config.useEmbeddedLogoutSound())
+  {
+    m_sound.playEmbeddedLogout();
+  }
+  else
+  {
+    m_sound.play(m_config.logoutSound());
+  }
+
   Util::removePidfile();
   s_pInstance = nullptr;
 }
@@ -747,7 +755,14 @@ int Mew::run()
   m_font.load(m_xconn.display(), m_xconn.screen(), m_config.titleFontSize());
   m_xconn.loadCursors(m_config.mouseTheme().c_str(), m_config.mouseSize());
   m_background.apply(m_xconn, m_config);
-  m_sound.play(m_config.loginSound());
+  if (m_config.useEmbeddedSound())
+  {
+    m_sound.playEmbeddedLogin();
+  }
+  else
+  {
+    m_sound.play(m_config.loginSound());
+  }
 
   m_pClients = new ClientManager(m_xconn, m_font);
   m_pClients->setPanelHeight(MewConst::panelHeight);

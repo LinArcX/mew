@@ -14,6 +14,8 @@ void Config::load()
   m_backgroundImage.clear();
   m_useBackgroundImage = false;
   m_useEmbeddedBackground = true;
+  m_useEmbeddedSound = true;
+  m_useEmbeddedLogoutSound = true;
   m_appGeometry.clear();
 
   std::string path = Util::getConfigDirectory() + "/config";
@@ -142,10 +144,12 @@ void Config::load()
     else if (key == "login_sound")
     {
       m_loginSound = Util::expandHome(val);
+      m_useEmbeddedSound = false;
     }
     else if (key == "logout_sound")
     {
       m_logoutSound = Util::expandHome(val);
+      m_useEmbeddedLogoutSound = false;
     }
     else if (key == "window_theme")
     {

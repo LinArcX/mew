@@ -8,6 +8,8 @@ echo ">>> generating font data"
 xxd -i -n hurmit_ttf ./assets/fonts/Hermit/HurmitNerdFont-Regular.otf > src/hurmit_font_data.h
 xxd -i -n logo_png ./assets/images/logo.jpg > src/logo_data.h
 xxd -i -n logoFull_png ./assets/images/logoFull.jpg > src/logoFull_data.h
+xxd -i -n login_wav ./assets/audio/login.wav > src/login_wav_data.h
+xxd -i -n logout_wav ./assets/audio/logout.wav > src/logout_wav_data.h
 
 echo ">>> deleting old .gcda/.gcno files in build/debug directory"
 find . -name "*.gcda" -delete
