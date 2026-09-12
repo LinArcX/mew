@@ -1,28 +1,16 @@
 # mew
-A minimal, fast widnwos manager for X.
+Minimal, fast window manager for X.
 
 <p align="center">
   <img src="assets/images/screenshot.png" width="800">
 </p>
 
-## dependencies
-### tools
-```
-git
-gcc
-Bear
-pkgconf
-xxd
-fzf (optioanl)
-```
+## Why mew?
 
-### build-time
-```
-libXft-devel
-freetype-devel
-libXcursor-devel
-alsa-lib-devel
-```
+- **Small and fast.** Plain C++, raw Xlib. No desktop-environment dependencies.
+- **Keyboard-first.** Everything is a keybinding. Snap, maximize, fullscreen, launcher, power — all scriptable.
+- **Batteries included, nothing bloated.** Panel, app launcher, switcher, background, sounds in one ~15k-line codebase.
+- **Hackable.** Flat modules, readable code, text-file config.
 
 ## build
 First you need to clone the project:
@@ -31,12 +19,12 @@ First you need to clone the project:
 
 Then, for building it there are two possible ways:
 1. using `./scripts/build_debug.sh`
-```
+```sh
 chmod +x scripts/build_debug.sh
 ./scripts/build_debug.sh
 ```
 2. using `./p`. Which gives you an interactive cli with more options. NOTE that fzf should be installed in this case.
-```
+```sh
 chmod +x p
 ./p
 ```
@@ -74,7 +62,7 @@ wezterm &
 ```
 
 2. `~/.config/mew/keybindings` --> you can define your custom keybindings here:
-```
+```ini
 # Available modifers: W(indow, Meta), A(lt), C(ontrol), S(hift)
 
 # Apps Shortcuts
@@ -104,7 +92,7 @@ key="W-p" command="power-manager"
 ```
 
 3. `~/.config/mew/config` --> contains general configurations:
-```
+```ini
 title_font_size=15
 
 background_color=#3B3C3C
