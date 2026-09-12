@@ -1,6 +1,20 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
+- [ ] when clicking on volume widget in panel, there should be a vertical slider that let us to chagne volume size.
+  - there should be a mute button at bottom of this slider that when you click on it, make the audio muted.
+  - the volume and mute state in slider should be reflected to widget itself in panel.
+  - when volume reaches 0%, it should show the mute icon not 0%.
+  - there should a setting in conf file that allow users to set colors for differnt range of volume.
+- [ ] when clicking on keyboard switcher on panel, there should be a pop-up shows to user.
+  - this pop-up contains langauges in a list, so yuo can select from the list.
+  - we should show the flag of the language also.
+- [ ] start menu, should be modular, each category should be a folder in src/startMenu.
+  - people can create their own menuItems and put them in src/startMenu.
+  - it should be possible to have layers of menuItems in start menu. like:
+    startMenu -> util -> scripts
+- [ ] adding city choosing in weather widget.
+  Rotate through cities on click, one per line in config
 - [ ] add icons to power-managment pop-up.
 - [ ] add icons to switcher pop-up.
 - [ ] add icons to start-menu items.
@@ -9,6 +23,29 @@
 - [ ] ability to change font size/name for active/inactive windows.
 - [ ] some gtk apps like gedit or meld, they already have frame and close/max/min buttons. in mew, we put an extra frame out of it which doesn't make sense.
   So check if the app, or window already has frame, if it has don't make any frame around it.
+
+## widgets for panel
+- [ ] simple game in panel.
+- [ ] System tray:	Own the _NET_SYSTEM_TRAY_S0 selection; embed StatusNotifierItem icons
+- [ ] Notification daemon(something like dunst): Libnotify daemon stub; show bell + count, click to open list
+- [ ] CPU: Overall or per-core usage, temp if /sys/class/thermal present	(read /proc/stat)
+- [ ] Brightness: Slider popup, reads/writes /sys/class/backlight	(sysfs)
+- [ ] RAM: Used / total, swap	(read /proc/meminfo)
+- [ ] Disk: Free space on a chosen mountpoint	(statvfs())
+- [ ] Clipboard: Show last copied text; click to paste via xdotool / wl-paste
+- [ ] Screenshot	Click → region select → maim / scrot → save or copy
+- [ ] IP / geo:	Public IP from ifconfig.me, city from ipapi.co
+- [ ] Moon phase: Local calculation, no network
+- [ ] Pomodoro:	25/5 timer with a small progress ring
+- [ ] CPU temp:	Package temp	(/sys/class/thermal/thermal_zone*/temp)
+- [ ] Note scratch:	Tiny text input, saved to a file
+
+- [ ] Battery: Percent, charging state	(/sys/class/power_supply/BAT*)
+- [ ] Battery history:Sparkline of last hour drawn from sysfs samples
+- [ ] Stock ticker	Same idea, a symbol from config
+- [ ] Caffeine: Toggle screen-sleep inhibitor (blocks DPMS via xset)
+- [ ] Cryptocurrency	BTC/ETH price from a public API; curl + JSON
+- [ ] System monitor graph	CPU+RAM mini graph over 60s
 
 ## panel
 - [ ] equilizer slider pop-up doesn't automatically update slider. i need to click on it to see updated value in slider.
