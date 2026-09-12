@@ -98,26 +98,6 @@ void Panel::loadStartIcon()
     return;
   }
 
-
-  //if (!m_startIconRgba.empty())
-  //{
-  //  return;
-  //}
-
-  //int w = 0;
-  //int h = 0;
-  //int ch = 0;
-  //unsigned char* data = stbi_load("assets/mew.png", &w, &h, &ch, 4);
-  //if (!data || w <= 0 || h <= 0)
-  //{
-  //  if (data)
-  //  {
-  //    stbi_image_free(data);
-  //  }
-  //  fprintf(stderr, "mew: could not load assets/mew.png\n");
-  //  return;
-  //}
-
   // If the PNG has no alpha, treat its black background as transparent
   // (unpremultiply from black).
   bool hasAlpha = false;
@@ -804,12 +784,6 @@ void Panel::draw()
     widgetX += w;
   }
 
-  //int widgetX = 44;
-  //for (PanelWidget* pWidget : m_widgets)
-  //{
-  //  pWidget->draw(d, m_backBuffer, widgetX, baseline);
-  //  widgetX += pWidget->width();
-  //}
   XCopyArea(d, m_backBuffer, m_window, gc, 0, 0, screenW, MewConst::panelHeight, 0, 0);
   XFreeGC(d, gc);
   m_lastTime = now;
@@ -1254,47 +1228,93 @@ void Panel::handleClick(int x)
     if (x >= widgetX && x < widgetX + w)
     {
       std::string id = pWidget->id();
-      if (id == "music")
+       if (id == "music")
       {
         int localX = x - widgetX;
         MusicPlayerWidget* pm = static_cast<MusicPlayerWidget*>(pWidget);
-        if (localX < 4 * 24)
+
+        if (localX < 24)
         {
-          int idx = localX / 24;
-          if (idx == 0) pm->playPrev();
-          else if (idx == 1) pm->togglePause();
-          else if (idx == 2) pm->stopPlayback();
-          else if (idx == 3) pm->playNext();
-          if (idx == 0 && pm->tooltip() == "Music player (no files)")
-          {
-            pm->playPrev();
-          }
+          pm->showPopup(widgetX);         // note -> popup
         }
-        else
+        else if (localX < 48)
         {
-          pm->showPopup(widgetX);
+          pm->playPrev();
         }
+        else if (localX < 72)
+        {
+          pm->togglePause();
+        }
+        else if (localX < 96)
+        {
+          pm->stopPlayback();
+        }
+        else if (localX < 120)
+        {
+          pm->playNext();
+        }
+
         draw();
         return;
       }
+
+      //if (id == "music")
+      //{
+      //  int localX = x - widgetX;
+      //  MusicPlayerWidget* pm = static_cast<MusicPlayerWidget*>(pWidget);
+      //  if (localX < 24)
+      //  {
+      //    pm->showPopup(widgetX);          // music note -> popup
+      //  }
+      //  else if (localX < 48)
+      //  {
+      //    pm->playPrev();
+      //  }
+      //  else if (localX < 72)
+      //  {
+      //    pm->togglePause();
+      //  }
+      //  else if (localX < 96)
+      //  {
+      //    pm->stopPlayback();
+      //  }
+      //  else if (localX < 120)
+      //  {
+      //    pm->playNext();
+      //  }
+      //  draw();
+      //  return;
+      //}
+
+      //if (id == "music")
+      //{
+      //  int localX = x - widgetX;
+      //  MusicPlayerWidget* pm = static_cast<MusicPlayerWidget*>(pWidget);
+      //  if (localX < 4 * 24)
+      //  {
+      //    int idx = localX / 24;
+      //    if (idx == 0) pm->playPrev();
+      //    else if (idx == 1) pm->togglePause();
+      //    else if (idx == 2) pm->stopPlayback();
+      //    else if (idx == 3) pm->playNext();
+      //    if (idx == 0 && pm->tooltip() == "Music player (no files)")
+      //    {
+      //      pm->playPrev();
+      //    }
+      //  }
+      //  else
+      //  {
+      //    pm->showPopup(widgetX);
+      //  }
+      //  draw();
+      //  return;
+      //}
       pWidget->onClick(widgetX);
       draw();
       return;
     }
     widgetX += w;
   }
-
-  //for (PanelWidget* pWidget : m_widgets)
-  //{
-  //  int w = pWidget->width();
-  //  if (x >= widgetX && x < widgetX + w)
-  //  {
-  //    pWidget->onClick(widgetX);
-  //    draw();
-  //    return;
-  //  }
-  //  widgetX += w;
-  //}
 
   int zone = hitTest(x);
   if (zone == 0)
@@ -1436,9 +1456,17 @@ void Panel::showTooltip(int x, const char* text)
 
 void Panel::tick()
 {
+  bool needRedraw = false;
   for (PanelWidget* pWidget : m_widgets)
   {
-    pWidget->tick();
+    if (pWidget->tick())
+    {
+      needRedraw = true;
+    }
+  }
+  if (needRedraw)
+  {
+    draw();
   }
 }
 
@@ -1528,74 +1556,6 @@ void Panel::handleMotion(int x)
     hideTooltip();
   }
 }
-
-//void Panel::handleMotion(int x)
-//{
-//  int widgetX = 44;
-//  PanelWidget* pOver = nullptr;
-//  for (PanelWidget* pWidget : m_widgets)
-//  {
-//    int w = pWidget->width();
-//    if (x >= widgetX && x < widgetX + w)
-//    {
-//      pOver = pWidget;
-//      break;
-//    }
-//    widgetX += w;
-//  }
-//  if (pOver != m_pHoverWidget)
-//  {
-//    if (m_pHoverWidget)
-//    {
-//      m_pHoverWidget->onUnhover();
-//    }
-//    m_pHoverWidget = pOver;
-//    if (pOver)
-//    {
-//      pOver->onHover(widgetX);
-//    }
-//  }
-//
-//  int zone = hitTest(x);
-//  if (zone == m_hoverZone)
-//  {
-//    return;
-//  }
-//  m_hoverZone = zone;
-//  draw();
-//  if (zone == 0)
-//  {
-//    showTooltip(x, "Start menu");
-//  }
-//  else if (zone == 1)
-//  {
-//    showTooltip(x, "Internet kill-switch");
-//  }
-//  else if (zone == 2)
-//  {
-//    showTooltip(x, "Network interface");
-//  }
-//  else if (zone == 3)
-//  {
-//    showTooltip(x, "Keyboard layout (click to cycle)");
-//  }
-//  else if (zone == 4)
-//  {
-//    showTooltip(x, "Volume (click to mute)");
-//  }
-//  else if (zone == 5)
-//  {
-//    showTooltip(x, "Show desktop");
-//  }
-//  else if (zone == 6)
-//  {
-//    showTooltip(x, "Date and time");
-//  }
-//  else
-//  {
-//    hideTooltip();
-//  }
-//}
 
 bool Panel::handleEscape()
 {

@@ -60,11 +60,14 @@ public:
   /** @brief Route a KeyPress to a focused popup. Return true if consumed. */
   virtual bool handlePopupKey(XKeyEvent* pEvent) { (void)pEvent; return false; }
 
+  /** @brief Route a ButtonPress on the popup. Return true if consumed. */
+  virtual bool handlePopupClick(XButtonEvent* pEvent) { (void)pEvent; return false; }
+
   /** @brief True if this widget's popup currently has keyboard focus. */
   virtual bool hasFocusedPopup() const { return false; }
 
-  /** @brief Optional per-event-loop-tick hook. */
-  virtual void tick() {}
+   /** @brief Called each event-loop tick. Return true if a redraw is wanted. */
+  virtual bool tick() { return false; }
 
   virtual void configure(const Config& config) { (void)config; }
 };

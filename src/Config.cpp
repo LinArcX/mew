@@ -16,6 +16,13 @@ void Config::load()
   m_useEmbeddedBackground = true;
   m_useEmbeddedSound = true;
   m_useEmbeddedLogoutSound = true;
+
+  m_musicIconColor = 0xffffff;
+  m_musicNoteColor = 0xffffff;
+  m_musicButtonColor = 0xffffff;
+  m_musicEqBars = 4;
+  m_musicEqColors.clear();
+
   m_appGeometry.clear();
   m_panelWidgets.clear();
 
@@ -65,6 +72,52 @@ void Config::load()
         val = "0x" + val.substr(1);
       }
       m_weatherIconColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "music_icon_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_musicIconColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "music_note_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_musicNoteColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "music_button_color")
+    {
+      if (!val.empty() && val[0] == '#')
+      {
+        val = "0x" + val.substr(1);
+      }
+      m_musicButtonColor = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "music_eq_bars")
+    {
+      m_musicEqBars = std::atoi(val.c_str());
+      if (m_musicEqBars < 1)  m_musicEqBars = 1;
+      if (m_musicEqBars > 16) m_musicEqBars = 16;
+    }
+    else if (key == "music_eq_colors")
+    {
+      m_musicEqColors.clear();
+      std::stringstream ss(val);
+      std::string item;
+      while (std::getline(ss, item, ','))
+      {
+        item = Util::trim(item);
+        if (item.empty()) continue;
+        if (item[0] == '#')
+        {
+          item = "0x" + item.substr(1);
+        }
+        m_musicEqColors.push_back(std::strtoul(item.c_str(), nullptr, 0));
+      }
     }
     else if (key == "weather_text_color")
     {

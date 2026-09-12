@@ -29,7 +29,7 @@ public:
   void draw(Display* display, Window panel, int x, int baseline) override;
   bool onClick(int screenX) override;
   std::string tooltip() const override;
-  void tick() override;
+  bool tick() override;
   void configure(const Config& config) override;
 
   void onHover(int screenX) override;

@@ -83,6 +83,11 @@ public:
   const std::string& weatherLocation() const { return m_weatherLocation; }
   unsigned long weatherIconColor() const { return m_weatherIconColor; }
   unsigned long weatherTextColor() const { return m_weatherTextColor; }
+  unsigned long musicIconColor() const { return m_musicIconColor; }
+  unsigned long musicNoteColor()   const { return m_musicNoteColor; }
+  unsigned long musicButtonColor() const { return m_musicButtonColor; }
+  int musicEqBars() const { return m_musicEqBars; }
+  const std::vector<unsigned long>& musicEqColors() const { return m_musicEqColors; }
 
 private:
   bool parseKeybinding(const std::string& line, std::string& key, std::string& command);
@@ -110,6 +115,11 @@ private:
   std::string m_weatherLocation;
   unsigned long m_weatherIconColor = 0xffffff;
   unsigned long m_weatherTextColor = 0xffffff;
+  unsigned long m_musicIconColor = 0xffffff;
+  unsigned long m_musicNoteColor = 0xffffff;
+  unsigned long m_musicButtonColor = 0xffffff;
+  int m_musicEqBars = 4;
+  std::vector<unsigned long> m_musicEqColors;
 
   unsigned long m_activeBorderColor = 0x333333;
   unsigned long m_activeTitleColor = 0x444444;

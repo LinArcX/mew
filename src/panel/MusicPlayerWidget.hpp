@@ -18,16 +18,17 @@ public:
   ~MusicPlayerWidget() override;
 
   const char* id() const override { return "music"; }
-  int width() const override { return kWidth; }
+  int width() const override { return m_computedWidth; }
   void draw(Display* display, Window panel, int x, int baseline) override;
   bool onClick(int screenX) override;
   std::string tooltip() const override;
-  void tick() override;
+  bool tick() override;
   void configure(const Config& config) override;
   bool handleEscape() override;
   Window popupWindow() const override { return m_popup; }
   void drawPopup() override;
   bool handlePopupKey(XKeyEvent* pEvent) override;
+  bool handlePopupClick(XButtonEvent* pEvent) override;
   bool hasFocusedPopup() const override { return m_popupActive; }
   void playPrev();
   void playNext();
@@ -36,8 +37,7 @@ public:
   void showPopup(int screenX);
 
 private:
-  //enum class Btn { None, Prev, Play, Stop, Next, Label };
-  enum class Btn { NoBtn, Prev, Play, Stop, Next, Label };
+  enum class Btn { NoBtn, Note, Prev, Play, Stop, Next, Label };
 
   Btn buttonAt(int localX) const;
   void loadDirs();
@@ -58,8 +58,14 @@ private:
   bool m_paused = false;
   std::string m_trackName;
 
-  unsigned long m_iconColor = 0xffffff;
-  unsigned long m_textColor = 0xffffff;
+  unsigned long m_noteColor = 0xffffff;
+  unsigned long m_buttonColor = 0xffffff;
+  int m_eqBars = 4;
+  std::vector<unsigned long> m_eqColors;
+  int m_computedWidth = 160;
+
+  int m_eqFrame = 0;
+  long long m_lastEqMs = 0;
 
   Window m_popup = None;
   bool m_popupActive = false;
@@ -71,8 +77,18 @@ private:
   pid_t m_pendingKill = -1;
   time_t m_playStart = 0;
 
-  static constexpr int kWidth = 120;
+  static constexpr int kMusicIconW = 24;
   static constexpr int kBtnW = 24;
+  static constexpr int kEqBarW = 4;
+  static constexpr int kEqBarGap = 3;
+
+  //static constexpr int kWidth = 160;
+  //static constexpr int kMusicIconW = 24;
+  //static constexpr int kBtnW = 24;
+  //static constexpr int kEqBars = 4;
+  //static constexpr int kEqBarW = 4;
+  //static constexpr int kEqBarGap = 3;
+
   static constexpr int kPopupWidth = 420;
   static constexpr int kPopupRowH = 22;
   static constexpr int kPopupPad = 8;

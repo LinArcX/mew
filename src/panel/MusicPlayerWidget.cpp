@@ -15,6 +15,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <unistd.h>
+#include <time.h>
 
 namespace
 {
@@ -101,12 +102,24 @@ MusicPlayerWidget::~MusicPlayerWidget()
 void MusicPlayerWidget::configure(const Config& config)
 {
   (void)config;
+  m_noteColor = config.musicNoteColor();
+  m_buttonColor = config.musicButtonColor();
+  m_eqBars = config.musicEqBars();
+  if (m_eqBars < 1) m_eqBars = 1;
+  if (m_eqBars > 16) m_eqBars = 16;
+  m_eqColors = config.musicEqColors();
+
+  // Recompute width based on the actual bar count.
+  m_computedWidth = kMusicIconW + 4 * kBtnW + 8 +
+                    m_eqBars * (kEqBarW + kEqBarGap) + 8;
 }
 
 MusicPlayerWidget::Btn MusicPlayerWidget::buttonAt(int localX) const
 {
-  if (localX < 0 || localX >= kWidth) return Btn::NoBtn;
-  int idx = localX / kBtnW;
+  if (localX < 0 || localX >= m_computedWidth) return Btn::NoBtn;
+  if (localX < kMusicIconW) return Btn::Note;
+  int p = localX - kMusicIconW;
+  int idx = p / kBtnW;
   if (idx == 0) return Btn::Prev;
   if (idx == 1) return Btn::Play;
   if (idx == 2) return Btn::Stop;
@@ -186,51 +199,6 @@ pid_t spawnPlayer(const std::string& path)
   _exit(1);
 }
 
-//pid_t spawnPlayer(const std::string& path)
-//{
-//  pid_t pid = fork();
-//  if (pid != 0)
-//  {
-//    return pid;
-//  }
-//
-//  // Child: detach from the WM's process group so signals don't leak.
-//  setsid();
-//
-//  // Silence chatter.
-//  freopen("/dev/null", "r", stdin);
-//  freopen("/dev/null", "w", stdout);
-//  freopen("/dev/null", "w", stderr);
-//
-//  // Prefer mpv (handles PipeWire/Pulse/ALSA automatically).
-//  execlp("mpv", "mpv",
-//         "--no-video", "--really-quiet", "--no-terminal",
-//         path.c_str(), static_cast<char*>(nullptr));
-//
-//  execlp("mpg123", "mpg123", "-q", path.c_str(),
-//         static_cast<char*>(nullptr));
-//
-//  execlp("ffplay", "ffplay", "-nodisp", "-autoexit",
-//         "-loglevel", "quiet", path.c_str(),
-//         static_cast<char*>(nullptr));
-//
-//  _exit(1);
-//}
-
-//pid_t spawnPlayer(const std::string& path)
-//{
-//  pid_t pid = fork();
-//  if (pid != 0) return pid;
-//
-//  // Silence stderr so a missing player doesn't spam the log
-//  freopen("/dev/null", "w", stderr);
-//
-//  execlp("mpg123", "mpg123", "-q", path.c_str(), static_cast<char*>(nullptr));
-//  execlp("ffplay", "ffplay", "-nodisp", "-autoexit",
-//         "-loglevel", "quiet", path.c_str(), static_cast<char*>(nullptr));
-//  _exit(1);
-//}
-
 void MusicPlayerWidget::playIndex(size_t idx)
 {
   stopPlayback();
@@ -261,18 +229,6 @@ void MusicPlayerWidget::stopPlayback()
   m_paused = false;
 }
 
-//void MusicPlayerWidget::stopPlayback()
-//{
-//  if (m_playerPid > 0)
-//  {
-//    kill(m_playerPid, SIGTERM);
-//    int status = 0;
-//    waitpid(m_playerPid, &status, 0);
-//    m_playerPid = -1;
-//  }
-//  m_paused = false;
-//}
-
 void MusicPlayerWidget::togglePause()
 {
   if (m_playerPid <= 0)
@@ -296,22 +252,6 @@ void MusicPlayerWidget::togglePause()
   }
 }
 
-
-//void MusicPlayerWidget::togglePause()
-//{
-//  if (m_playerPid <= 0) return;
-//  if (m_paused)
-//  {
-//    kill(m_playerPid, SIGCONT);
-//    m_paused = false;
-//  }
-//  else
-//  {
-//    kill(m_playerPid, SIGSTOP);
-//    m_paused = true;
-//  }
-//}
-
 void MusicPlayerWidget::playNext()
 {
   if (m_files.empty()) return;
@@ -324,9 +264,110 @@ void MusicPlayerWidget::playPrev()
   playIndex((m_current == 0) ? m_files.size() - 1 : m_current - 1);
 }
 
-void MusicPlayerWidget::tick()
+void MusicPlayerWidget::draw(Display* display, Window panel, int x, int baseline)
 {
-  // Reap anything we SIGTERM'd earlier.
+  int screen = m_xconn.screen();
+
+  if (m_iconFont.font())
+  {
+    // Music note: opens the popup
+    m_iconFont.setColor(m_noteColor);
+    m_iconFont.draw(display, screen, panel, x + 4, baseline, "\xef\x80\x81");
+
+    // Playback buttons
+    m_iconFont.setColor(m_buttonColor);
+    m_iconFont.draw(display, screen, panel, x + kMusicIconW + 4, baseline,
+                    "\xef\x81\x88");
+    m_iconFont.draw(display, screen, panel, x + kMusicIconW + kBtnW + 4, baseline,
+                    m_paused ? "\xef\x81\x8b" : "\xef\x81\x8c");
+    m_iconFont.draw(display, screen, panel, x + kMusicIconW + 2 * kBtnW + 4, baseline,
+                    "\xef\x81\x8d");
+    m_iconFont.draw(display, screen, panel, x + kMusicIconW + 3 * kBtnW + 4, baseline,
+                    "\xef\x81\x91");
+  }
+
+  // Equalizer
+  int eqX = x + kMusicIconW + 4 * kBtnW + 8;
+  int eqBase = baseline + 2;
+  GC gc = XCreateGC(display, panel, 0, nullptr);
+
+  bool playing = (m_playerPid > 0 && !m_paused);
+  for (int i = 0; i < m_eqBars; ++i)
+  {
+    int h;
+    if (playing)
+    {
+      int phase = (m_eqFrame + i * 3) % 12;
+      h = 2 + (phase < 6 ? phase : 12 - phase);
+    }
+    else
+    {
+      h = 2;
+    }
+
+    unsigned long c = m_eqColors.empty()
+      ? m_buttonColor
+      : m_eqColors[static_cast<size_t>(i) % m_eqColors.size()];
+
+    XSetForeground(display, gc, c);
+    int barX = eqX + i * (kEqBarW + kEqBarGap);
+    XFillRectangle(display, panel, gc, barX, eqBase - h, kEqBarW, h);
+  }
+
+  XFreeGC(display, gc);
+}
+
+//void MusicPlayerWidget::draw(Display* display, Window panel, int x, int baseline)
+//{
+//  int screen = m_xconn.screen();
+//
+//  if (m_iconFont.font())
+//  {
+//    m_iconFont.setColor(m_iconColor);
+//    // Music note: opens popup
+//    m_iconFont.draw(display, screen, panel, x + 4, baseline, "\xef\x80\x81");
+//    // Prev
+//    m_iconFont.draw(display, screen, panel, x + kMusicIconW + 4, baseline,
+//                    "\xef\x81\x88");
+//    // Play / Pause
+//    m_iconFont.draw(display, screen, panel, x + kMusicIconW + kBtnW + 4, baseline,
+//                    m_paused ? "\xef\x81\x8b" : "\xef\x81\x8c");
+//    // Stop
+//    m_iconFont.draw(display, screen, panel, x + kMusicIconW + 2 * kBtnW + 4, baseline,
+//                    "\xef\x81\x8d");
+//    // Next
+//    m_iconFont.draw(display, screen, panel, x + kMusicIconW + 3 * kBtnW + 4, baseline,
+//                    "\xef\x81\x91");
+//  }
+//
+//  // Equalizer
+//  int eqX = x + kMusicIconW + 4 * kBtnW + 8;
+//  int eqBase = baseline + 2;
+//  GC gc = XCreateGC(display, panel, 0, nullptr);
+//  XSetForeground(display, gc, m_iconColor);
+//
+//  bool playing = (m_playerPid > 0 && !m_paused);
+//  for (int i = 0; i < kEqBars; ++i)
+//  {
+//    int h;
+//    if (playing)
+//    {
+//      int phase = (m_eqFrame + i * 3) % 12;
+//      h = 2 + (phase < 6 ? phase : 12 - phase);
+//    }
+//    else
+//    {
+//      h = 2;
+//    }
+//    int barX = eqX + i * (kEqBarW + kEqBarGap);
+//    XFillRectangle(display, panel, gc, barX, eqBase - h, kEqBarW, h);
+//  }
+//
+//  XFreeGC(display, gc);
+//}
+
+bool MusicPlayerWidget::tick()
+{
   if (m_pendingKill > 0)
   {
     int status = 0;
@@ -337,95 +378,43 @@ void MusicPlayerWidget::tick()
     }
   }
 
+  bool needRedraw = false;
+
+  if (m_playerPid > 0 && !m_paused)
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    long long ms = static_cast<long long>(ts.tv_sec) * 1000 + ts.tv_nsec / 1000000;
+    if (ms - m_lastEqMs >= 100)
+    {
+      m_lastEqMs = ms;
+      m_eqFrame++;
+      needRedraw = true;
+    }
+  }
+
   if (m_playerPid <= 0)
   {
-    return;
+    return needRedraw;
   }
 
   int status = 0;
   pid_t r = waitpid(m_playerPid, &status, WNOHANG);
   if (r != m_playerPid)
   {
-    return;
+    return needRedraw;
   }
 
   m_playerPid = -1;
   m_paused = false;
 
-  // Auto-next: only if the track played for at least ~1s, to avoid a tight
-  // loop on unplayable files.
   if (m_playStart == 0 || (time(nullptr) - m_playStart) >= 1)
   {
     playNext();
+    needRedraw = true;
   }
+  return needRedraw;
 }
-
-void MusicPlayerWidget::draw(Display* display, Window panel, int x, int baseline)
-{
-  m_iconFont.setColor(m_iconColor);
-  int screen = m_xconn.screen();
-
-  // Font Awesome media glyphs (present in Hurmit as a Nerd Font).
-  m_iconFont.draw(display, screen, panel, x + 4, baseline, "\xef\x81\x88");                  // fa-step-backward  U+F048
-  m_iconFont.draw(display, screen, panel, x + kBtnW + 4, baseline,
-            m_paused ? "\xef\x81\x8b" : "\xef\x81\x8c");                               // fa-play U+F04B / fa-pause U+F04C
-  m_iconFont.draw(display, screen, panel, x + 2 * kBtnW + 4, baseline, "\xef\x81\x8d");      // fa-stop           U+F04D
-  m_iconFont.draw(display, screen, panel, x + 3 * kBtnW + 4, baseline, "\xef\x81\x91");      // fa-step-forward   U+F051
-}
-
-//void MusicPlayerWidget::draw(Display* display, Window panel, int x, int baseline)
-//{
-//  m_font.setColor(m_iconColor);
-//  int screen = m_xconn.screen();
-//
-//  // Previous: ⏮
-//  m_font.draw(display, screen, panel, x + 4, baseline, "\xe2\x8f\xae");
-//
-//  // Play or Pause: ▶ / ⏸
-//  const char* playPause = m_paused ? "\xe2\x96\xb6" : "\xe2\x8f\xb8";
-//  m_font.draw(display, screen, panel, x + kBtnW + 4, baseline, playPause);
-//
-//  // Stop: ⏹
-//  m_font.draw(display, screen, panel, x + 2 * kBtnW + 4, baseline, "\xe2\x8f\xb9");
-//
-//  // Next: ⏭
-//  m_font.draw(display, screen, panel, x + 3 * kBtnW + 4, baseline, "\xe2\x8f\xad");
-//}
-
-//void MusicPlayerWidget::tick()
-//{
-//  if (m_playerPid <= 0) return;
-//  int status = 0;
-//  pid_t r = waitpid(m_playerPid, &status, WNOHANG);
-//  if (r == m_playerPid)
-//  {
-//    m_playerPid = -1;
-//    m_paused = false;
-//    // Auto-next
-//    playNext();
-//  }
-//}
-
-//void MusicPlayerWidget::draw(Display* display, Window panel, int x, int baseline)
-//{
-//  const char* labels[4] = { "<<", ">", "[]", ">>" };
-//  if (m_paused) labels[1] = "||";
-//
-//  for (int i = 0; i < 4; ++i)
-//  {
-//    m_font.setColor(m_iconColor);
-//    m_font.draw(display, m_xconn.screen(), panel, x + i * kBtnW + 4, baseline, labels[i]);
-//  }
-//
-//  if (!m_trackName.empty())
-//  {
-//    std::string t = m_trackName;
-//    if (t.size() > 22) t = t.substr(0, 20) + "..";
-//    m_font.setColor(m_textColor);
-//    m_font.draw(display, m_xconn.screen(), panel,
-//                x + 4 * kBtnW + 6, baseline, t);
-//  }
-//}
 
 bool MusicPlayerWidget::onClick(int screenX)
 {
@@ -450,12 +439,6 @@ std::string MusicPlayerWidget::tooltip() const
   }
   return m_trackName;
 }
-
-//std::string MusicPlayerWidget::tooltip() const
-//{
-//  if (m_trackName.empty()) return "Music player (no files)";
-//  return m_trackName;
-//}
 
 bool MusicPlayerWidget::handleEscape()
 {
@@ -484,7 +467,7 @@ void MusicPlayerWidget::showPopup(int screenX)
 
   int screenW = m_xconn.width();
   int screenH = m_xconn.height();
-  int px = screenX + kWidth - m_popupW;
+  int px = screenX + m_computedWidth - m_popupW;
   int py = screenH - MewConst::panelHeight - m_popupH - 4;
   if (px < 0) px = 0;
   if (px + m_popupW > screenW) px = screenW - m_popupW;
@@ -558,10 +541,19 @@ void MusicPlayerWidget::drawPopup()
   {
     start = m_dirs.size() - kPopupMaxRows;
   }
+
   for (size_t i = start; i < m_dirs.size(); ++i)
   {
     m_font.setColor(0xcccccc);
     m_font.draw(d, screen, m_popup, kPopupPad + 4, y, m_dirs[i]);
+
+    // Trash icon (fa-trash-o U+F014) at the right edge.
+    if (m_iconFont.font())
+    {
+      m_iconFont.setColor(0xcc4444);
+      m_iconFont.draw(d, screen, m_popup, m_popupW - 24, y, "\xef\x80\x94");
+    }
+
     y += kPopupRowH;
   }
 
@@ -572,7 +564,6 @@ void MusicPlayerWidget::drawPopup()
     y += kPopupRowH;
   }
 
-  // Input row
   XSetForeground(d, gc, 0x2a2a2a);
   XFillRectangle(d, m_popup, gc, kPopupPad, y - ascent - 2,
                  m_popupW - kPopupPad * 2, kPopupRowH);
@@ -583,6 +574,58 @@ void MusicPlayerWidget::drawPopup()
 
   XFreeGC(d, gc);
 }
+
+//void MusicPlayerWidget::drawPopup()
+//{
+//  if (m_popup == None || !m_popupActive) return;
+//
+//  Display* d = m_xconn.display();
+//  int screen = m_xconn.screen();
+//  GC gc = XCreateGC(d, m_popup, 0, nullptr);
+//
+//  XSetForeground(d, gc, 0x1e1e1e);
+//  XFillRectangle(d, m_popup, gc, 0, 0, m_popupW, m_popupH);
+//  XSetForeground(d, gc, 0x555555);
+//  XDrawRectangle(d, m_popup, gc, 0, 0, m_popupW - 1, m_popupH - 1);
+//
+//  XftFont* pFont = m_font.font();
+//  int ascent = pFont ? pFont->ascent : 10;
+//  int y = kPopupPad + ascent;
+//
+//  m_font.setColor(0xffffff);
+//  m_font.draw(d, screen, m_popup, kPopupPad + 4, y, "Music directories");
+//  y += kPopupRowH;
+//
+//  size_t start = 0;
+//  if (m_dirs.size() > static_cast<size_t>(kPopupMaxRows))
+//  {
+//    start = m_dirs.size() - kPopupMaxRows;
+//  }
+//  for (size_t i = start; i < m_dirs.size(); ++i)
+//  {
+//    m_font.setColor(0xcccccc);
+//    m_font.draw(d, screen, m_popup, kPopupPad + 4, y, m_dirs[i]);
+//    y += kPopupRowH;
+//  }
+//
+//  if (m_dirs.empty())
+//  {
+//    m_font.setColor(0x888888);
+//    m_font.draw(d, screen, m_popup, kPopupPad + 4, y, "(none)");
+//    y += kPopupRowH;
+//  }
+//
+//  // Input row
+//  XSetForeground(d, gc, 0x2a2a2a);
+//  XFillRectangle(d, m_popup, gc, kPopupPad, y - ascent - 2,
+//                 m_popupW - kPopupPad * 2, kPopupRowH);
+//
+//  std::string prompt = "> " + m_inputBuffer + "_";
+//  m_font.setColor(0xffffff);
+//  m_font.draw(d, screen, m_popup, kPopupPad + 4, y, prompt);
+//
+//  XFreeGC(d, gc);
+//}
 
 bool MusicPlayerWidget::handlePopupKey(XKeyEvent* pEvent)
 {
@@ -629,6 +672,50 @@ bool MusicPlayerWidget::handlePopupKey(XKeyEvent* pEvent)
     drawPopup();
     return true;
   }
+  return true;
+}
+
+bool MusicPlayerWidget::handlePopupClick(XButtonEvent* pEvent)
+{
+  if (!pEvent || !m_popupActive)
+  {
+    return false;
+  }
+
+  // Rows start right after the header row.
+  int ascent = m_font.font() ? m_font.font()->ascent : 10;
+  int rowStart = kPopupPad + ascent + kPopupRowH;
+
+  int rel = pEvent->y - rowStart;
+  if (rel < 0)
+  {
+    return false;
+  }
+
+  int rowIdx = rel / kPopupRowH;
+
+  size_t start = 0;
+  if (m_dirs.size() > static_cast<size_t>(kPopupMaxRows))
+  {
+    start = m_dirs.size() - kPopupMaxRows;
+  }
+  size_t absIdx = start + static_cast<size_t>(rowIdx);
+
+  if (absIdx >= m_dirs.size())
+  {
+    return false;
+  }
+
+  // Only remove if the click landed on the trash icon area (right side).
+  if (pEvent->x < m_popupW - 28)
+  {
+    return false;
+  }
+
+  m_dirs.erase(m_dirs.begin() + static_cast<long>(absIdx));
+  saveDirs();
+  scanFiles();
+  drawPopup();
   return true;
 }
 

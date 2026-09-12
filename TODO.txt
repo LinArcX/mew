@@ -11,6 +11,7 @@
   So check if the app, or window already has frame, if it has don't make any frame around it.
 
 ## panel
+- [ ] when i click on equilizer, a pop-up with a horzintal slider should shows me. i can use this slider to move in different section of currently playing music.
 - [ ] implement cpu widget as optioanl for panel. (when you click on it, it should shows you all cores and usage of each)
 - [ ] implement ram widget as optioanl for panel. (when you click on it, it should show you the 10 top apps --sorted-- that uses most ram)
 - [ ] New Feature: When i hover over date/time in panel, shows a pop-up calendar window.
@@ -70,6 +71,9 @@
 
 ## panel
 - [+] implement a minimal music player as optional widget in panel. next after weather widget.
+- [+] add music icon to the leff to music player.
+- [+] add minimal sound equalizer at the left of audio player.
+- [ ] instead of clicking on open space of music widget to open pop-up, just whneever you click on music icon, that pop-up should shows up.
 - [+] New Feature: Add new plugin to panel called weather. it should automatically detect current location and shows it's current weather.
   use unicode icons for cloudy, sunny, etc.. conditions.
 - [+] show pop-up menu when you click on weather widget, showing the next 10 days forecast.

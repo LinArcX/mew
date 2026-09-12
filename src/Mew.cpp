@@ -506,11 +506,15 @@ void Mew::processEvent(XEvent& event)
         {
           if (pW->popupWindow() == w)
           {
-            pW->handleEscape();
+            if (!pW->handlePopupClick(&event.xbutton))
+            {
+              pW->handleEscape();
+            }
             break;
           }
         }
       }
+
       for (PanelWidget* pW : m_pPanel->widgets())
       {
         if (pW->popupWindow() != None && pW->popupWindow() != w)

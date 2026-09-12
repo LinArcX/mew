@@ -318,14 +318,15 @@ bool WeatherWidget::fetchForecast(const std::string& lat, const std::string& lon
   return !m_forecast.empty();
 }
 
-void WeatherWidget::tick()
+bool WeatherWidget::tick()
 {
   time_t now = time(nullptr);
   if (m_valid && (now - m_lastFetch) < kRefreshSeconds)
   {
-    return;
+    return false;
   }
   fetch();
+  return false;
 }
 
 void WeatherWidget::drawPopup()
