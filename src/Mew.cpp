@@ -27,6 +27,8 @@ Mew::~Mew()
   m_pLauncher = nullptr;
   delete m_pKeybindings;
   m_pKeybindings = nullptr;
+  delete m_pPower;
+  m_pPower = nullptr;
   delete m_pSwitcher;
   m_pSwitcher = nullptr;
   delete m_pClients;
@@ -259,9 +261,9 @@ bool Mew::handleCustomKeybinding(XKeyEvent* pEvent)
     }
     if (cmd == "power-manager" || cmd == "open-power")
     {
-      if (m_pPanel)
+      if (m_pPower)
       {
-        m_pPanel->openPowerMenu();
+        m_pPower->show();
       }
       return true;
     }
@@ -513,6 +515,11 @@ void Mew::processEvent(XEvent& event)
         m_pLauncher->handleClick(&event.xbutton);
         break;
       }
+      if (m_pPower && m_pPower->isActive() && w == m_pPower->window())
+      {
+        m_pPower->handleClick(&event.xbutton);
+        break;
+      }
       if (m_pPanel)
       {
         m_pPanel->hideMenus();
@@ -520,6 +527,10 @@ void Mew::processEvent(XEvent& event)
       if (m_pLauncher && m_pLauncher->isActive())
       {
         m_pLauncher->hide();
+      }
+      if (m_pPower && m_pPower->isActive())
+      {
+        m_pPower->hide();
       }
       m_pClients->handleButtonPress(&event.xbutton);
       break;
@@ -562,6 +573,11 @@ void Mew::processEvent(XEvent& event)
       if (m_pLauncher && w == m_pLauncher->window())
       {
         m_pLauncher->draw();
+        break;
+      }
+      if (m_pPower && w == m_pPower->window())
+      {
+        m_pPower->draw();
         break;
       }
       if (m_pPanel && w == m_pPanel->startMenuWindow())
@@ -636,6 +652,11 @@ void Mew::processEvent(XEvent& event)
           m_pKeybindings->hide();
           break;
         }
+        if (m_pPower && m_pPower->isActive())
+        {
+          m_pPower->hide();
+          break;
+        }
         if (m_pPanel && (m_pPanel->isStartMenuActive() || m_pPanel->isPowerMenuActive() || m_pPanel->isNetworkMenuActive()))
         {
           m_pPanel->hideMenus();
@@ -654,6 +675,11 @@ void Mew::processEvent(XEvent& event)
       }
       if (handleCustomKeybinding(key))
       {
+        break;
+      }
+      if (m_pPower && m_pPower->isActive())
+      {
+        m_pPower->handleKey(key);
         break;
       }
 
@@ -724,6 +750,9 @@ int Mew::run()
 
   m_pSwitcher = new WindowSwitcher(m_xconn, m_font, *m_pClients);
   m_pKeybindings = new KeybindingsWindow(m_xconn, m_font, m_config);
+  m_pPower = new PowerWindow(m_xconn, m_font);
+  m_pPower->setOnReconfigure(onReconfigure);
+  m_pPower->setOnQuit(onQuit);
   m_pLauncher = new AppLauncher(m_xconn, m_font);
   m_pPanel = new Panel(m_xconn, m_font, *m_pClients);
   m_pPanel->setBackgroundColor(m_config.panelColor());

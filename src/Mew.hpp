@@ -10,6 +10,7 @@
 #include "Sound.hpp"
 #include "WindowSwitcher.hpp"
 #include "XConnection.hpp"
+#include "PowerWindow.hpp"
 
 /**
  * @brief Top-level window manager orchestrator.
@@ -79,6 +80,7 @@ private:
   KeybindingsWindow* m_pKeybindings = nullptr;
   AppLauncher* m_pLauncher = nullptr;
   Panel* m_pPanel = nullptr;
+  PowerWindow* m_pPower = nullptr;
 
   bool m_shouldQuit = false;
   bool m_needReconfigure = false;
