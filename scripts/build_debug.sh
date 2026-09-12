@@ -6,6 +6,7 @@ mkdir -p build/debug
 
 echo ">>> generating font data"
 xxd -i -n hurmit_ttf ./assets/fonts/Hermit/HurmitNerdFont-Regular.otf > src/hurmit_font_data.h
+xxd -i -n weather_ttf ./assets/fonts/weathericons-regular-webfont.ttf > src/weather_font_data.h
 xxd -i -n logo_png ./assets/images/logo.jpg > src/logo_data.h
 xxd -i -n logoFull_png ./assets/images/logoFull.jpg > src/logoFull_data.h
 xxd -i -n login_wav ./assets/audio/login.wav > src/login_wav_data.h

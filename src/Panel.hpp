@@ -201,6 +201,10 @@ public:
 
   void tick();
 
+  bool handleEscape();
+
+  std::vector<PanelWidget*>& widgets() { return m_widgets; }
+
 private:
   void updateVolume();
   void resolveVolumeControl(std::string& device, std::string& control) const;
@@ -264,6 +268,7 @@ private:
   Pixmap m_backBuffer = None;
   int m_backBufferW = 0;
   std::vector<PanelWidget*> m_widgets;
+  PanelWidget* m_pHoverWidget = nullptr;
 
   void (*m_onShowLauncher)() = nullptr;
   void (*m_onShowKeybindings)() = nullptr;

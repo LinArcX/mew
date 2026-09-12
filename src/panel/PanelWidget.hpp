@@ -42,6 +42,20 @@ public:
    */
   virtual std::string tooltip() const { return {}; }
 
+  /** @brief Pointer entered this widget; screenX is widget's left edge. */
+  virtual void onHover(int screenX) { (void)screenX; }
+
+  /** @brief Pointer left this widget. */
+  virtual void onUnhover() {}
+
+  /** @brief Return true if ESC was consumed (e.g. popup hidden). */
+  virtual bool handleEscape() { return false; }
+
+  /** @brief Popup window id, or None. */
+  virtual Window popupWindow() const { return None; }
+
+  /** @brief Redraw popup contents (Expose). */
+  virtual void drawPopup() {}
   /** @brief Optional per-event-loop-tick hook. */
   virtual void tick() {}
 

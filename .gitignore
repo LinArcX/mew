@@ -5,9 +5,14 @@ build/*
 .cache/*
 garbage/*
 
+# auto-generated fonts
 src/hurmit_font_data.h
+src/weather_font_data.h
+
+# auto-generated images
 src/logoFull_data.h
 src/logo_data.h
 
+# auto-generated audio
 src/login_wav_data.h
 src/logout_wav_data.h

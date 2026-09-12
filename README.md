@@ -5,12 +5,32 @@ Minimal, fast window manager for X.
   <img src="assets/images/screenshot.png" width="800">
 </p>
 
-## Why mew?
+## Features
 
 - **Small and fast.** Plain C++, raw Xlib. No desktop-environment dependencies.
 - **Keyboard-first.** Everything is a keybinding. Snap, maximize, fullscreen, launcher, power — all scriptable.
 - **Batteries included, nothing bloated.** Panel, app launcher, switcher, background, sounds in one ~15k-line codebase.
 - **Hackable.** Flat modules, readable code, text-file config.
+- **Optional Widgets** Write your widgets and drop them in src/panel. re-compile mew, enjoy!
+
+## dependencies
+### tools
+```
+git
+gcc
+Bear
+pkgconf
+xxd
+fzf (optioanl)
+```
+
+### build-time
+```
+libXft-devel
+freetype-devel
+libXcursor-devel
+alsa-lib-devel
+```
 
 ## build
 First you need to clone the project:

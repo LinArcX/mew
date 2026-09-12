@@ -12,7 +12,7 @@
   So check if the app, or window already has frame, if it has don't make any frame around it.
 
 ## panel
-- [ ] show pop-up menu when you click on weather widget, showing the next 10 days forecast.
+- [ ] implement a minimal music player as optional widget panel. next after weather widget.
 - [ ] New Feature: When i hover over date/time in panel, shows a pop-up calendar window.
   It should be close when i:
     hit ESCAPE
@@ -71,6 +71,7 @@
 ## panel
 - [+] New Feature: Add new plugin to panel called weather. it should automatically detect current location and shows it's current weather.
   use unicode icons for cloudy, sunny, etc.. conditions.
+- [+] show pop-up menu when you click on weather widget, showing the next 10 days forecast.
 - [+] Widgets in Panel every second, i see a flash on it, like a flickering or heart bit. it has a bad visual effect. 
   i know that you're updating panel items regurarly, but can you fix this flickering, annoying artifact that annoy the eyes?
 - [+] instead of using amixer directly in Panel.cpp to mute audio, you should read the command from: ~/.config/mew/keybindings

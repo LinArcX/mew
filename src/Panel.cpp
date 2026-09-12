@@ -34,6 +34,9 @@ Panel::~Panel()
   {
     return;
   }
+
+  m_pHoverWidget = nullptr;
+
   for (PanelWidget* pWidget : m_widgets)
   {
     delete pWidget;
@@ -1391,6 +1394,31 @@ void Panel::tick()
 
 void Panel::handleMotion(int x)
 {
+  int widgetX = 44;
+  PanelWidget* pOver = nullptr;
+  for (PanelWidget* pWidget : m_widgets)
+  {
+    int w = pWidget->width();
+    if (x >= widgetX && x < widgetX + w)
+    {
+      pOver = pWidget;
+      break;
+    }
+    widgetX += w;
+  }
+  if (pOver != m_pHoverWidget)
+  {
+    if (m_pHoverWidget)
+    {
+      m_pHoverWidget->onUnhover();
+    }
+    m_pHoverWidget = pOver;
+    if (pOver)
+    {
+      pOver->onHover(widgetX);
+    }
+  }
+
   int zone = hitTest(x);
   if (zone == m_hoverZone)
   {
@@ -1432,8 +1460,26 @@ void Panel::handleMotion(int x)
   }
 }
 
+bool Panel::handleEscape()
+{
+  for (PanelWidget* pWidget : m_widgets)
+  {
+    if (pWidget->handleEscape())
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 void Panel::handleLeave()
 {
+  if (m_pHoverWidget)
+  {
+    m_pHoverWidget->onUnhover();
+    m_pHoverWidget = nullptr;
+  }
+
   m_hoverZone = -1;
   hideTooltip();
   draw();

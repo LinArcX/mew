@@ -500,6 +500,25 @@ void Mew::processEvent(XEvent& event)
     case ButtonPress:
     {
       Window w = event.xbutton.window;
+      if (m_pPanel)
+      {
+        for (PanelWidget* pW : m_pPanel->widgets())
+        {
+          if (pW->popupWindow() == w)
+          {
+            pW->handleEscape();
+            break;
+          }
+        }
+      }
+      for (PanelWidget* pW : m_pPanel->widgets())
+      {
+        if (pW->popupWindow() != None && pW->popupWindow() != w)
+        {
+          pW->handleEscape();
+        }
+      }
+
       if (m_pKeybindings && m_pKeybindings->isActive() && w == m_pKeybindings->window())
       {
         m_pKeybindings->handleClick(&event.xbutton);
@@ -585,6 +604,17 @@ void Mew::processEvent(XEvent& event)
         m_pPanel->draw();
         break;
       }
+      if (m_pPanel)
+      {
+        for (PanelWidget* pW : m_pPanel->widgets())
+        {
+          if (w == pW->popupWindow())
+          {
+            pW->drawPopup();
+            break;
+          }
+        }
+      }
       if (m_pLauncher && w == m_pLauncher->window())
       {
         m_pLauncher->draw();
@@ -657,6 +687,10 @@ void Mew::processEvent(XEvent& event)
       KeySym keysymEarly = XLookupKeysym(key, 0);
       if (keysymEarly == XK_Escape)
       {
+        if (m_pPanel && m_pPanel->handleEscape())
+        {
+          break;
+        }
         if (m_pLauncher && m_pLauncher->isActive())
         {
           m_pLauncher->hide();
