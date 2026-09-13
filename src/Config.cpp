@@ -22,6 +22,8 @@ void Config::load()
   m_volumeColorHigh = 0xcc2222;
   m_volumeColorMuted = 0x666666;
 
+  m_panelWidgets.clear();
+
   m_musicIconColor = 0xffffff;
   m_musicNoteColor = 0xffffff;
   m_musicButtonColor = 0xffffff;
@@ -161,7 +163,7 @@ void Config::load()
     {
       m_weatherLocation = val;
     }
-    else if (key == "panel_widgets")
+       else if (key == "panel_widgets")
     {
       m_panelWidgets.clear();
       std::stringstream ss(val);
@@ -169,12 +171,43 @@ void Config::load()
       while (std::getline(ss, item, ','))
       {
         item = Util::trim(item);
-        if (!item.empty())
+        if (item.empty())
         {
-          m_panelWidgets.push_back(item);
+          continue;
+        }
+        PanelWidgetEntry e;
+        size_t at = item.find('@');
+        if (at != std::string::npos)
+        {
+          e.id = Util::trim(item.substr(0, at));
+          e.position = Util::trim(item.substr(at + 1));
+        }
+        else
+        {
+          e.id = item;
+          e.position = "";
+        }
+        if (!e.id.empty())
+        {
+          m_panelWidgets.push_back(e);
         }
       }
     }
+
+   // else if (key == "panel_widgets")
+   // {
+   //   m_panelWidgets.clear();
+   //   std::stringstream ss(val);
+   //   std::string item;
+   //   while (std::getline(ss, item, ','))
+   //   {
+   //     item = Util::trim(item);
+   //     if (!item.empty())
+   //     {
+   //       m_panelWidgets.push_back(item);
+   //     }
+   //   }
+   // }
     else if (key == "start_menu_items")
     {
       m_startMenuItems.clear();

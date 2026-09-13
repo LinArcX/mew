@@ -6,6 +6,27 @@
 #include <vector>
 #include <algorithm>
 
+int LanguageWidget::width() const
+{
+  XftFont* pFont = m_font.font();
+  if (!pFont)
+  {
+    return 30;
+  }
+
+  std::string name = m_name.empty() ? "??" : m_name;
+
+  XGlyphInfo ext{};
+  XftTextExtentsUtf8(
+    m_xconn.display(),
+    pFont,
+    reinterpret_cast<const FcChar8*>(name.c_str()),
+    static_cast<int>(name.size()),
+    &ext);
+
+  return ext.xOff + 16;
+}
+
 void LanguageWidget::refresh()
 {
   XkbStateRec st{};

@@ -224,10 +224,60 @@ void Panel::create()
 
   XMapRaised(d, m_window);
   loadStartIcon();
-  m_widgets = PanelWidgetRegistry::instance().create(
-    m_pConfig ? m_pConfig->panelWidgets() : std::vector<std::string>{},
-    m_xconn,
-    m_font);
+   m_widgets.clear();
+
+  std::vector<Config::PanelWidgetEntry> entries;
+  if (m_pConfig)
+  {
+    entries = m_pConfig->panelWidgets();
+  }
+
+  for (const Config::PanelWidgetEntry& e : entries)
+  {
+    PanelWidget* pWidget = PanelWidgetRegistry::instance().createOne(e.id, m_xconn, m_font);
+    if (!pWidget)
+    {
+      continue;
+    }
+
+    PanelPosition pos = pWidget->anchorRight() ? PanelPosition::Right : PanelPosition::Left;
+    if      (e.position == "left")   pos = PanelPosition::Left;
+    else if (e.position == "center") pos = PanelPosition::Center;
+    else if (e.position == "right")  pos = PanelPosition::Right;
+
+    pWidget->setPosition(pos);
+    m_widgets.push_back(pWidget);
+  }
+
+    m_widgets.clear();
+
+ // std::vector<Config::PanelWidgetEntry> entries;
+  if (m_pConfig)
+  {
+    entries = m_pConfig->panelWidgets();
+  }
+
+  for (const Config::PanelWidgetEntry& e : entries)
+  {
+    PanelWidget* pWidget = PanelWidgetRegistry::instance().createOne(e.id, m_xconn, m_font);
+    if (!pWidget)
+    {
+      continue;
+    }
+
+    PanelPosition pos = pWidget->anchorRight() ? PanelPosition::Right : PanelPosition::Left;
+    if      (e.position == "left")   pos = PanelPosition::Left;
+    else if (e.position == "center") pos = PanelPosition::Center;
+    else if (e.position == "right")  pos = PanelPosition::Right;
+
+    pWidget->setPosition(pos);
+    m_widgets.push_back(pWidget);
+  }
+
+  //m_widgets = PanelWidgetRegistry::instance().create(
+  //  m_pConfig ? m_pConfig->panelWidgets() : std::vector<std::string>{},
+  //  m_xconn,
+  //  m_font);
   std::vector<std::string> menuIds =
     m_pConfig ? m_pConfig->startMenuItems() : std::vector<std::string>{"apps","keybindings","power"};
   m_startItems = StartMenuRegistry::instance().create(menuIds);
@@ -680,47 +730,6 @@ void Panel::draw()
   int baseline = (MewConst::panelHeight + textH) / 2 - (pFont ? pFont->descent : 2);
   m_font.setColor(m_itemColor);
 
-  //if (m_hoverZone == 0)
-  //{
-  //  XSetForeground(d, gc, m_hoverColor);
-  //  XFillRectangle(d, m_backBuffer, gc, 0, 0, 40, MewConst::panelHeight);
-  //}
-  //else if (m_hoverZone == 1)
-  //{
-  //  XSetForeground(d, gc, m_hoverColor);
-  //  XFillRectangle(d, m_backBuffer, gc, screenW - 480, 0, 28, MewConst::panelHeight);
-  //}
-  //else if (m_hoverZone == 2)
-  //{
-  //  XSetForeground(d, gc, m_hoverColor);
-  //  XFillRectangle(d, m_backBuffer, gc, screenW - 450, 0, 70, MewConst::panelHeight);
-  //}
-  //else if (m_hoverZone == 3)
-  //{
-  //  XSetForeground(d, gc, m_hoverColor);
-  //  XFillRectangle(d, m_backBuffer, gc, screenW - 380, 0, 30, MewConst::panelHeight);
-  //}
-  //else if (m_hoverZone == 4 || m_volMenuActive)
-  //{
-  //  XSetForeground(d, gc, m_hoverColor);
-  //  XFillRectangle(d, m_backBuffer, gc, screenW - 350, 0, 35, MewConst::panelHeight);
-  //}
-  ////else if (m_hoverZone == 4)
-  ////{
-  ////  XSetForeground(d, gc, m_hoverColor);
-  ////  XFillRectangle(d, m_backBuffer, gc, screenW - 350, 0, 35, MewConst::panelHeight);
-  ////}
-  //else if (m_hoverZone == 5)
-  //{
-  //  XSetForeground(d, gc, m_hoverColor);
-  //  XFillRectangle(d, m_backBuffer, gc, screenW - 25, 0, 30, MewConst::panelHeight);
-  //}
-  //else if (m_hoverZone == 6)
-  //{
-  //  XSetForeground(d, gc, m_hoverColor);
-  //  XFillRectangle(d, m_backBuffer, gc, screenW - 305, 0, 275, MewConst::panelHeight);
-  //}
-
   if (!m_startIconRgba.empty())
   {
     const int sz = kStartIconSize;
@@ -809,52 +818,86 @@ void Panel::draw()
   //m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 305, baseline, buf);
   //m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 20, baseline, "\xef\x92\xa9");
 
-   // Left-anchored widgets.
-  int widgetX = 44;
-  for (PanelWidget* pWidget : m_widgets)
-  {
-    if (pWidget->anchorRight())
-    {
-      continue;
-    }
-    int w = pWidget->width();
-    if (pWidget == m_pHoverWidget)
-    {
-      XSetForeground(d, gc, m_hoverColor);
-      XFillRectangle(d, m_backBuffer, gc, widgetX, 0, w, MewConst::panelHeight);
-    }
-    pWidget->draw(d, m_backBuffer, widgetX, baseline);
-    widgetX += w;
-  }
-
-  // Right-anchored widgets (walk left to right, but anchor to the right edge).
-  int rightCursor = screenW;
-  // Compute total width of right-anchored widgets.
+   // Pre-compute group widths for center and right.
+  int centerTotal = 0;
   int rightTotal = 0;
   for (PanelWidget* pWidget : m_widgets)
   {
-    if (pWidget->anchorRight())
-    {
-      rightTotal += pWidget->width();
-    }
+    int w = pWidget->width();
+    if (pWidget->position() == PanelPosition::Center) centerTotal += w;
+    else if (pWidget->position() == PanelPosition::Right) rightTotal += w;
   }
-  rightCursor = screenW - rightTotal;
+
+  int leftCursor   = 44;
+  int centerCursor = (screenW - centerTotal) / 2;
+  int rightCursor  = screenW - rightTotal;
 
   for (PanelWidget* pWidget : m_widgets)
   {
-    if (!pWidget->anchorRight())
-    {
-      continue;
-    }
     int w = pWidget->width();
+    int x = 0;
+    switch (pWidget->position())
+    {
+      case PanelPosition::Left:   x = leftCursor;   leftCursor += w;   break;
+      case PanelPosition::Center: x = centerCursor; centerCursor += w; break;
+      case PanelPosition::Right:  x = rightCursor;  rightCursor += w;  break;
+    }
+
     if (pWidget == m_pHoverWidget)
     {
       XSetForeground(d, gc, m_hoverColor);
-      XFillRectangle(d, m_backBuffer, gc, rightCursor, 0, w, MewConst::panelHeight);
+      XFillRectangle(d, m_backBuffer, gc, x, 0, w, MewConst::panelHeight);
     }
-    pWidget->draw(d, m_backBuffer, rightCursor, baseline);
-    rightCursor += w;
+
+    pWidget->draw(d, m_backBuffer, x, baseline);
   }
+
+  // // Left-anchored widgets.
+  //int widgetX = 44;
+  //for (PanelWidget* pWidget : m_widgets)
+  //{
+  //  if (pWidget->anchorRight())
+  //  {
+  //    continue;
+  //  }
+  //  int w = pWidget->width();
+  //  if (pWidget == m_pHoverWidget)
+  //  {
+  //    XSetForeground(d, gc, m_hoverColor);
+  //    XFillRectangle(d, m_backBuffer, gc, widgetX, 0, w, MewConst::panelHeight);
+  //  }
+  //  pWidget->draw(d, m_backBuffer, widgetX, baseline);
+  //  widgetX += w;
+  //}
+
+  //// Right-anchored widgets (walk left to right, but anchor to the right edge).
+  //int rightCursor = screenW;
+  //// Compute total width of right-anchored widgets.
+  //int rightTotal = 0;
+  //for (PanelWidget* pWidget : m_widgets)
+  //{
+  //  if (pWidget->anchorRight())
+  //  {
+  //    rightTotal += pWidget->width();
+  //  }
+  //}
+  //rightCursor = screenW - rightTotal;
+
+  //for (PanelWidget* pWidget : m_widgets)
+  //{
+  //  if (!pWidget->anchorRight())
+  //  {
+  //    continue;
+  //  }
+  //  int w = pWidget->width();
+  //  if (pWidget == m_pHoverWidget)
+  //  {
+  //    XSetForeground(d, gc, m_hoverColor);
+  //    XFillRectangle(d, m_backBuffer, gc, rightCursor, 0, w, MewConst::panelHeight);
+  //  }
+  //  pWidget->draw(d, m_backBuffer, rightCursor, baseline);
+  //  rightCursor += w;
+  //}
 
   //int widgetX = 44;
   //for (PanelWidget* pWidget : m_widgets)
@@ -1487,41 +1530,75 @@ void Panel::doPoweroff()
 
 void Panel::handleClick(int x)
 {
-  // Widget strip — left side.
-  int widgetX = 44;
-  for (PanelWidget* pWidget : m_widgets)
-  {
-    if (pWidget->anchorRight()) continue;
-    int w = pWidget->width();
-    if (x >= widgetX && x < widgetX + w)
-    {
-      if (!pWidget->handleLocalClick(x - widgetX, widgetX))
-        pWidget->onClick(widgetX);
-      draw();
-      return;
-    }
-    widgetX += w;
-  }
+  //// Widget strip — left side.
+  //int widgetX = 44;
+  //for (PanelWidget* pWidget : m_widgets)
+  //{
+  //  if (pWidget->anchorRight()) continue;
+  //  int w = pWidget->width();
+  //  if (x >= widgetX && x < widgetX + w)
+  //  {
+  //    if (!pWidget->handleLocalClick(x - widgetX, widgetX))
+  //      pWidget->onClick(widgetX);
+  //    draw();
+  //    return;
+  //  }
+  //  widgetX += w;
+  //}
 
-  // Widget strip — right side.
+  //// Widget strip — right side.
+  //int rightTotal = 0;
+  //for (PanelWidget* pWidget : m_widgets)
+  //  if (pWidget->anchorRight()) rightTotal += pWidget->width();
+  //int rx = m_xconn.width() - rightTotal;
+  //for (PanelWidget* pWidget : m_widgets)
+  //{
+  //  if (!pWidget->anchorRight()) continue;
+  //  int w = pWidget->width();
+  //  if (x >= rx && x < rx + w)
+  //  {
+  //    if (!pWidget->handleLocalClick(x - rx, rx))
+  //      pWidget->onClick(rx);
+  //    draw();
+  //    return;
+  //  }
+  //  rx += w;
+  //}
+
+   int centerTotal = 0;
   int rightTotal = 0;
   for (PanelWidget* pWidget : m_widgets)
-    if (pWidget->anchorRight()) rightTotal += pWidget->width();
-  int rx = m_xconn.width() - rightTotal;
+  {
+    int w = pWidget->width();
+    if (pWidget->position() == PanelPosition::Center) centerTotal += w;
+    else if (pWidget->position() == PanelPosition::Right) rightTotal += w;
+  }
+
+  int leftCursor   = 44;
+  int centerCursor = (m_xconn.width() - centerTotal) / 2;
+  int rightCursor  = m_xconn.width() - rightTotal;
+
   for (PanelWidget* pWidget : m_widgets)
   {
-    if (!pWidget->anchorRight()) continue;
     int w = pWidget->width();
-    if (x >= rx && x < rx + w)
+    int wx = 0;
+    switch (pWidget->position())
     {
-      if (!pWidget->handleLocalClick(x - rx, rx))
-        pWidget->onClick(rx);
+      case PanelPosition::Left:   wx = leftCursor;   leftCursor += w;   break;
+      case PanelPosition::Center: wx = centerCursor; centerCursor += w; break;
+      case PanelPosition::Right:  wx = rightCursor;  rightCursor += w;  break;
+    }
+
+    if (x >= wx && x < wx + w)
+    {
+      if (!pWidget->handleLocalClick(x - wx, wx))
+      {
+        pWidget->onClick(wx);
+      }
       draw();
       return;
     }
-    rx += w;
   }
-
   // Start button.
   if (x < 40)
   {
@@ -1783,34 +1860,68 @@ void Panel::tick()
 
 void Panel::handleMotion(int x)
 {
-  // Locate widget under the cursor (both anchored sides).
+  //// Locate widget under the cursor (both anchored sides).
+  //PanelWidget* pOver = nullptr;
+  //int hoverX = 0;
+
+  //int widgetX = 44;
+  //for (PanelWidget* pWidget : m_widgets)
+  //{
+  //  if (pWidget->anchorRight()) continue;
+  //  int w = pWidget->width();
+  //  if (x >= widgetX && x < widgetX + w) { pOver = pWidget; hoverX = widgetX; break; }
+  //  widgetX += w;
+  //}
+
+  //if (!pOver)
+  //{
+  //  int rightTotal = 0;
+  //  for (PanelWidget* pWidget : m_widgets)
+  //    if (pWidget->anchorRight()) rightTotal += pWidget->width();
+  //  int rx = m_xconn.width() - rightTotal;
+  //  for (PanelWidget* pWidget : m_widgets)
+  //  {
+  //    if (!pWidget->anchorRight()) continue;
+  //    int w = pWidget->width();
+  //    if (x >= rx && x < rx + w) { pOver = pWidget; hoverX = rx; break; }
+  //    rx += w;
+  //  }
+  //}
+
+    int centerTotal = 0;
+  int rightTotal = 0;
+  for (PanelWidget* pWidget : m_widgets)
+  {
+    int w = pWidget->width();
+    if (pWidget->position() == PanelPosition::Center) centerTotal += w;
+    else if (pWidget->position() == PanelPosition::Right) rightTotal += w;
+  }
+
+  int leftCursor   = 44;
+  int centerCursor = (m_xconn.width() - centerTotal) / 2;
+  int rightCursor  = m_xconn.width() - rightTotal;
+
   PanelWidget* pOver = nullptr;
   int hoverX = 0;
 
-  int widgetX = 44;
   for (PanelWidget* pWidget : m_widgets)
   {
-    if (pWidget->anchorRight()) continue;
     int w = pWidget->width();
-    if (x >= widgetX && x < widgetX + w) { pOver = pWidget; hoverX = widgetX; break; }
-    widgetX += w;
-  }
-
-  if (!pOver)
-  {
-    int rightTotal = 0;
-    for (PanelWidget* pWidget : m_widgets)
-      if (pWidget->anchorRight()) rightTotal += pWidget->width();
-    int rx = m_xconn.width() - rightTotal;
-    for (PanelWidget* pWidget : m_widgets)
+    int wx = 0;
+    switch (pWidget->position())
     {
-      if (!pWidget->anchorRight()) continue;
-      int w = pWidget->width();
-      if (x >= rx && x < rx + w) { pOver = pWidget; hoverX = rx; break; }
-      rx += w;
+      case PanelPosition::Left:   wx = leftCursor;   leftCursor += w;   break;
+      case PanelPosition::Center: wx = centerCursor; centerCursor += w; break;
+      case PanelPosition::Right:  wx = rightCursor;  rightCursor += w;  break;
+    }
+
+    if (x >= wx && x < wx + w)
+    {
+      pOver = pWidget;
+      hoverX = wx;
+      break;
     }
   }
-
   if (pOver != m_pHoverWidget)
   {
     if (m_pHoverWidget) m_pHoverWidget->onUnhover();

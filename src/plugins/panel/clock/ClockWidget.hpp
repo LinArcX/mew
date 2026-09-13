@@ -13,7 +13,7 @@ public:
     : m_xconn(xconn), m_font(font) {}
 
   const char* id() const override { return "clock"; }
-  int width() const override { return 190; }
+  int width() const override;
   bool anchorRight() const override { return true; }
   void draw(Display* d, Window panel, int x, int baseline) override;
   bool onClick(int) override { return false; }

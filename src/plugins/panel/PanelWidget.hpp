@@ -4,6 +4,8 @@
 #include <string>
 #include "../Config.hpp"
 
+enum class PanelPosition { Left, Center, Right };
+
 /**
  * @brief Interface for a panel plugin widget.
  *
@@ -85,4 +87,12 @@ public:
 
   /** @brief True to anchor the widget to the right edge of the panel. */
   virtual bool anchorRight() const { return false; }
+
+  PanelPosition position() const { return m_position; }
+
+  void setPosition(PanelPosition p) { m_position = p; }
+
+private:
+
+  PanelPosition m_position = PanelPosition::Left;
 };

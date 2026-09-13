@@ -1,6 +1,27 @@
 #include "DesktopWidget.hpp"
 #include "Mew.hpp"
 
+int DesktopWidget::width() const
+{
+  XftFont* pFont = m_font.font();
+  if (!pFont)
+  {
+    return 30;
+  }
+
+  std::string icon = "\xef\x92\xa9";
+
+  XGlyphInfo ext{};
+  XftTextExtentsUtf8(
+    m_xconn.display(),
+    pFont,
+    reinterpret_cast<const FcChar8*>(icon.c_str()),
+    static_cast<int>(icon.size()),
+    &ext);
+
+  return ext.xOff + 16;
+}
+
 void DesktopWidget::draw(Display* d, Window panel, int x, int baseline)
 {
   m_font.draw(d, m_xconn.screen(), panel, x, baseline, "\xef\x92\xa9");

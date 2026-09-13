@@ -37,6 +37,17 @@ std::vector<PanelWidget*> PanelWidgetRegistry::create(
   return out;
 }
 
+PanelWidget* PanelWidgetRegistry::createOne(
+  const std::string& id, XConnection& xconn, FontRenderer& font)
+{
+  auto it = m_factories.find(id);
+  if (it == m_factories.end())
+  {
+    return nullptr;
+  }
+  return it->second(xconn, font);
+}
+
 PanelWidgetRegistrar::PanelWidgetRegistrar(const std::string& name, PanelWidgetFactory factory)
 {
   PanelWidgetRegistry::instance().add(name, factory);

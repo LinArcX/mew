@@ -27,6 +27,8 @@ public:
     const std::vector<std::string>& ids,
     XConnection& xconn,
     FontRenderer& font);
+  
+  PanelWidget* createOne(const std::string& id, XConnection& xconn, FontRenderer& font);
 
 private:
   PanelWidgetRegistry() = default;

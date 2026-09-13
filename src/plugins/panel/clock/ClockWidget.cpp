@@ -13,6 +13,57 @@ void ClockWidget::draw(Display* d, Window panel, int x, int baseline)
   m_font.draw(d, m_xconn.screen(), panel, x, baseline, buf);
 }
 
+int ClockWidget::width() const
+{
+  // Match the exact string produced by draw(): "%Y-%B-%d" plus time.
+  std::string sample =
+    std::string("\xee\xaa\xb0 ") + "0000-September-00" +
+    " \xee\x99\x81 " + "00:00:00";
+
+  XftFont* pFont = m_font.font();
+  if (!pFont)
+  {
+    return 220;
+  }
+
+  XGlyphInfo ext{};
+  XftTextExtentsUtf8(
+    m_xconn.display(),
+    pFont,
+    reinterpret_cast<const FcChar8*>(sample.c_str()),
+    static_cast<int>(sample.size()),
+    &ext);
+
+  return ext.xOff + 12;
+}
+
+//int ClockWidget::width() const
+//{
+//  // Compute the widest possible date/time string so the hover zone
+//  // matches the rendered text.
+//  char datePart[48];
+//  char timePart[16];
+//  snprintf(datePart, sizeof(datePart), "%s", "September-00");
+//  snprintf(timePart, sizeof(timePart), "%s", "00:00:00");
+//
+//  std::string sample = std::string("\xee\xaa\xb0 ") + datePart +
+//                       " \xee\x99\x81 " + timePart;
+//
+//  XftFont* pFont = m_font.font();
+//  if (!pFont)
+//  {
+//    return 200;
+//  }
+//  XGlyphInfo ext{};
+//  XftTextExtentsUtf8(
+//    m_xconn.display(),
+//    pFont,
+//    reinterpret_cast<const FcChar8*>(sample.c_str()),
+//    static_cast<int>(sample.size()),
+//    &ext);
+//  return ext.xOff + 12;
+//}
+
 std::string ClockWidget::tooltip() const { return "Date and time"; }
 
 bool ClockWidget::tick()
