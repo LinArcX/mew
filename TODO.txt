@@ -1,12 +1,6 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
-- [ ] when clicking on volume widget in panel, there should be a vertical slider that let us to chagne volume size.
-  - there should be a mute button at bottom of this slider that when you click on it, make the audio muted.
-  - the volume and mute state in slider should be reflected to widget itself in panel.
-  - when volume reaches 0%, it should show the mute icon not 0%.
-  - there should a setting in conf file that allow users to set colors for differnt range of volume.
-
 - [ ] start menu, should be modular, each category should be a folder in src/startMenu.
   - people can create their own menuItems and put them in src/startMenu.
   - it should be possible to have layers of menuItems in start menu. like:
@@ -99,6 +93,11 @@
 ---------------------------------------------------------------------------------
 # v8
 ## general
+- [+] when clicking on volume widget in panel, there should be a vertical slider that let us to chagne volume size.
+  - there should be a mute button at bottom of this slider that when you click on it, make the audio muted.
+  - the volume and mute state in slider should be reflected to widget itself in panel.
+  - when volume reaches 0%, it should show the mute icon not 0%.
+  - there should a setting in conf file that allow users to set colors for differnt range of volume.
 - [+] scripts/build_debug.sh should be rename to just scripts/build.sh.
   - [+] you should be able to pass --debug or --release or --clean to it.
   - [+] each panel widget, in its compiler_flags.txt file there should be an option to tell which files should be remove during clean phase:

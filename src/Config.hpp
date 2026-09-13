@@ -88,6 +88,10 @@ public:
   unsigned long musicButtonColor() const { return m_musicButtonColor; }
   int musicEqBars() const { return m_musicEqBars; }
   const std::vector<unsigned long>& musicEqColors() const { return m_musicEqColors; }
+  unsigned long volumeColorLow()   const { return m_volumeColorLow; }
+  unsigned long volumeColorMid()   const { return m_volumeColorMid; }
+  unsigned long volumeColorHigh()  const { return m_volumeColorHigh; }
+  unsigned long volumeColorMuted() const { return m_volumeColorMuted; }
 
 private:
   bool parseKeybinding(const std::string& line, std::string& key, std::string& command);
@@ -120,6 +124,11 @@ private:
   unsigned long m_musicButtonColor = 0xffffff;
   int m_musicEqBars = 4;
   std::vector<unsigned long> m_musicEqColors;
+
+  unsigned long m_volumeColorLow = 0x22aa44;
+  unsigned long m_volumeColorMid = 0xffcc44;
+  unsigned long m_volumeColorHigh = 0xcc2222;
+  unsigned long m_volumeColorMuted = 0x666666;
 
   unsigned long m_activeBorderColor = 0x333333;
   unsigned long m_activeTitleColor = 0x444444;

@@ -3,6 +3,7 @@
 #include "panel/musicPlayer/MusicPlayerWidget.hpp"
 #include "panel/pong/PongWidget.hpp"
 
+#include <sys/wait.h>
 #include <ctime>
 #include <algorithm>
 #include <fstream>
@@ -73,6 +74,11 @@ Panel::~Panel()
   {
     XDestroyWindow(d, m_window);
     m_window = None;
+  }
+  if (m_volMenu != None && m_xconn.display())
+  {
+    XDestroyWindow(m_xconn.display(), m_volMenu);
+    m_volMenu = None;
   }
 }
 
@@ -678,11 +684,16 @@ void Panel::draw()
     XSetForeground(d, gc, m_hoverColor);
     XFillRectangle(d, m_backBuffer, gc, screenW - 380, 0, 30, MewConst::panelHeight);
   }
-  else if (m_hoverZone == 4)
+  else if (m_hoverZone == 4 || m_volMenuActive)
   {
     XSetForeground(d, gc, m_hoverColor);
     XFillRectangle(d, m_backBuffer, gc, screenW - 350, 0, 35, MewConst::panelHeight);
   }
+  //else if (m_hoverZone == 4)
+  //{
+  //  XSetForeground(d, gc, m_hoverColor);
+  //  XFillRectangle(d, m_backBuffer, gc, screenW - 350, 0, 35, MewConst::panelHeight);
+  //}
   else if (m_hoverZone == 5)
   {
     XSetForeground(d, gc, m_hoverColor);
@@ -760,7 +771,7 @@ void Panel::draw()
   m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 375, baseline, m_layoutName);
 
   char volBuf[48];
-  if (m_volumeMuted || m_volumePercent < 0)
+  if (m_volumeMuted || m_volumePercent <= 0)
   {
     snprintf(volBuf, sizeof(volBuf), "\xf3\xb0\x96\x81");
   }
@@ -768,6 +779,16 @@ void Panel::draw()
   {
     snprintf(volBuf, sizeof(volBuf), "%d%%", m_volumePercent);
   }
+
+  //char volBuf[48];
+  //if (m_volumeMuted || m_volumePercent < 0)
+  //{
+  //  snprintf(volBuf, sizeof(volBuf), "\xf3\xb0\x96\x81");
+  //}
+  //else
+  //{
+  //  snprintf(volBuf, sizeof(volBuf), "%d%%", m_volumePercent);
+  //}
   m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 345, baseline, volBuf);
   m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 305, baseline, buf);
   m_font.draw(d, m_xconn.screen(), m_backBuffer, screenW - 20, baseline, "\xef\x92\xa9");
@@ -831,6 +852,7 @@ void Panel::hideMenus()
 {
   hidePowerMenu();
   hideNetworkMenu();
+  hideVolumeMenu();
   if (m_startMenu != None && m_startMenuActive)
   {
     XUnmapWindow(m_xconn.display(), m_startMenu);
@@ -1158,6 +1180,207 @@ void Panel::showNetworkMenu()
   drawNetworkMenu();
 }
 
+void Panel::setVolumePercent(int percent)
+{
+  if (percent < 0)   percent = 0;
+  if (percent > 100) percent = 100;
+
+  std::string device;
+  std::string control;
+  resolveVolumeControl(device, control);
+  std::string devicePart = device.empty() ? "" : ("-D " + device + " ");
+
+  std::string cmd = "amixer " + devicePart + "sset " + control + " " +
+                    std::to_string(percent) + "%";
+  std::system((cmd + " >/dev/null 2>&1").c_str());
+
+  // If the user drags to >0, unmute.
+  if (percent > 0 && m_volumeMuted)
+  {
+    std::string unmute = "amixer " + devicePart + "sset " + control + " unmute";
+    std::system((unmute + " >/dev/null 2>&1").c_str());
+  }
+
+  struct timespec ts = {0, 40 * 1000 * 1000};
+  nanosleep(&ts, nullptr);
+  updateVolume();
+  draw();
+  if (m_volMenuActive)
+  {
+    drawVolumeMenu();
+  }
+}
+
+void Panel::showVolumeMenu()
+{
+  Display* d = m_xconn.display();
+  int screenW = m_xconn.width();
+  int screenH = m_xconn.height();
+
+  int volCenterX = screenW - 330;
+  int x = volCenterX - kVolMenuW / 2;
+  int y = screenH - MewConst::panelHeight - kVolMenuH - 4;
+
+  if (m_volMenu == None)
+  {
+    XSetWindowAttributes attrs{};
+    attrs.override_redirect = True;
+    attrs.background_pixel = m_bgColor;
+    attrs.event_mask = ExposureMask | ButtonPressMask | PointerMotionMask;
+
+    m_volMenu = XCreateWindow(
+      d, m_xconn.root(),
+      x, y, kVolMenuW, kVolMenuH, 1,
+      CopyFromParent, InputOutput, CopyFromParent,
+      CWOverrideRedirect | CWBackPixel | CWEventMask,
+      &attrs);
+  }
+  else
+  {
+    XMoveResizeWindow(d, m_volMenu, x, y, kVolMenuW, kVolMenuH);
+  }
+
+  updateVolume();
+  XMapRaised(d, m_volMenu);
+  m_volMenuActive = true;
+  drawVolumeMenu();
+}
+
+void Panel::hideVolumeMenu()
+{
+  if (m_volMenu != None && m_volMenuActive)
+  {
+    XUnmapWindow(m_xconn.display(), m_volMenu);
+  }
+  m_volMenuActive = false;
+}
+
+void Panel::drawVolumeMenu()
+{
+  if (m_volMenu == None || !m_volMenuActive)
+  {
+    return;
+  }
+
+  Display* d = m_xconn.display();
+  int screen = m_xconn.screen();
+  GC gc = XCreateGC(d, m_volMenu, 0, nullptr);
+
+  XSetForeground(d, gc, m_bgColor);
+  XFillRectangle(d, m_volMenu, gc, 0, 0, kVolMenuW, kVolMenuH);
+
+  XSetForeground(d, gc, 0x555555);
+  XDrawRectangle(d, m_volMenu, gc, 0, 0, kVolMenuW - 1, kVolMenuH - 1);
+
+  // Slider geometry.
+  const int barW = 10;
+  const int barX = (kVolMenuW - barW) / 2;
+  const int barTop = 15;
+  const int barBottom = kVolMenuH - 60;
+  const int barH = barBottom - barTop;
+
+  // Track background.
+  XSetForeground(d, gc, 0x2a2a2a);
+  XFillRectangle(d, m_volMenu, gc, barX, barTop, barW, barH);
+
+  // Filled portion.
+  int percent = m_volumePercent;
+  if (percent < 0) percent = 0;
+  if (percent > 100) percent = 100;
+
+  unsigned long fillColor = m_pConfig ? m_pConfig->volumeColorLow() : 0x22aa44;
+  if (m_volumeMuted)
+  {
+    fillColor = m_pConfig ? m_pConfig->volumeColorMuted() : 0x666666;
+  }
+  else if (percent <= 30)
+  {
+    fillColor = m_pConfig ? m_pConfig->volumeColorLow() : 0x22aa44;
+  }
+  else if (percent <= 70)
+  {
+    fillColor = m_pConfig ? m_pConfig->volumeColorMid() : 0xffcc44;
+  }
+  else
+  {
+    fillColor = m_pConfig ? m_pConfig->volumeColorHigh() : 0xcc2222;
+  }
+
+  int fillH = (barH * percent) / 100;
+  if (fillH > 0)
+  {
+    XSetForeground(d, gc, fillColor);
+    XFillRectangle(d, m_volMenu, gc, barX, barBottom - fillH, barW, fillH);
+  }
+
+  // Percentage text above the slider.
+  XftFont* pFont = m_font.font();
+  int ascent = pFont ? pFont->ascent : 10;
+  char buf[16];
+  if (m_volumeMuted)
+  {
+    snprintf(buf, sizeof(buf), "Mute");
+  }
+  else
+  {
+    snprintf(buf, sizeof(buf), "%d%%", percent);
+  }
+
+  m_font.setColor(m_itemColor);
+  int textW = static_cast<int>(std::strlen(buf)) * 8;
+  m_font.draw(d, screen, m_volMenu,
+              (kVolMenuW - textW) / 2, ascent + 2, buf);
+
+  // Mute button at bottom.
+  const int btnW = 32;
+  const int btnH = 26;
+  int btnX = (kVolMenuW - btnW) / 2;
+  int btnY = kVolMenuH - 40;
+
+  XSetForeground(d, gc, m_volumeMuted ? 0xcc2222 : 0x333333);
+  XFillRectangle(d, m_volMenu, gc, btnX, btnY, btnW, btnH);
+  XSetForeground(d, gc, 0x666666);
+  XDrawRectangle(d, m_volMenu, gc, btnX, btnY, btnW - 1, btnH - 1);
+
+  const char* muteIcon = "\xf3\xb0\x96\x81";
+  int iconW = static_cast<int>(std::strlen(muteIcon)) * 6;
+  m_font.setColor(0xffffff);
+  m_font.draw(d, screen, m_volMenu,
+              btnX + (btnW - iconW) / 2, btnY + btnH / 2 + ascent / 2 - 2,
+              muteIcon);
+
+  m_font.setColor(m_itemColor);
+  XFreeGC(d, gc);
+}
+
+void Panel::handleVolumeMenuClick(int y)
+{
+  const int barTop = 15;
+  const int barBottom = kVolMenuH - 60;
+
+  // Mute button?
+  if (y >= kVolMenuH - 40 && y < kVolMenuH - 40 + 26)
+  {
+    toggleMute();
+    if (m_volMenuActive)
+    {
+      drawVolumeMenu();
+    }
+    return;
+  }
+
+  // Slider?
+  if (y >= barTop && y <= barBottom)
+  {
+    int percent = ((barBottom - y) * 100) / (barBottom - barTop);
+    setVolumePercent(percent);
+    if (m_volMenuActive)
+    {
+      drawVolumeMenu();
+    }
+  }
+}
+
 void Panel::handleNetworkMenuClick(int y)
 {
   int index = y / kNetMenuItemH;
@@ -1319,9 +1542,21 @@ void Panel::handleClick(int x)
   }
   if (zone == 4)
   {
-    toggleMute();
+    if (m_volMenuActive)
+    {
+      hideVolumeMenu();
+    }
+    else
+    {
+      showVolumeMenu();
+    }
     return;
   }
+  //if (zone == 4)
+  //{
+  //  toggleMute();
+  //  return;
+  //}
   if (zone == 5)
   {
     toggleDesktop();
@@ -1519,6 +1754,11 @@ void Panel::handleMotion(int x)
 
 bool Panel::handleEscape()
 {
+  if (m_volMenuActive)
+  {
+    hideVolumeMenu();
+    return true;
+  }
   for (PanelWidget* pWidget : m_widgets)
   {
     if (pWidget->handleEscape())
@@ -1528,6 +1768,18 @@ bool Panel::handleEscape()
   }
   return false;
 }
+
+//bool Panel::handleEscape()
+//{
+//  for (PanelWidget* pWidget : m_widgets)
+//  {
+//    if (pWidget->handleEscape())
+//    {
+//      return true;
+//    }
+//  }
+//  return false;
+//}
 
 void Panel::handleLeave()
 {

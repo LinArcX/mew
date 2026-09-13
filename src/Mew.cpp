@@ -549,6 +549,11 @@ void Mew::processEvent(XEvent& event)
         m_pPanel->handleNetworkMenuClick(event.xbutton.y);
         break;
       }
+      if (m_pPanel && m_pPanel->isVolumeMenuActive() && w == m_pPanel->volumeMenuWindow())
+      {
+        m_pPanel->handleVolumeMenuClick(event.xbutton.y);
+        break;
+      }
       if (m_pLauncher && m_pLauncher->isActive() && w == m_pLauncher->window())
       {
         m_pLauncher->handleClick(&event.xbutton);
@@ -586,6 +591,15 @@ void Mew::processEvent(XEvent& event)
             break;
           }
         }
+      }
+      if (m_pPanel && m_pPanel->isVolumeMenuActive()
+           && event.xmotion.window == m_pPanel->volumeMenuWindow())
+      {
+        if (event.xmotion.state & Button1Mask)
+        {
+          m_pPanel->handleVolumeMenuClick(event.xmotion.y);
+        }
+        break;
       }
       if (m_pPanel && event.xmotion.window == m_pPanel->window())
       {
@@ -673,6 +687,11 @@ void Mew::processEvent(XEvent& event)
       if (m_pPanel && w == m_pPanel->networkMenuWindow())
       {
         m_pPanel->drawNetworkMenu();
+        break;
+      }
+      if (m_pPanel && w == m_pPanel->volumeMenuWindow())
+      {
+        m_pPanel->drawVolumeMenu();
         break;
       }
       Client* pClient = m_pClients->findClient(w);

@@ -203,6 +203,18 @@ public:
 
   bool handleEscape();
 
+  /** @brief Volume slider popup window, or None. */
+  Window volumeMenuWindow() const { return m_volMenu; }
+
+  /** @brief Whether the volume slider popup is mapped. */
+  bool isVolumeMenuActive() const { return m_volMenuActive; }
+
+  /** @brief Handle a click inside the volume popup. */
+  void handleVolumeMenuClick(int y);
+
+  /** @brief Redraw the volume popup if active (Expose). */
+  void drawVolumeMenu();
+
   std::vector<PanelWidget*>& widgets() { return m_widgets; }
 
 private:
@@ -227,6 +239,10 @@ private:
   void toggleKillSwitch();
   bool isInterfaceUp(const std::string& name) const;
   void runAudioCommand(const char* keyName);
+
+  void showVolumeMenu();
+  void hideVolumeMenu();
+  void setVolumePercent(int percent);
 
   /** @brief Load assets/mew.png, downscale to kStartIconSize, store RGBA. */
   void loadStartIcon();
@@ -269,6 +285,11 @@ private:
   int m_backBufferW = 0;
   std::vector<PanelWidget*> m_widgets;
   PanelWidget* m_pHoverWidget = nullptr;
+
+  Window m_volMenu = None;
+  bool m_volMenuActive = false;
+  static constexpr int kVolMenuW = 60;
+  static constexpr int kVolMenuH = 230;
 
   void (*m_onShowLauncher)() = nullptr;
   void (*m_onShowKeybindings)() = nullptr;

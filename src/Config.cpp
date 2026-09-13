@@ -17,6 +17,11 @@ void Config::load()
   m_useEmbeddedSound = true;
   m_useEmbeddedLogoutSound = true;
 
+  m_volumeColorLow = 0x22aa44;
+  m_volumeColorMid = 0xffcc44;
+  m_volumeColorHigh = 0xcc2222;
+  m_volumeColorMuted = 0x666666;
+
   m_musicIconColor = 0xffffff;
   m_musicNoteColor = 0xffffff;
   m_musicButtonColor = 0xffffff;
@@ -118,6 +123,26 @@ void Config::load()
         }
         m_musicEqColors.push_back(std::strtoul(item.c_str(), nullptr, 0));
       }
+    }
+    else if (key == "volume_color_low")
+    {
+      if (!val.empty() && val[0] == '#') val = "0x" + val.substr(1);
+      m_volumeColorLow = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "volume_color_mid")
+    {
+      if (!val.empty() && val[0] == '#') val = "0x" + val.substr(1);
+      m_volumeColorMid = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "volume_color_high")
+    {
+      if (!val.empty() && val[0] == '#') val = "0x" + val.substr(1);
+      m_volumeColorHigh = std::strtoul(val.c_str(), nullptr, 0);
+    }
+    else if (key == "volume_color_muted")
+    {
+      if (!val.empty() && val[0] == '#') val = "0x" + val.substr(1);
+      m_volumeColorMuted = std::strtoul(val.c_str(), nullptr, 0);
     }
     else if (key == "weather_text_color")
     {
