@@ -25,7 +25,7 @@
   So check if the app, or window already has frame, if it has don't make any frame around it.
 
 ## widgets for panel
-- [ ] simple game in panel.
+- [+] Pong game as panel widget.
 - [ ] System tray:	Own the _NET_SYSTEM_TRAY_S0 selection; embed StatusNotifierItem icons
 - [ ] Notification daemon(something like dunst): Libnotify daemon stub; show bell + count, click to open list
 - [ ] CPU: Overall or per-core usage, temp if /sys/class/thermal present	(read /proc/stat)

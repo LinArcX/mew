@@ -1,6 +1,7 @@
 #include "Panel.hpp"
 #include "logo_data.h"
 #include "panel/MusicPlayerWidget.hpp"
+#include "panel/PongWidget.hpp"
 
 #include <ctime>
 #include <algorithm>
@@ -1228,7 +1229,7 @@ void Panel::handleClick(int x)
     if (x >= widgetX && x < widgetX + w)
     {
       std::string id = pWidget->id();
-       if (id == "music")
+      if (id == "music")
       {
         int localX = x - widgetX;
         MusicPlayerWidget* pm = static_cast<MusicPlayerWidget*>(pWidget);
@@ -1261,58 +1262,14 @@ void Panel::handleClick(int x)
         draw();
         return;
       }
-
-      //if (id == "music")
-      //{
-      //  int localX = x - widgetX;
-      //  MusicPlayerWidget* pm = static_cast<MusicPlayerWidget*>(pWidget);
-      //  if (localX < 24)
-      //  {
-      //    pm->showPopup(widgetX);          // music note -> popup
-      //  }
-      //  else if (localX < 48)
-      //  {
-      //    pm->playPrev();
-      //  }
-      //  else if (localX < 72)
-      //  {
-      //    pm->togglePause();
-      //  }
-      //  else if (localX < 96)
-      //  {
-      //    pm->stopPlayback();
-      //  }
-      //  else if (localX < 120)
-      //  {
-      //    pm->playNext();
-      //  }
-      //  draw();
-      //  return;
-      //}
-
-      //if (id == "music")
-      //{
-      //  int localX = x - widgetX;
-      //  MusicPlayerWidget* pm = static_cast<MusicPlayerWidget*>(pWidget);
-      //  if (localX < 4 * 24)
-      //  {
-      //    int idx = localX / 24;
-      //    if (idx == 0) pm->playPrev();
-      //    else if (idx == 1) pm->togglePause();
-      //    else if (idx == 2) pm->stopPlayback();
-      //    else if (idx == 3) pm->playNext();
-      //    if (idx == 0 && pm->tooltip() == "Music player (no files)")
-      //    {
-      //      pm->playPrev();
-      //    }
-      //  }
-      //  else
-      //  {
-      //    pm->showPopup(widgetX);
-      //  }
-      //  draw();
-      //  return;
-      //}
+      else if (id == "pong")
+      {
+        int localX = x - widgetX;
+        PongWidget* pg = static_cast<PongWidget*>(pWidget);
+        pg->handleLocalClick(localX, widgetX);
+        draw();
+        return;
+      }
       pWidget->onClick(widgetX);
       draw();
       return;
@@ -1370,7 +1327,6 @@ void Panel::handleClick(int x)
     toggleDesktop();
   }
 }
-
 
 int Panel::hitTest(int x) const
 {
