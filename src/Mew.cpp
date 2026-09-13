@@ -539,11 +539,17 @@ void Mew::processEvent(XEvent& event)
         m_pPanel->handleStartMenuClick(event.xbutton.y);
         break;
       }
-      if (m_pPanel && m_pPanel->isPowerMenuActive() && w == m_pPanel->powerMenuWindow())
+      if (m_pPanel && m_pPanel->isItemSubmenuWindow(w))
       {
-        m_pPanel->handlePowerMenuClick(event.xbutton.y);
+        m_pPanel->handleItemSubmenuClick(w, event.xbutton.y);
         break;
       }
+
+      //if (m_pPanel && m_pPanel->isPowerMenuActive() && w == m_pPanel->powerMenuWindow())
+      //{
+      //  m_pPanel->handlePowerMenuClick(event.xbutton.y);
+      //  break;
+      //}
       if (m_pPanel && m_pPanel->isNetworkMenuActive() && w == m_pPanel->networkMenuWindow())
       {
         m_pPanel->handleNetworkMenuClick(event.xbutton.y);
@@ -679,11 +685,16 @@ void Mew::processEvent(XEvent& event)
         m_pPanel->drawStartMenu();
         break;
       }
-      if (m_pPanel && w == m_pPanel->powerMenuWindow())
+      if (m_pPanel && m_pPanel->isItemSubmenuWindow(w))
       {
-        m_pPanel->drawPowerMenu();
+        m_pPanel->drawItemSubmenu(w);
         break;
       }
+      //if (m_pPanel && w == m_pPanel->powerMenuWindow())
+      //{
+      //  m_pPanel->drawPowerMenu();
+      //  break;
+      //}
       if (m_pPanel && w == m_pPanel->networkMenuWindow())
       {
         m_pPanel->drawNetworkMenu();
@@ -774,11 +785,19 @@ void Mew::processEvent(XEvent& event)
           m_pPower->hide();
           break;
         }
-        if (m_pPanel && (m_pPanel->isStartMenuActive() || m_pPanel->isPowerMenuActive() || m_pPanel->isNetworkMenuActive()))
+        if (m_pPanel && (m_pPanel->isStartMenuActive()
+                         || m_pPanel->isNetworkMenuActive()
+                         || m_pPanel->isVolumeMenuActive()))
         {
           m_pPanel->hideMenus();
           break;
         }
+
+        //if (m_pPanel && (m_pPanel->isStartMenuActive() || m_pPanel->isPowerMenuActive() || m_pPanel->isNetworkMenuActive()))
+        //{
+        //  m_pPanel->hideMenus();
+        //  break;
+        //}
       }
       if (m_pLauncher && m_pLauncher->isActive())
       {

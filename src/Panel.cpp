@@ -37,6 +37,12 @@ Panel::~Panel()
   {
     return;
   }
+  for (StartMenuItem* pItem : m_startItems)
+  {
+    delete pItem;
+  }
+  m_startItems.clear();
+
 
   m_pHoverWidget = nullptr;
 
@@ -49,11 +55,6 @@ Panel::~Panel()
   {
     XDestroyWindow(d, m_startMenu);
     m_startMenu = None;
-  }
-  if (m_powerMenu != None)
-  {
-    XDestroyWindow(d, m_powerMenu);
-    m_powerMenu = None;
   }
   if (m_netMenu != None)
   {
@@ -229,6 +230,10 @@ void Panel::create()
     m_pConfig ? m_pConfig->panelWidgets() : std::vector<std::string>{},
     m_xconn,
     m_font);
+  std::vector<std::string> menuIds =
+    m_pConfig ? m_pConfig->startMenuItems() : std::vector<std::string>{"apps","keybindings","power"};
+  m_startItems = StartMenuRegistry::instance().create(menuIds);
+
   for (PanelWidget* pWidget : m_widgets)
   {
     if (m_pConfig)
@@ -237,6 +242,19 @@ void Panel::create()
     }
   }
   draw();
+}
+
+StartMenuContext Panel::makeStartMenuContext()
+{
+  StartMenuContext ctx;
+  ctx.pXconn = &m_xconn;
+  ctx.pFont = &m_font;
+  ctx.pConfig = m_pConfig;
+  ctx.onShowLauncher = m_onShowLauncher;
+  ctx.onShowKeybindings = m_onShowKeybindings;
+  ctx.onQuit = m_onQuit;
+  ctx.onReconfigure = m_onReconfigure;
+  return ctx;
 }
 
 void Panel::raise()
@@ -839,20 +857,12 @@ void Panel::drawMenuWindow(Window win, const std::vector<std::string>& items, in
   XFreeGC(d, gc);
 }
 
-void Panel::hidePowerMenu()
-{
-  if (m_powerMenu != None && m_powerMenuActive)
-  {
-    XUnmapWindow(m_xconn.display(), m_powerMenu);
-  }
-  m_powerMenuActive = false;
-}
-
 void Panel::hideMenus()
 {
-  hidePowerMenu();
+  hideItemSubmenus();
   hideNetworkMenu();
   hideVolumeMenu();
+
   if (m_startMenu != None && m_startMenuActive)
   {
     XUnmapWindow(m_xconn.display(), m_startMenu);
@@ -870,76 +880,56 @@ void Panel::drawStartMenu()
   {
     return;
   }
-  static const std::vector<std::string> items = {
-    "Apps",
-    "KeyBindings",
-    "PowerManager  >"
-  };
-  drawMenuWindow(m_startMenu, items, kStartMenuW);
-}
 
-void Panel::drawPowerMenu()
-{
-  if (m_powerMenu == None || !m_powerMenuActive)
+  Display* d = m_xconn.display();
+  int totalH = 0;
+  for (StartMenuItem* pItem : m_startItems)
+  {
+    totalH += pItem->height();
+  }
+  if (totalH <= 0)
   {
     return;
   }
-  static const std::vector<std::string> items = {
-    "Logout"
-    "Reconfigure mew",
-    "Reboot",
-    "Poweroff",
-  };
-  drawMenuWindow(m_powerMenu, items, kPowerMenuW);
-}
 
-void Panel::openPowerMenu()
-{
-  if (!m_startMenuActive)
+  GC gc = XCreateGC(d, m_startMenu, 0, nullptr);
+  XSetForeground(d, gc, m_bgColor);
+  XFillRectangle(d, m_startMenu, gc, 0, 0, kStartMenuW, totalH);
+  XSetForeground(d, gc, 0x555555);
+  XDrawRectangle(d, m_startMenu, gc, 0, 0, kStartMenuW - 1, totalH - 1);
+
+  XftFont* pFont = m_font.font();
+  int y = 0;
+  for (StartMenuItem* pItem : m_startItems)
   {
-    showStartMenu();
-  }
-  showPowerMenu();
-}
-
-void Panel::showPowerMenu()
-{
-  Display* d = m_xconn.display();
-  int height = 4 * kMenuItemH;
-  int x = kStartMenuW;
-  int y = m_xconn.height() - MewConst::panelHeight - height;
-
-  if (m_powerMenu == None)
-  {
-    XSetWindowAttributes attrs{};
-    attrs.override_redirect = True;
-    attrs.background_pixel = m_bgColor;
-    attrs.event_mask = ExposureMask | ButtonPressMask;
-
-    m_powerMenu = XCreateWindow(
-      d, m_xconn.root(),
-      x, y, kPowerMenuW, height, 1,
-      CopyFromParent, InputOutput, CopyFromParent,
-      CWOverrideRedirect | CWBackPixel | CWEventMask,
-      &attrs);
-  }
-  else
-  {
-    XMoveResizeWindow(d, m_powerMenu, x, y, kPowerMenuW, height);
+    int h = pItem->height();
+    int bl = y + (h + (pFont ? pFont->ascent : 10)) / 2 - 2;
+    m_font.setColor(m_itemColor);
+    m_font.draw(d, m_xconn.screen(), m_startMenu, 12, bl, pItem->label());
+    y += h;
   }
 
-  XMapRaised(d, m_powerMenu);
-  m_powerMenuActive = true;
-  drawPowerMenu();
+  XFreeGC(d, gc);
 }
 
 void Panel::showStartMenu()
 {
-  hidePowerMenu();
+  hideItemSubmenus();
+
   Display* d = m_xconn.display();
-  int height = 3 * kMenuItemH;
+  int totalH = 0;
+  for (StartMenuItem* pItem : m_startItems)
+  {
+    totalH += pItem->height();
+  }
+  if (totalH <= 0)
+  {
+    return;
+  }
+
   int x = 0;
-  int y = m_xconn.height() - MewConst::panelHeight - height;
+  int y = m_xconn.height() - MewConst::panelHeight - totalH;
+  m_startMenuY = y;
 
   if (m_startMenu == None)
   {
@@ -950,18 +940,17 @@ void Panel::showStartMenu()
 
     m_startMenu = XCreateWindow(
       d, m_xconn.root(),
-      x, y, kStartMenuW, height, 1,
+      x, y, kStartMenuW, totalH, 1,
       CopyFromParent, InputOutput, CopyFromParent,
       CWOverrideRedirect | CWBackPixel | CWEventMask,
       &attrs);
   }
   else
   {
-    XMoveResizeWindow(d, m_startMenu, x, y, kStartMenuW, height);
+    XMoveResizeWindow(d, m_startMenu, x, y, kStartMenuW, totalH);
   }
 
   XMapRaised(d, m_startMenu);
-  XGrabKeyboard(d, m_startMenu, True, GrabModeAsync, GrabModeAsync, CurrentTime);
   m_startMenuActive = true;
   drawStartMenu();
 }
@@ -1514,7 +1503,7 @@ void Panel::handleClick(int x)
     return;
   }
   // Any other click on the panel closes any open menus first.
-  if (m_startMenuActive || m_powerMenuActive || m_netMenuActive)
+  if (m_startMenuActive || m_netMenuActive || m_volMenuActive)
   {
     hideMenus();
   }
@@ -1754,6 +1743,22 @@ void Panel::handleMotion(int x)
 
 bool Panel::handleEscape()
 {
+  // Close any open item submenu first.
+  bool anyOpen = false;
+  for (StartMenuItem* pItem : m_startItems)
+  {
+    if (pItem->submenuWindow() != None)
+    {
+      // We can't easily query "is mapped" without a round-trip; just call hide.
+      pItem->hideSubmenu();
+      anyOpen = true;
+    }
+  }
+  if (anyOpen)
+  {
+    return true;
+  }
+
   if (m_volMenuActive)
   {
     hideVolumeMenu();
@@ -1768,19 +1773,6 @@ bool Panel::handleEscape()
   }
   return false;
 }
-
-//bool Panel::handleEscape()
-//{
-//  for (PanelWidget* pWidget : m_widgets)
-//  {
-//    if (pWidget->handleEscape())
-//    {
-//      return true;
-//    }
-//  }
-//  return false;
-//}
-
 void Panel::handleLeave()
 {
   if (m_pHoverWidget)
@@ -1796,61 +1788,64 @@ void Panel::handleLeave()
 
 void Panel::handleStartMenuClick(int y)
 {
-  int index = y / kMenuItemH;
-  if (index == 0)
+  int acc = 0;
+  for (StartMenuItem* pItem : m_startItems)
   {
-    hideMenus();
-    if (m_onShowLauncher)
+    int h = pItem->height();
+    if (y >= acc && y < acc + h)
     {
-      m_onShowLauncher();
+      StartMenuContext ctx = makeStartMenuContext();
+      bool stayOpen = pItem->onActivate(ctx, 0, m_startMenuY, kStartMenuW);
+      if (!stayOpen)
+      {
+        hideMenus();
+      }
+      return;
+    }
+    acc += h;
+  }
+}
+
+bool Panel::isItemSubmenuWindow(Window w) const
+{
+  for (StartMenuItem* pItem : m_startItems)
+  {
+    if (pItem->submenuWindow() == w && w != None)
+    {
+      return true;
     }
   }
-  else if (index == 1)
+  return false;
+}
+
+bool Panel::handleItemSubmenuClick(Window w, int y)
+{
+  for (StartMenuItem* pItem : m_startItems)
   {
-    hideMenus();
-    if (m_onShowKeybindings)
+    if (pItem->submenuWindow() == w)
     {
-      m_onShowKeybindings();
+      return pItem->handleSubmenuClick(y);
     }
   }
-  else if (index == 2)
+  return false;
+}
+
+void Panel::drawItemSubmenu(Window w)
+{
+  for (StartMenuItem* pItem : m_startItems)
   {
-    if (m_powerMenuActive)
+    if (pItem->submenuWindow() == w)
     {
-      hidePowerMenu();
-    }
-    else
-    {
-      showPowerMenu();
+      pItem->drawSubmenu(m_xconn.display(), m_xconn.screen());
+      return;
     }
   }
 }
 
-void Panel::handlePowerMenuClick(int y)
+void Panel::hideItemSubmenus()
 {
-  int index = y / kMenuItemH;
-  hideMenus();
-
-  if (index == 0)
+  for (StartMenuItem* pItem : m_startItems)
   {
-    if (m_onQuit)
-    {
-      m_onQuit();
-    }
-  }
-  else if (index == 1)
-  {
-    if (m_onReconfigure)
-    {
-      m_onReconfigure();
-    }
-  }
-  else if (index == 2)
-  {
-    doReboot();
-  }
-  else if (index == 3)
-  {
-    doPoweroff();
+    pItem->hideSubmenu();
   }
 }

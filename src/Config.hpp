@@ -50,6 +50,8 @@ public:
   /** @brief Parsed keybindings. */
   const std::vector<KeyBinding>& keybindings() const { return m_keybindings; }
 
+  const std::vector<std::string>& startMenuItems() const { return m_startMenuItems; }
+
   unsigned long activeBorderColor() const { return m_activeBorderColor; }
   unsigned long activeTitleColor() const { return m_activeTitleColor; }
   unsigned long inactiveBorderColor() const { return m_inactiveBorderColor; }
@@ -124,6 +126,8 @@ private:
   unsigned long m_musicButtonColor = 0xffffff;
   int m_musicEqBars = 4;
   std::vector<unsigned long> m_musicEqColors;
+
+  std::vector<std::string> m_startMenuItems;
 
   unsigned long m_volumeColorLow = 0x22aa44;
   unsigned long m_volumeColorMid = 0xffcc44;

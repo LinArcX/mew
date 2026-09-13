@@ -28,6 +28,11 @@ void Config::load()
   m_musicEqBars = 4;
   m_musicEqColors.clear();
 
+  m_startMenuItems.clear();
+  m_startMenuItems.push_back("apps");
+  m_startMenuItems.push_back("keybindings");
+  m_startMenuItems.push_back("power");
+
   m_appGeometry.clear();
   m_panelWidgets.clear();
 
@@ -167,6 +172,20 @@ void Config::load()
         if (!item.empty())
         {
           m_panelWidgets.push_back(item);
+        }
+      }
+    }
+    else if (key == "start_menu_items")
+    {
+      m_startMenuItems.clear();
+      std::stringstream ss(val);
+      std::string item;
+      while (std::getline(ss, item, ','))
+      {
+        item = Util::trim(item);
+        if (!item.empty())
+        {
+          m_startMenuItems.push_back(item);
         }
       }
     }

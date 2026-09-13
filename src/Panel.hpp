@@ -5,6 +5,7 @@
 #include "FontRenderer.hpp"
 #include "XConnection.hpp"
 #include "panel/PanelWidgetRegistry.hpp"
+#include "startMenu/StartMenuRegistry.hpp"
 
 #include <X11/Xlib.h>
 #include <ctime>
@@ -122,30 +123,14 @@ public:
   void handleStartMenuClick(int y);
 
   /**
-   * @brief Handle a click on the power submenu.
-   * @param y Click y in menu coordinates.
-   */
-  void handlePowerMenuClick(int y);
-
-  /**
    * @brief Hide start and power menus.
    */
   void hideMenus();
 
   /**
-   * @brief Open PowerManager submenu (for keybindings).
-   */
-  void openPowerMenu();
-
-  /**
    * @brief Redraw start menu if active (Expose).
    */
   void drawStartMenu();
-
-  /**
-   * @brief Redraw power menu if active (Expose).
-   */
-  void drawPowerMenu();
 
   /**
    * @brief Handle a click on the network interface menu.
@@ -168,11 +153,6 @@ public:
    */
   Window startMenuWindow() const { return m_startMenu; }
 
-  /**
-   * @brief Power menu X window, or None.
-   */
-  Window powerMenuWindow() const { return m_powerMenu; }
-
   /** @brief Network interface picker window, or None. */
   Window networkMenuWindow() const { return m_netMenu; }
 
@@ -183,11 +163,6 @@ public:
    * @brief Whether start menu is mapped.
    */
   bool isStartMenuActive() const { return m_startMenuActive; }
-
-  /**
-   * @brief Whether power menu is mapped.
-   */
-  bool isPowerMenuActive() const { return m_powerMenuActive; }
 
   /**
    * @brief Panel height in pixels.
@@ -215,6 +190,12 @@ public:
   /** @brief Redraw the volume popup if active (Expose). */
   void drawVolumeMenu();
 
+  bool isItemSubmenuWindow(Window w) const;
+  bool handleItemSubmenuClick(Window w, int y);
+  void drawItemSubmenu(Window w);
+  void hideItemSubmenus();
+
+
   std::vector<PanelWidget*>& widgets() { return m_widgets; }
 
 private:
@@ -222,8 +203,6 @@ private:
   void resolveVolumeControl(std::string& device, std::string& control) const;
   void toggleMute();
   void showStartMenu();
-  void hidePowerMenu();
-  void showPowerMenu();
   void drawMenuWindow(Window win, const std::vector<std::string>& items, int width);
   void doReboot();
   void doPoweroff();
@@ -246,6 +225,8 @@ private:
 
   /** @brief Load assets/mew.png, downscale to kStartIconSize, store RGBA. */
   void loadStartIcon();
+
+  StartMenuContext makeStartMenuContext();
 
   static constexpr int kStartIconSize = 26;
   std::vector<unsigned char> m_startIconRgba;  // 20x20x4, empty if unavailable
@@ -278,14 +259,14 @@ private:
 
   Window m_startMenu = None;
   bool m_startMenuActive = false;
-  Window m_powerMenu = None;
-  bool m_powerMenuActive = false;
 
   Pixmap m_backBuffer = None;
   int m_backBufferW = 0;
   std::vector<PanelWidget*> m_widgets;
   PanelWidget* m_pHoverWidget = nullptr;
 
+  std::vector<StartMenuItem*> m_startItems;
+  int m_startMenuY = 0;
   Window m_volMenu = None;
   bool m_volMenuActive = false;
   static constexpr int kVolMenuW = 60;

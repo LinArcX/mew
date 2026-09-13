@@ -34,12 +34,12 @@ CORE_GENERATED=(
 
 # ---------- plugin directories ----------
 shopt -s nullglob
-PLUGIN_DIRS=( src/panel/*/ )
+MODULE_DIRS=( src/panel/*/ src/startMenu/*/ )
 shopt -u nullglob
 
-REAL_PLUGINS=()
-for d in "${PLUGIN_DIRS[@]}"; do
-  [ -d "$d" ] && REAL_PLUGINS+=("$d")
+REAL_MODULES=()
+for d in "${MODULE_DIRS[@]}"; do
+  [ -d "$d" ] && REAL_MODULES+=("$d")
 done
 
 # ---------- plugin metadata ----------
@@ -90,7 +90,7 @@ parse_plugin() {
 if [ "$MODE" = "clean" ]; then
   echo ">>> clean mode"
 
-  for d in "${REAL_PLUGINS[@]}"; do
+  for d in "${REAL_MODULES[@]}"; do
     f="${d}compiler_flags.txt"
     if [ ! -f "$f" ]; then
       echo "  skipping: $(basename "$d") (no compiler_flags.txt)"
@@ -108,7 +108,7 @@ if [ "$MODE" = "clean" ]; then
   done
 
   echo ">>> removing plugin clean files"
-  for d in "${REAL_PLUGINS[@]}"; do
+  for d in "${REAL_MODULES[@]}"; do
     for rel in ${P_CLEAN[$d]:-}; do
       p="${d}${rel}"
       if [ -e "$p" ]; then
@@ -137,7 +137,7 @@ echo ">>> mode: $MODE"
 mkdir -p "build/$MODE"
 
 if [ "$MODE" = "debug" ]; then
-  CXXFLAGS="-std=c++23 -g -pg -O0 -DDEBUG --coverage -Isrc -Isrc/panel"
+  CXXFLAGS="-std=c++23 -g -pg -O0 -DDEBUG --coverage -Isrc -Isrc/panel -Isrc/startMenu"
   BEAR_PREFIX="bear -- "
 else
   CXXFLAGS="-std=c++23 -O2 -DNDEBUG -Isrc -Isrc/panel"
@@ -148,6 +148,7 @@ fi
 SRC=()
 for f in src/*.cpp;       do [ -f "$f" ] && SRC+=("$f"); done
 for f in src/panel/*.cpp; do [ -f "$f" ] && SRC+=("$f"); done
+for f in src/startMenu/*.cpp; do [ -f "$f" ] && SRC+=("$f"); done
 
 # ---------- core asset generation ----------
 echo ">>> generating core asset data"
@@ -163,7 +164,7 @@ echo ">>> scanning plugins"
 LD_FLAGS="-lasound"
 PKGS="x11 xft fontconfig freetype2 xcursor"
 
-for d in "${REAL_PLUGINS[@]}"; do
+for d in "${REAL_MODULES[@]}"; do
   f="${d}compiler_flags.txt"
   if [ ! -f "$f" ]; then
     echo "  skipping: $(basename "$d") (no compiler_flags.txt)"
@@ -186,7 +187,7 @@ for d in "${REAL_PLUGINS[@]}"; do
 done
 
 # ---------- plugin XXD assets ----------
-for d in "${REAL_PLUGINS[@]}"; do
+for d in "${REAL_MODULES[@]}"; do
   [ -n "${P_XXD[$d]:-}" ] || continue
   for entry in ${P_XXD[$d]}; do
     asset="${entry%%:*}"
