@@ -1,17 +1,15 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
+- [ ] add icons to power-managment pop-up.
+
+- [ ] add icons to start-menu items.
+
 - [ ] ability to change margin/padding of items in panel.
   There should be settings for it in conf file.
 
 - [ ] ability to define position of panel.(top, bottom, left, right)
   it should be possible to adjust the position through conf file.
-
-- [ ] add icons to power-managment pop-up.
-
-- [ ] add icons to switcher pop-up.
-
-- [ ] add icons to start-menu items.
 
 - [ ] keybindings window, should have a EDIT button at bottom. so when user click on it, it can be able to edit text.
   In Edit Mode, There should be a SAVE button at bottm, beside that there should be a VIEW-Mode button.
@@ -95,6 +93,7 @@
 ---------------------------------------------------------------------------------
 # v8
 ## general
+- [+] add images to switcher pop-up.
 - [+] ability to change order of items in panel.
   There should be settings for it in conf file.
   So each time, we shoudl be able to specify where exactly they should be located in panel.

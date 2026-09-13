@@ -5,6 +5,8 @@
 #include "XConnection.hpp"
 
 #include <X11/Xlib.h>
+#include <map>
+#include <string>
 #include <vector>
 
 /**
@@ -77,6 +79,15 @@ private:
   /** @brief Rebuild m_mru from managed clients and move focused client to front. */
   void syncMru();
 
+  void clearIconCache();
+  [[nodiscard]] Pixmap getIcon(Client* pClient);
+  [[nodiscard]] bool tryNetWmIcon(Display* d, Window window, Pixmap& outPixmap);
+  [[nodiscard]] bool tryDesktopIcon(Display* d, Window window, Pixmap& outPixmap);
+  [[nodiscard]] std::string classForWindow(Window window) const;
+  [[nodiscard]] std::string resolveIconPath(const std::string& icon) const;
+  [[nodiscard]] Pixmap loadPixmapFromPath(Display* d, Window drawable, const std::string& path);
+  void drawIcon(Display* d, Window win, int x, int y, Pixmap icon);
+
   XConnection& m_xconn;
   FontRenderer& m_font;
   ClientManager& m_clients;
@@ -87,9 +98,12 @@ private:
   std::vector<Client*> m_list;
 
   // most-recently-used order, front = top
-  std::vector<Client*> m_mru;   
+  std::vector<Client*> m_mru;
+
+  std::map<Window, Pixmap> m_iconCache;
 
   static constexpr int kWidth = 420;
   static constexpr int kLineH = 30;
   static constexpr int kPad = 12;
+  static constexpr int kIconSize = 20;
 };
