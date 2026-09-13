@@ -17,12 +17,10 @@ Minimal, fast window manager for X.
 ## Plugins
 Switch to root directory of mew.
 1. for startMenu plugins:
+  `cp -r plugins/startMenu/power/ src/plugins/startMenu/`
 
-  `ln -s "$PWD/plugins/startMenu/apps/" "$PWD/src/plugins/startMenu/"`
 2. for panel plugins:
-
-  `ln -s "$PWD/plugins/panel/musicPlaye/" "$PWD/src/plugins/panel/"`
-
+  `cp -r plugins/panel/musicPlayer/ src/plugins/panel/`
 
 ## dependencies
 ### tools

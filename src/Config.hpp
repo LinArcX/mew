@@ -100,7 +100,7 @@ private:
   bool parseKey(const std::string& keyString, unsigned int& modifiers, std::string& keyName);
   std::string expandKeyString(const std::string& keyString);
 
-  double m_titleFontSize = 17.0;
+  double m_titleFontSize = 15.0;
   std::string m_mouseTheme;
   int m_mouseSize = 24;
   unsigned long m_backgroundColor = 0x222222;

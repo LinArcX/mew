@@ -4,6 +4,23 @@ set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# ---------- colors ----------
+if [ -t 1 ]; then
+  C_RESET=$'\033[0m'
+  C_DIM=$'\033[2m'
+  C_BOLD=$'\033[1m'
+  C_CYAN=$'\033[36m'
+  C_YELLOW=$'\033[33m'
+  C_GREEN=$'\033[32m'
+  C_ORANGE=$'\033[38;5;208m'
+  C_LGREEN=$'\033[38;5;120m'
+  C_RED=$'\033[31m'
+else
+  C_RESET=""; C_DIM=""; C_BOLD=""
+  C_CYAN=""; C_YELLOW=""; C_GREEN=""
+  C_ORANGE=""; C_LGREEN=""; C_RED=""
+fi
+
 # ---------- arguments ----------
 MODE="debug"
 for arg in "$@"; do
@@ -35,7 +52,7 @@ PLUGIN_INFRA_DIRS=(
   src/plugins/startMenu
 )
 
-# ---------- plugin modules (only those under src/plugins/*/ ----------
+# ---------- plugin modules (only those under src/plugins/*/ ) ----------
 shopt -s nullglob
 MODULE_DIRS=(
   src/plugins/panel/*/
@@ -83,7 +100,7 @@ parse_plugin() {
         done
         ;;
       *)
-        echo "  warning: unknown key '$key' in ${file}" >&2
+        echo "  ${C_RED}warning:${C_RESET} unknown key '$key' in ${file}" >&2
         ;;
     esac
   done < "$file"
@@ -93,38 +110,38 @@ parse_plugin() {
 # CLEAN
 # =========================================================
 if [ "$MODE" = "clean" ]; then
-  echo ">>> clean mode"
+  echo "${C_BOLD}${C_CYAN}>>> clean mode${C_RESET}"
 
   for d in "${REAL_MODULES[@]}"; do
     [ -f "${d}compiler_flags.txt" ] && parse_plugin "$d"
   done
 
-  echo ">>> removing core generated headers"
+  echo "${C_CYAN}>>> removing core generated headers${C_RESET}"
   for g in "${CORE_GENERATED[@]}"; do
-    [ -f "$g" ] && { echo "  rm $g"; rm -f "$g"; }
+    [ -f "$g" ] && { echo "  ${C_DIM}rm $g${C_RESET}"; rm -f "$g"; }
   done
 
-  echo ">>> removing plugin clean files"
+  echo "${C_CYAN}>>> removing plugin clean files${C_RESET}"
   for d in "${REAL_MODULES[@]}"; do
     for rel in ${P_CLEAN[$d]:-}; do
       p="${d}${rel}"
-      [ -e "$p" ] && { echo "  rm $p"; rm -f "$p"; }
+      [ -e "$p" ] && { echo "  ${C_DIM}rm $p${C_RESET}"; rm -f "$p"; }
     done
   done
 
-  echo ">>> removing build directories"
+  echo "${C_CYAN}>>> removing build directories${C_RESET}"
   for out in build/debug build/release; do
-    [ -d "$out" ] && { echo "  rm -rf $out"; rm -rf "$out"; }
+    [ -d "$out" ] && { echo "  ${C_DIM}rm -rf $out${C_RESET}"; rm -rf "$out"; }
   done
 
-  echo ">>> clean done"
+  echo "${C_GREEN}>>> clean done${C_RESET}"
   exit 0
 fi
 
 # =========================================================
 # BUILD
 # =========================================================
-echo ">>> mode: $MODE"
+echo "${C_BOLD}${C_CYAN}>>> mode:${C_RESET} ${C_BOLD}$MODE${C_RESET}"
 mkdir -p "build/$MODE"
 
 if [ "$MODE" = "debug" ]; then
@@ -147,7 +164,7 @@ for d in "${PLUGIN_INFRA_DIRS[@]}"; do
 done
 
 # ---------- core assets ----------
-echo ">>> generating core asset data"
+echo "${C_CYAN}>>> generating core asset data${C_RESET}"
 xxd -i -n hurmit_ttf   ./assets/fonts/Hermit/HurmitNerdFont-Regular.otf  > src/hurmit_font_data.h
 xxd -i -n symbols_ttf  ./assets/fonts/SymbolsNerdFontMono-Regular.ttf    > src/symbols_font_data.h
 xxd -i -n logo_png     ./assets/images/logo.jpg                          > src/logo_data.h
@@ -156,17 +173,24 @@ xxd -i -n login_wav    ./assets/audio/login.wav                          > src/l
 xxd -i -n logout_wav   ./assets/audio/logout.wav                         > src/logout_wav_data.h
 
 # ---------- plugin modules ----------
-echo ">>> scanning plugins"
+echo "${C_CYAN}>>> scanning plugin modules${C_RESET}"
 LD_FLAGS="-lasound"
 PKGS="x11 xft fontconfig freetype2 xcursor"
 
 for d in "${REAL_MODULES[@]}"; do
   f="${d}compiler_flags.txt"
   if [ ! -f "$f" ]; then
-    echo "  skipping: $(basename "$d") (no compiler_flags.txt)"
+    echo "  ${C_RED}skipping:${C_RESET} ${C_DIM}$(basename "$d") (no compiler_flags.txt)${C_RESET}"
     continue
   fi
-  echo "  plugin: $(basename "$d")"
+
+  name="$(basename "$d")"
+  if [[ "$d" == *"/startMenu/"* ]]; then
+    echo "  ${C_LGREEN}plugin:${C_RESET} ${C_LGREEN}${name}${C_RESET}"
+  else
+    echo "  ${C_ORANGE}plugin:${C_RESET} ${C_ORANGE}${name}${C_RESET}"
+  fi
+
   parse_plugin "$d"
 
   for s in "${d}"*.cpp; do
@@ -192,11 +216,11 @@ for d in "${REAL_MODULES[@]}"; do
     ap="${d}${asset}"
     op="${d}${header}"
     if [ ! -f "$ap" ]; then
-      echo "    warning: asset not found: $ap" >&2
+      echo "    ${C_RED}warning:${C_RESET} asset not found: ${C_DIM}$ap${C_RESET}" >&2
       continue
     fi
     mkdir -p "$(dirname "$op")"
-    echo "    xxd: $ap -> $op"
+    echo "    ${C_DIM}${C_YELLOW}xxd:${C_RESET} ${C_DIM}$ap -> $op${C_RESET}"
     ( cd "$(dirname "$ap")" && xxd -i "$(basename "$ap")" ) > "$op"
   done
 done
@@ -211,7 +235,7 @@ for s in "${SRC[@]}"; do
 done
 
 # ---------- compile ----------
-echo ">>> compiling"
+echo "${C_CYAN}>>> compiling${C_RESET}"
 echo "    sources  : ${#UNIQ[@]}"
 echo "    packages : $PKGS"
 echo "    ld_flags : $LD_FLAGS"
@@ -220,4 +244,4 @@ $BEAR_PREFIX g++ $CXXFLAGS "${UNIQ[@]}" \
   $(pkg-config --cflags --libs $PKGS) \
   $LD_FLAGS \
   -o "build/$MODE/mew"
-echo ">>> done: build/$MODE/mew"
+echo "${C_GREEN}>>> done:${C_RESET} ${C_BOLD}build/$MODE/mew${C_RESET}"
