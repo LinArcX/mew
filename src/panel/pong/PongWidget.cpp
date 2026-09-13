@@ -2,6 +2,11 @@
 #include "../PanelWidgetRegistry.hpp"
 #include "../../Util.hpp"
 
+#include "player_wav_data.h"
+#include "opponent_wav_data.h"
+#include "win_wav_data.h"
+#include "game_over_wav_data.h"
+
 #include <sys/wait.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>

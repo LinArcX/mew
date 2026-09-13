@@ -1,0 +1,4 @@
+# Pong widget
+LD_FLAGS=
+PKGCONF_FLAG=
+SRC=MusicPlayerWidget.cpp,MusicPlayerWidget.hpp

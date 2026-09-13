@@ -1,0 +1,8 @@
+# Pong widget
+LD_FLAGS=
+PKGCONF_FLAG=
+SRC=PongWidget.cpp,PongWidget.hpp
+XXD=assets/audio/wobbleboxx/player.wav:player_wav_data.h
+XXD=assets/audio/wobbleboxx/opponent.wav:opponent_wav_data.h
+XXD=assets/audio/wobbleboxx/win.wav:win_wav_data.h
+XXD=assets/audio/den_yes/GameOver.wav:game_over_wav_data.h

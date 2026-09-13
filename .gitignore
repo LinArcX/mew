@@ -17,3 +17,6 @@ src/logo_data.h
 # auto-generated audio
 src/login_wav_data.h
 src/logout_wav_data.h
+
+# Plugin-local ignore files (per-developer, not committed)
+src/panel/*/.gitignore
