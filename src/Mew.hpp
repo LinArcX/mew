@@ -52,6 +52,8 @@ public:
    */
   static Mew* instance();
 
+  ClientManager* clientManager() const { return m_pClients; }
+
 private:
   void grabKey(KeyCode keycode, unsigned int modifiers);
   void grabKeys();

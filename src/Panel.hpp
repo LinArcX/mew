@@ -136,12 +136,12 @@ public:
    * @brief Handle a click on the network interface menu.
    * @param y Click y in menu coordinates.
    */
-  void handleNetworkMenuClick(int y);
+  //void handleNetworkMenuClick(int y);
 
   /**
    * @brief Redraw network menu if active (Expose).
    */
-  void drawNetworkMenu();
+  //void drawNetworkMenu();
 
   /**
    * @brief Panel X window, or None.
@@ -154,10 +154,10 @@ public:
   Window startMenuWindow() const { return m_startMenu; }
 
   /** @brief Network interface picker window, or None. */
-  Window networkMenuWindow() const { return m_netMenu; }
+  //Window networkMenuWindow() const { return m_netMenu; }
 
   /** @brief Whether network menu is mapped. */
-  bool isNetworkMenuActive() const { return m_netMenuActive; }
+  //bool isNetworkMenuActive() const { return m_netMenuActive; }
 
   /**
    * @brief Whether start menu is mapped.
@@ -167,28 +167,28 @@ public:
   /**
    * @brief Panel height in pixels.
    */
-  int height() const { return MewConst::panelHeight; }
+  //int height() const { return MewConst::panelHeight; }
 
   /**
    * @brief Last clock update time (for periodic redraw).
    */
-  time_t lastTime() const { return m_lastTime; }
+  //time_t lastTime() const { return m_lastTime; }
 
   void tick();
 
   bool handleEscape();
 
   /** @brief Volume slider popup window, or None. */
-  Window volumeMenuWindow() const { return m_volMenu; }
+  //Window volumeMenuWindow() const { return m_volMenu; }
 
   /** @brief Whether the volume slider popup is mapped. */
-  bool isVolumeMenuActive() const { return m_volMenuActive; }
+  //bool isVolumeMenuActive() const { return m_volMenuActive; }
 
   /** @brief Handle a click inside the volume popup. */
-  void handleVolumeMenuClick(int y);
+  //void handleVolumeMenuClick(int y);
 
   /** @brief Redraw the volume popup if active (Expose). */
-  void drawVolumeMenu();
+  //void drawVolumeMenu();
 
   bool isItemSubmenuWindow(Window w) const;
   bool handleItemSubmenuClick(Window w, int y);
@@ -199,29 +199,29 @@ public:
   std::vector<PanelWidget*>& widgets() { return m_widgets; }
 
 private:
-  void updateVolume();
+  //void updateVolume();
   void resolveVolumeControl(std::string& device, std::string& control) const;
-  void toggleMute();
+  //void toggleMute();
   void showStartMenu();
   void drawMenuWindow(Window win, const std::vector<std::string>& items, int width);
   void doReboot();
   void doPoweroff();
-  void toggleDesktop();
-  int hitTest(int x) const;
+  //void toggleDesktop();
+  //int hitTest(int x) const;
   void showTooltip(int x, const char* text);
   void hideTooltip();
-  void refreshLayout();
-  void cycleLayout();
-  void refreshNetwork();
-  void showNetworkMenu();
-  void hideNetworkMenu();
-  void toggleKillSwitch();
-  bool isInterfaceUp(const std::string& name) const;
-  void runAudioCommand(const char* keyName);
+  //void refreshLayout();
+  //void cycleLayout();
+  //void refreshNetwork();
+  //void showNetworkMenu();
+  //void hideNetworkMenu();
+  //void toggleKillSwitch();
+  //bool isInterfaceUp(const std::string& name) const;
+  //void runAudioCommand(const char* keyName);
 
-  void showVolumeMenu();
-  void hideVolumeMenu();
-  void setVolumePercent(int percent);
+  //void showVolumeMenu();
+  //void hideVolumeMenu();
+  //void setVolumePercent(int percent);
 
   /** @brief Load assets/mew.png, downscale to kStartIconSize, store RGBA. */
   void loadStartIcon();
@@ -239,23 +239,23 @@ private:
   unsigned long m_bgColor = 0x222222;
   unsigned long m_itemColor = 0xffffff;
   unsigned long m_hoverColor = 0x0a64c8;
-  time_t m_lastTime = 0;
-  bool m_desktopShowing = false;
-  int m_volumePercent = -1;
-  bool m_volumeMuted = false;
+  //time_t m_lastTime = 0;
+  //bool m_desktopShowing = false;
+  //int m_volumePercent = -1;
+  //bool m_volumeMuted = false;
   int m_hoverZone = -1; // 0=start 1=lang 2=volume 3=desktop -1=none
   Window m_tooltip = None;
-  std::string m_layoutName = "??";
-  int m_layoutGroup = 0;
-  int m_layoutCount = 1;
+  //std::string m_layoutName = "??";
+  //int m_layoutGroup = 0;
+  //int m_layoutCount = 1;
   const Config* m_pConfig = nullptr;
 
-  std::vector<std::string> m_netIfaces;
-  std::string m_selectedIface;
-  Window m_netMenu = None;
-  bool m_netMenuActive = false;
-  static constexpr int kNetMenuW = 200;
-  static constexpr int kNetMenuItemH = 28;
+  //std::vector<std::string> m_netIfaces;
+  //std::string m_selectedIface;
+  //Window m_netMenu = None;
+  //bool m_netMenuActive = false;
+  //static constexpr int kNetMenuW = 200;
+  //static constexpr int kNetMenuItemH = 28;
 
   Window m_startMenu = None;
   bool m_startMenuActive = false;
@@ -267,8 +267,8 @@ private:
 
   std::vector<StartMenuItem*> m_startItems;
   int m_startMenuY = 0;
-  Window m_volMenu = None;
-  bool m_volMenuActive = false;
+  //Window m_volMenu = None;
+  //bool m_volMenuActive = false;
   static constexpr int kVolMenuW = 60;
   static constexpr int kVolMenuH = 230;
 

@@ -83,4 +83,6 @@ public:
   /** @brief Called on ButtonRelease inside this widget's popup. */
   virtual void handlePopupRelease(XButtonEvent* pEvent) { (void)pEvent; }
 
+  /** @brief True to anchor the widget to the right edge of the panel. */
+  virtual bool anchorRight() const { return false; }
 };
