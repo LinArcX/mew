@@ -18,10 +18,10 @@ namespace
   };
 
   const PowerItem kItems[] = {
-    {"Reconfigure mew", 0},
-    {"Reboot",          1},
-    {"Poweroff",        2},
-    {"Logout",          3}
+    {"Logout",          0},
+    {"Reconfigure mew", 1},
+    {"Reboot",          2},
+    {"Poweroff",        3}
   };
 
   constexpr int kItemCount = static_cast<int>(sizeof(kItems) / sizeof(kItems[0]));
@@ -249,26 +249,49 @@ void PowerWindow::execute(int itemIndex)
 
   if (action == 0)
   {
-    if (m_onReconfigure)
-    {
-      m_onReconfigure();
-    }
-  }
-  else if (action == 1)
-  {
-    doReboot();
-  }
-  else if (action == 2)
-  {
-    doPoweroff();
-  }
-  else if (action == 3)
-  {
     if (m_onQuit)
     {
       m_onQuit();
     }
   }
+  else if (action == 1)
+  {
+    if (m_onReconfigure)
+    {
+      m_onReconfigure();
+    }
+  }
+  else if (action == 2)
+  {
+    doReboot();
+  }
+  else if (action == 3)
+  {
+    doPoweroff();
+  }
+
+  //if (action == 0)
+  //{
+  //  if (m_onReconfigure)
+  //  {
+  //    m_onReconfigure();
+  //  }
+  //}
+  //else if (action == 1)
+  //{
+  //  doReboot();
+  //}
+  //else if (action == 2)
+  //{
+  //  doPoweroff();
+  //}
+  //else if (action == 3)
+  //{
+  //  if (m_onQuit)
+  //  {
+  //    m_onQuit();
+  //  }
+  //}
 }
 
 void PowerWindow::handleKey(XKeyEvent* pEvent)

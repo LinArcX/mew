@@ -863,10 +863,10 @@ void Panel::drawPowerMenu()
     return;
   }
   static const std::vector<std::string> items = {
+    "Logout"
     "Reconfigure mew",
     "Reboot",
     "Poweroff",
-    "Logout"
   };
   drawMenuWindow(m_powerMenu, items, kPowerMenuW);
 }
@@ -1581,24 +1581,24 @@ void Panel::handlePowerMenuClick(int y)
 
   if (index == 0)
   {
+    if (m_onQuit)
+    {
+      m_onQuit();
+    }
+  }
+  else if (index == 1)
+  {
     if (m_onReconfigure)
     {
       m_onReconfigure();
     }
   }
-  else if (index == 1)
+  else if (index == 2)
   {
     doReboot();
   }
-  else if (index == 2)
-  {
-    doPoweroff();
-  }
   else if (index == 3)
   {
-    if (m_onQuit)
-    {
-      m_onQuit();
-    }
+    doPoweroff();
   }
 }

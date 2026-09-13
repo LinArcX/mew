@@ -1,12 +1,6 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
-- [ ] on powermanger popup and in start menu, this should be the order:
-  1. Logou
-  2. Reconfigure mew
-  3. Reboot
-  4. PowerOff
-
 - [ ] start menu, should be modular, each category should be a folder in src/startMenu.
   - people can create their own menuItems and put them in src/startMenu.
   - it should be possible to have layers of menuItems in start menu. like:
@@ -17,6 +11,12 @@
   So when user click on View-Mode, keybindings window come back to it's initial view mode state.
   When you save, it should really save on the file on disk.
   Please also add lines numbers, when we are in edit mode.
+
+- [ ] scripts/build_debug.sh should be rename to just scripts/build.sh.
+  - [ ] you should be able to pass --debug or --release or --clean to it.
+  - [ ] each panel widget, in its compiler_flags.txt file there should be an option to tell which files should be remove during clean phase:
+    FILES_TO_CLEAN=..
+  then when you run top-level scripts/build.sh, it should automatically detect these files and remove them.
 
 - [ ] ability to define position of panel.(top, bottom, left, right)
   it should be possible to adjust the position through conf file.
@@ -103,6 +103,11 @@
 ---------------------------------------------------------------------------------
 # v8
 ## general
+- [+] on powermanger popup and in start menu, this should be the order:
+  1. Logout
+  2. Reconfigure mew
+  3. Reboot
+  4. PowerOff
 - [+] ability to change color of frame for active/inactive windows.
 - [+] instead of having a default color for mew background, use a default image.
   assets/images/mew.png
