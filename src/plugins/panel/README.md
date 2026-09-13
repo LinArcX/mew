@@ -12,6 +12,10 @@ Current widgets still live in `Panel.cpp` and will be migrated one-by-one:
 - Clock
 - DesktopToggle
 
+# default plugins
+- clock
+- desktop
+
 To add a widget:
 1. Create `src/panel/MyWidget.hpp` + `.cpp` implementing `PanelWidget`
 2. Construct it from `Panel` and append to the widget list

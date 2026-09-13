@@ -12,6 +12,10 @@ src/startMenu/
 ├── power/PowerItem.cpp
 └── scripts/ScriptsItem.cpp
 
+## default plugins
+- apps
+- keybindings
+
 ## Enabling items
 
 In `~/.config/mew/config`:

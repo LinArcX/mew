@@ -1,9 +1,5 @@
 #include "DesktopWidget.hpp"
 #include "Mew.hpp"
-static PanelWidget* createDesktop(XConnection& x, FontRenderer& f)
-{
-  return new DesktopWidget(x, f, *Mew::instance()->clientManager());
-}
 
 void DesktopWidget::draw(Display* d, Window panel, int x, int baseline)
 {
@@ -35,5 +31,9 @@ bool DesktopWidget::handleLocalClick(int, int)
   return true;
 }
 
-static PanelWidget* createDesktop(XConnection& x, FontRenderer& f) { return new DesktopWidget(x, f, *Mew::instance()->clients()); }
+static PanelWidget* createDesktop(XConnection& x, FontRenderer& f)
+{
+  return new DesktopWidget(x, f, *Mew::instance()->clientManager());
+}
+
 static PanelWidgetRegistrar s_desktop("desktop", createDesktop);
