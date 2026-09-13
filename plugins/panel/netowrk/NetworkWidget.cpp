@@ -1,4 +1,6 @@
+#include "panel/PanelWidgetRegistry.hpp"
 #include "NetworkWidget.hpp"
+
 #include <X11/Xutil.h>
 #include <dirent.h>
 #include <algorithm>

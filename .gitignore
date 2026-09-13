@@ -21,5 +21,13 @@ src/logout_wav_data.h
 src/panel/*/.gitignore
 
 # these are already in plugins/ in root directory of mew
-src/plugins/panel/musicPlayer/
 src/plugins/startMenu/power/
+src/plugins/startMenu/scritps/
+
+src/plugins/panel/volume/
+src/plugins/panel/netowrk/
+src/plugins/panel/weather/
+src/plugins/panel/language/
+src/plugins/panel/musicPlayer/
+
+src/plugins/panel/pong/

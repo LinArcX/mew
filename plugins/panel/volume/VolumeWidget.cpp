@@ -1,11 +1,13 @@
+#include "panel/PanelWidgetRegistry.hpp"
 #include "VolumeWidget.hpp"
 #include "Mew.hpp"
-#include "../startMenu/../../Util.hpp"  // adjust to "../../../../src/Util.hpp" if needed
+#include "Util.hpp"
 #include <X11/Xutil.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <sstream>
 #include <unistd.h>
 
 VolumeWidget::~VolumeWidget()
