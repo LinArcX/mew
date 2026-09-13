@@ -1,6 +1,6 @@
 #include "PongWidget.hpp"
-#include "PanelWidgetRegistry.hpp"
-#include "../Util.hpp"
+#include "../PanelWidgetRegistry.hpp"
+#include "../../Util.hpp"
 
 #include <X11/Xutil.h>
 #include <X11/keysym.h>

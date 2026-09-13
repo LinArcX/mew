@@ -1,6 +1,6 @@
 #include "WeatherWidget.hpp"
-#include "PanelWidgetRegistry.hpp"
-#include "../weather_font_data.h"
+#include "../PanelWidgetRegistry.hpp"
+#include "../../weather_font_data.h"
 
 #include <X11/Xutil.h>
 #include <X11/keysym.h>

@@ -1,7 +1,7 @@
 #include "MusicPlayerWidget.hpp"
-#include "PanelWidgetRegistry.hpp"
-#include "../Util.hpp"
-#include "../symbols_font_data.h"
+#include "../PanelWidgetRegistry.hpp"
+#include "../../Util.hpp"
+#include "../../symbols_font_data.h"
 
 #include <X11/Xutil.h>
 #include <X11/keysym.h>

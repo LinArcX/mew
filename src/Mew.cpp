@@ -1,6 +1,6 @@
 #include "Mew.hpp"
 #include "Util.hpp"
-#include "panel/MusicPlayerWidget.hpp"
+#include "panel/musicPlayer/MusicPlayerWidget.hpp"
 
 #include <X11/Xatom.h>
 #include <X11/keysym.h>

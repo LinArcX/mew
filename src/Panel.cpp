@@ -1,7 +1,7 @@
 #include "Panel.hpp"
 #include "logo_data.h"
-#include "panel/MusicPlayerWidget.hpp"
-#include "panel/PongWidget.hpp"
+#include "panel/musicPlayer/MusicPlayerWidget.hpp"
+#include "panel/pong/PongWidget.hpp"
 
 #include <ctime>
 #include <algorithm>

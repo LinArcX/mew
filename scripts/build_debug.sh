@@ -19,7 +19,7 @@ find . -name "*.gcno" -delete
 
 echo ">>> compiling (debug mode)"
 bear -- g++ -std=c++23 -g -pg -O0 -DDEBUG --coverage \
-  src/*.cpp src/panel/*.cpp $(pkg-config --cflags --libs x11 xft fontconfig freetype2 xcursor) -lasound -o build/debug/mew
+  src/*.cpp src/panel/*.cpp src/panel/*/*.cpp  $(pkg-config --cflags --libs x11 xft fontconfig freetype2 xcursor) -lasound -o build/debug/mew
 
 #-Wall -Wextra -Werror \
 ##-Wformat=2 -Wunused-function -Wpedantic -Wno-unused-parameter \

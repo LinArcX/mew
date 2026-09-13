@@ -1,10 +1,10 @@
 #pragma once
 
-#include "PanelWidget.hpp"
-#include "../XConnection.hpp"
-#include "../FontRenderer.hpp"
-#include "../Config.hpp"
-#include "../Types.hpp"
+#include "../PanelWidget.hpp"
+#include "../../XConnection.hpp"
+#include "../../FontRenderer.hpp"
+#include "../../Config.hpp"
+#include "../../Types.hpp"
 
 class PongWidget : public PanelWidget
 {

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "PanelWidget.hpp"
-#include "../XConnection.hpp"
-#include "../FontRenderer.hpp"
-#include "../Config.hpp"
-#include "../EmbeddedFont.hpp"
+#include "../PanelWidget.hpp"
+#include "../../XConnection.hpp"
+#include "../../FontRenderer.hpp"
+#include "../../Config.hpp"
+#include "../../EmbeddedFont.hpp"
 
 #include <sys/un.h>
 #include <sys/socket.h>
