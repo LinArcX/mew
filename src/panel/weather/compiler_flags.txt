@@ -1,5 +1,6 @@
 # Pong widget
 LD_FLAGS=
 PKGCONF_FLAG=
-SRC=WeatherWidget.cpp,WeatherWidget.hpp
+SRC=WeatherWidget.cpp
 XXD=assets/fonts/weathericons-regular-webfont.ttf:weather_font_data.h
+FILES_TO_CLEAN=weather_font_data.h

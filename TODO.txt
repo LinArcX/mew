@@ -1,28 +1,32 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
+- [ ] when clicking on volume widget in panel, there should be a vertical slider that let us to chagne volume size.
+  - there should be a mute button at bottom of this slider that when you click on it, make the audio muted.
+  - the volume and mute state in slider should be reflected to widget itself in panel.
+  - when volume reaches 0%, it should show the mute icon not 0%.
+  - there should a setting in conf file that allow users to set colors for differnt range of volume.
+
 - [ ] start menu, should be modular, each category should be a folder in src/startMenu.
   - people can create their own menuItems and put them in src/startMenu.
   - it should be possible to have layers of menuItems in start menu. like:
     startMenu -> util -> scripts
 
-- [] keybindings window, should have a EDIT button at bottom. so when user click on it, it can be able to edit text.
+- [ ] ability to define position of panel.(top, bottom, left, right)
+  it should be possible to adjust the position through conf file.
+
+- [ ] add icons to power-managment pop-up.
+- [ ] add icons to switcher pop-up.
+- [ ] add icons to start-menu items.
+
+- [ ] ability to change order of items in panel.
+  There should be settings for it in conf. so each time, we shoudl be able to specify where exactly they should be located in panel.
+
+- [ ] keybindings window, should have a EDIT button at bottom. so when user click on it, it can be able to edit text.
   In Edit Mode, There should be a SAVE button at bottm, beside that there should be a VIEW-Mode button.
   So when user click on View-Mode, keybindings window come back to it's initial view mode state.
   When you save, it should really save on the file on disk.
   Please also add lines numbers, when we are in edit mode.
-
-- [ ] scripts/build_debug.sh should be rename to just scripts/build.sh.
-  - [ ] you should be able to pass --debug or --release or --clean to it.
-  - [ ] each panel widget, in its compiler_flags.txt file there should be an option to tell which files should be remove during clean phase:
-    FILES_TO_CLEAN=..
-  then when you run top-level scripts/build.sh, it should automatically detect these files and remove them.
-
-- [ ] ability to define position of panel.(top, bottom, left, right)
-  it should be possible to adjust the position through conf file.
-
-- [ ] ability to change order of items in panel.
-  There should be settings for it in conf. so each time, we shoudl be able to specify where exactly they should be located in panel.
 
 - [ ] implement workspaces.
   it should be possible to define them(number of them and name of each) through conf file.
@@ -33,22 +37,14 @@
     "change background image"
   And for image, you need to set for it the directories he can search for images.
 
-- [ ] when clicking on volume widget in panel, there should be a vertical slider that let us to chagne volume size.
-  - there should be a mute button at bottom of this slider that when you click on it, make the audio muted.
-  - the volume and mute state in slider should be reflected to widget itself in panel.
-  - when volume reaches 0%, it should show the mute icon not 0%.
-  - there should a setting in conf file that allow users to set colors for differnt range of volume.
-
 - [ ] when clicking on keyboard switcher on panel, there should be a pop-up shows to user.
   - this pop-up contains langauges in a list, so yuo can select from the list.
   - we should show the flag of the language also.
 
-- [ ] adding city choosing in weather widget.
-  Rotate through cities on click, one per line in config
+- [ ] ability to choose city in weather widget.
+  A pop-up window should shows up with list of all major cities in world. (implement it like Apps pop-up with ability to search and navigate)
+  When user select it's city, it should reflect the widget in panel and also it should update conf file.
 
-- [ ] add icons to power-managment pop-up.
-- [ ] add icons to switcher pop-up.
-- [ ] add icons to start-menu items.
 - [ ] sometimes, i want to upload files to some website, so normally nemo pops up with image preview panel inside it.
   in this cases, the buttons in bottom(Canel, Ok) are not fully visible. for example just half of OK button is visilbe. fix it.
 - [ ] ability to change font size/name for active/inactive windows.
@@ -103,6 +99,11 @@
 ---------------------------------------------------------------------------------
 # v8
 ## general
+- [+] scripts/build_debug.sh should be rename to just scripts/build.sh.
+  - [+] you should be able to pass --debug or --release or --clean to it.
+  - [+] each panel widget, in its compiler_flags.txt file there should be an option to tell which files should be remove during clean phase:
+    FILES_TO_CLEAN=..
+  then when you run top-level scripts/build.sh, it should automatically detect these files and remove them.
 - [+] on powermanger popup and in start menu, this should be the order:
   1. Logout
   2. Reconfigure mew

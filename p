@@ -103,7 +103,7 @@ menu () {
   
   case $selected in
     "build(debug)")
-      ./scripts/build_debug.sh 
+      ./scripts/build.sh --debug
       if [ $? -eq 1 ]; then
         # error
         mpg123 -f 3000 /home/linarcx/VoidConf/assets/error2.mp3 > /dev/null 2>&1 
@@ -111,7 +111,6 @@ menu () {
         # success
         mpg123 -f 3000 /home/linarcx/VoidConf/assets/success.mp3 > /dev/null 2>&1 
       fi
-
       ;;
     "run(debug)")
       clear
@@ -147,21 +146,25 @@ menu () {
       ;;
     "clean(debug)")
       echo ">>> cleaning build/debug directory"
-      rm -r build/debug/*
+      ./scripts/build.sh --clean
+      if [ $? -eq 1 ]; then
+        # error
+        mpg123 -f 3000 /home/linarcx/VoidConf/assets/error2.mp3 > /dev/null 2>&1 
+      else
+        # success
+        mpg123 -f 3000 /home/linarcx/VoidConf/assets/success.mp3 > /dev/null 2>&1 
+      fi
       ;;
     "build(release)")
-      clear
-      echo ">>> creating build/release directory"
-      mkdir -p build/release
- 
-      echo ">>> compiling (release mode)"
-      bear -- g++ -std=c++23 -O3 --coverage \
-        -Wformat=2 -Wall -Werror -Wextra -Wunused-function -Wpedantic -Wno-unused-parameter \
-        -Wshadow -Wwrite-strings -Wunused-result \
-        -Wredundant-decls -Wmissing-include-dirs -Wlogical-op \
-        # -ldl -pthread -lmagic -lm \
-        src/*.cpp $(pkg-config --cflags --libs x11) -o build/debug/mew
-      ;;
+      ./scripts/build.sh --release
+      if [ $? -eq 1 ]; then
+        # error
+        mpg123 -f 3000 /home/linarcx/VoidConf/assets/error2.mp3 > /dev/null 2>&1 
+      else
+        # success
+        mpg123 -f 3000 /home/linarcx/VoidConf/assets/success.mp3 > /dev/null 2>&1 
+      fi
+     ;;
     "run(release)")
       echo ">>> running mew (release)"
       cd build/release
@@ -169,8 +172,14 @@ menu () {
       cd ../..
       ;;
     "clean(release)")
-      echo ">>> cleaning build/release directory"
-      rm -r build/release/*
+      ./scripts/build.sh --clean
+      if [ $? -eq 1 ]; then
+        # error
+        mpg123 -f 3000 /home/linarcx/VoidConf/assets/error2.mp3 > /dev/null 2>&1 
+      else
+        # success
+        mpg123 -f 3000 /home/linarcx/VoidConf/assets/success.mp3 > /dev/null 2>&1 
+      fi
       ;;
     "build(tests)")
       clear
