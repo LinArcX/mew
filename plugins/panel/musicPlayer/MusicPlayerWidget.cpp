@@ -365,55 +365,6 @@ void MusicPlayerWidget::draw(Display* display, Window panel, int x, int baseline
   XFreeGC(display, gc);
 }
 
-//void MusicPlayerWidget::draw(Display* display, Window panel, int x, int baseline)
-//{
-//  int screen = m_xconn.screen();
-//
-//  if (m_iconFont.font())
-//  {
-//    m_iconFont.setColor(m_iconColor);
-//    // Music note: opens popup
-//    m_iconFont.draw(display, screen, panel, x + 4, baseline, "\xef\x80\x81");
-//    // Prev
-//    m_iconFont.draw(display, screen, panel, x + kMusicIconW + 4, baseline,
-//                    "\xef\x81\x88");
-//    // Play / Pause
-//    m_iconFont.draw(display, screen, panel, x + kMusicIconW + kBtnW + 4, baseline,
-//                    m_paused ? "\xef\x81\x8b" : "\xef\x81\x8c");
-//    // Stop
-//    m_iconFont.draw(display, screen, panel, x + kMusicIconW + 2 * kBtnW + 4, baseline,
-//                    "\xef\x81\x8d");
-//    // Next
-//    m_iconFont.draw(display, screen, panel, x + kMusicIconW + 3 * kBtnW + 4, baseline,
-//                    "\xef\x81\x91");
-//  }
-//
-//  // Equalizer
-//  int eqX = x + kMusicIconW + 4 * kBtnW + 8;
-//  int eqBase = baseline + 2;
-//  GC gc = XCreateGC(display, panel, 0, nullptr);
-//  XSetForeground(display, gc, m_iconColor);
-//
-//  bool playing = (m_playerPid > 0 && !m_paused);
-//  for (int i = 0; i < kEqBars; ++i)
-//  {
-//    int h;
-//    if (playing)
-//    {
-//      int phase = (m_eqFrame + i * 3) % 12;
-//      h = 2 + (phase < 6 ? phase : 12 - phase);
-//    }
-//    else
-//    {
-//      h = 2;
-//    }
-//    int barX = eqX + i * (kEqBarW + kEqBarGap);
-//    XFillRectangle(display, panel, gc, barX, eqBase - h, kEqBarW, h);
-//  }
-//
-//  XFreeGC(display, gc);
-//}
-
 bool MusicPlayerWidget::tick()
 {
   bool needRedraw = false;
@@ -470,70 +421,6 @@ bool MusicPlayerWidget::tick()
   }
   return needRedraw;
 }
-
-//bool MusicPlayerWidget::tick()
-//{
-//  if (m_pendingKill > 0)
-//  {
-//    int status = 0;
-//    pid_t r = waitpid(m_pendingKill, &status, WNOHANG);
-//    if (r == m_pendingKill || r == -1)
-//    {
-//      m_pendingKill = -1;
-//    }
-//  }
-//  if (m_playerPid > 0 && !m_paused)
-//  {
-//    struct timespec ts;
-//    clock_gettime(CLOCK_MONOTONIC, &ts);
-//    long long ms = static_cast<long long>(ts.tv_sec) * 1000 + ts.tv_nsec / 1000000;
-//    if (ms - m_lastQueryMs >= 500)
-//    {
-//      m_lastQueryMs = ms;
-//      m_position = queryMpv("time-pos");
-//      m_duration = queryMpv("duration");
-//      needRedraw = true;
-//    }
-//  }
-//
-//
-//  bool needRedraw = false;
-//
-//  if (m_playerPid > 0 && !m_paused)
-//  {
-//    struct timespec ts;
-//    clock_gettime(CLOCK_MONOTONIC, &ts);
-//    long long ms = static_cast<long long>(ts.tv_sec) * 1000 + ts.tv_nsec / 1000000;
-//    if (ms - m_lastEqMs >= 100)
-//    {
-//      m_lastEqMs = ms;
-//      m_eqFrame++;
-//      needRedraw = true;
-//    }
-//  }
-//
-//  if (m_playerPid <= 0)
-//  {
-//    return needRedraw;
-//  }
-//
-//  int status = 0;
-//  pid_t r = waitpid(m_playerPid, &status, WNOHANG);
-//  if (r != m_playerPid)
-//  {
-//    return needRedraw;
-//  }
-//
-//  m_playerPid = -1;
-//  m_paused = false;
-//
-//  if (m_playStart == 0 || (time(nullptr) - m_playStart) >= 1)
-//  {
-//    playNext();
-//    needRedraw = true;
-//  }
-//  return needRedraw;
-//}
 
 bool MusicPlayerWidget::onClick(int screenX)
 {
@@ -698,58 +585,6 @@ void MusicPlayerWidget::drawPopup()
 
   XFreeGC(d, gc);
 }
-
-//void MusicPlayerWidget::drawPopup()
-//{
-//  if (m_popup == None || !m_popupActive) return;
-//
-//  Display* d = m_xconn.display();
-//  int screen = m_xconn.screen();
-//  GC gc = XCreateGC(d, m_popup, 0, nullptr);
-//
-//  XSetForeground(d, gc, 0x1e1e1e);
-//  XFillRectangle(d, m_popup, gc, 0, 0, m_popupW, m_popupH);
-//  XSetForeground(d, gc, 0x555555);
-//  XDrawRectangle(d, m_popup, gc, 0, 0, m_popupW - 1, m_popupH - 1);
-//
-//  XftFont* pFont = m_font.font();
-//  int ascent = pFont ? pFont->ascent : 10;
-//  int y = kPopupPad + ascent;
-//
-//  m_font.setColor(0xffffff);
-//  m_font.draw(d, screen, m_popup, kPopupPad + 4, y, "Music directories");
-//  y += kPopupRowH;
-//
-//  size_t start = 0;
-//  if (m_dirs.size() > static_cast<size_t>(kPopupMaxRows))
-//  {
-//    start = m_dirs.size() - kPopupMaxRows;
-//  }
-//  for (size_t i = start; i < m_dirs.size(); ++i)
-//  {
-//    m_font.setColor(0xcccccc);
-//    m_font.draw(d, screen, m_popup, kPopupPad + 4, y, m_dirs[i]);
-//    y += kPopupRowH;
-//  }
-//
-//  if (m_dirs.empty())
-//  {
-//    m_font.setColor(0x888888);
-//    m_font.draw(d, screen, m_popup, kPopupPad + 4, y, "(none)");
-//    y += kPopupRowH;
-//  }
-//
-//  // Input row
-//  XSetForeground(d, gc, 0x2a2a2a);
-//  XFillRectangle(d, m_popup, gc, kPopupPad, y - ascent - 2,
-//                 m_popupW - kPopupPad * 2, kPopupRowH);
-//
-//  std::string prompt = "> " + m_inputBuffer + "_";
-//  m_font.setColor(0xffffff);
-//  m_font.draw(d, screen, m_popup, kPopupPad + 4, y, prompt);
-//
-//  XFreeGC(d, gc);
-//}
 
 bool MusicPlayerWidget::handlePopupKey(XKeyEvent* pEvent)
 {
@@ -1036,3 +871,4 @@ static PanelWidget* createMusic(XConnection& xconn, FontRenderer& font)
 }
 
 static PanelWidgetRegistrar s_musicRegistrar("music", createMusic);
+

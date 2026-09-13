@@ -195,12 +195,6 @@ void WindowSwitcher::cycle(bool reverse)
   syncMru();
   m_list = m_mru;
 
-  //m_list.clear();
-  //for (Client* pClient : m_clients.clients())
-  //{
-  //  m_list.push_back(pClient);
-  //}
-
   if (m_list.empty())
   {
     hide();
@@ -249,8 +243,6 @@ void WindowSwitcher::commit()
       m_mru.erase(it);
     }
     m_mru.insert(m_mru.begin(), pSelected);
-
-    //m_clients.focus(m_list[m_index]);
   }
   hide();
 }

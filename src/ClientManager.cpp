@@ -3,8 +3,6 @@
 
 #include <X11/Xatom.h>
 #include <algorithm>
-#include <cstdio>
-#include <cstring>
 
 ClientManager::ClientManager(XConnection& xconn, FontRenderer& font)
   : m_xconn(xconn)
@@ -96,10 +94,6 @@ Client* ClientManager::focusedClient()
     current = parentReturn;
   }
   return nullptr;
-  //Window focused = None;
-  //int revert = 0;
-  //XGetInputFocus(m_xconn.display(), &focused, &revert);
-  //return findClient(focused);
 }
 
 void ClientManager::drawFrame(Client* pClient)
@@ -132,18 +126,6 @@ void ClientManager::drawFrame(Client* pClient)
     d, pClient->frame, gc,
     MewConst::borderWidth, MewConst::borderWidth,
     pClient->width, MewConst::titleHeight - MewConst::borderWidth);
-
-  //XSetForeground(d, gc, MewConst::colorBorder);
-  //XFillRectangle(
-  //  d, pClient->frame, gc, 0, 0,
-  //  pClient->width + MewConst::borderWidth * 2,
-  //  pClient->height + MewConst::titleHeight + MewConst::borderWidth);
-
-  //XSetForeground(d, gc, MewConst::colorTitle);
-  //XFillRectangle(
-  //  d, pClient->frame, gc,
-  //  MewConst::borderWidth, MewConst::borderWidth,
-  //  pClient->width, MewConst::titleHeight - MewConst::borderWidth);
 
   int closeX = MewConst::borderWidth + pClient->width - MewConst::buttonWidth;
   int maxX = closeX - MewConst::buttonWidth;
@@ -194,7 +176,6 @@ void ClientManager::resize(Client* pClient)
   Display* d = m_xconn.display();
   XMoveResizeWindow(d, pClient->window,  bx, by, pClient->width, pClient->height);
 
-  //MewConst::borderWidth, MewConst::titleHeight, pClient->width, pClient->height);
   XMoveResizeWindow(
     d, pClient->frame, pClient->x, pClient->y,
     pClient->width + bx * 2,
@@ -203,7 +184,6 @@ void ClientManager::resize(Client* pClient)
   {
     drawFrame(pClient);
   }
-  //drawFrame(pClient);
 }
 
 void ClientManager::focus(Client* pClient)
@@ -278,72 +258,6 @@ void ClientManager::focus(Client* pClient)
     drawFrame(pPrev);
   }
 }
-
-
-//void ClientManager::focus(Client* pClient)
-//{
-//  if (!pClient)
-//  {
-//    return;
-//  }
-//
-//  Display* d = m_xconn.display();
-//
-//  if (pClient->minimized)
-//  {
-//    pClient->minimized = false;
-//    XMapWindow(d, pClient->frame);
-//  }
-//
-//  if (pClient->fullscreen)
-//  {
-//    // Frame is unmapped; raise and focus the client window on root.
-//    XRaiseWindow(d, pClient->window);
-//    XSetInputFocus(d, pClient->window, RevertToPointerRoot, CurrentTime);
-//    if (m_raiseOverlay)
-//    {
-//      m_raiseOverlay();
-//    }
-//    return;
-//  }
-//
-//  XRaiseWindow(d, pClient->frame);
-//  if (m_raiseOverlay)
-//  {
-//    m_raiseOverlay();
-//  }
-//
-//  // Prefer explicit focus; also send WM_TAKE_FOCUS for clients that need it (e.g. neovim)
-//  XSetInputFocus(d, pClient->window, RevertToPointerRoot, CurrentTime);
-//
-//  Atom* protocols = nullptr;
-//  int count = 0;
-//  if (XGetWMProtocols(d, pClient->window, &protocols, &count))
-//  {
-//    Atom takeFocus = XInternAtom(d, "WM_TAKE_FOCUS", False);
-//    for (int i = 0; i < count; ++i)
-//    {
-//      if (protocols[i] == takeFocus)
-//      {
-//        XEvent ev{};
-//        ev.xclient.type = ClientMessage;
-//        ev.xclient.window = pClient->window;
-//        ev.xclient.message_type = m_xconn.atomProtocols();
-//        ev.xclient.format = 32;
-//        ev.xclient.data.l[0] = static_cast<long>(takeFocus);
-//        ev.xclient.data.l[1] = CurrentTime;
-//        XSendEvent(d, pClient->window, False, NoEventMask, &ev);
-//        break;
-//      }
-//    }
-//    if (protocols)
-//    {
-//      XFree(protocols);
-//    }
-//  }
-//
-//  drawFrame(pClient);
-//}
 
 void ClientManager::focusNext()
 {
@@ -465,15 +379,6 @@ void ClientManager::maximize(Client* pClient)
     pClient->height = usableHeight() - by - bx;
     pClient->maximized = true;
 
-    //pClient->oldX = pClient->x;
-    //pClient->oldY = pClient->y;
-    //pClient->oldWidth = pClient->width;
-    //pClient->oldHeight = pClient->height;
-    //pClient->x = 0;
-    //pClient->y = 0;
-    //pClient->width = m_xconn.width() - MewConst::borderWidth * 2;
-    //pClient->height = usableHeight() - MewConst::titleHeight - MewConst::borderWidth;
-    //pClient->maximized = true;
   }
   else
   {
@@ -572,22 +477,6 @@ void ClientManager::setFullscreen(Client* pClient, bool enable)
       drawFrame(pClient);
     }
 
-    //XReparentWindow(
-    //  d, pClient->window, pClient->frame,
-    //  MewConst::borderWidth, MewConst::titleHeight);
-    //// Reparent may leave client unmapped; force both mapped + raised.
-    //XMapWindow(d, pClient->window);
-    //XMapRaised(d, pClient->frame);
-    //XMoveResizeWindow(
-    //  d, pClient->window,
-    //  MewConst::borderWidth, MewConst::titleHeight,
-    //  pClient->width, pClient->height);
-    //XMoveResizeWindow(
-    //  d, pClient->frame, pClient->x, pClient->y,
-    //  pClient->width + MewConst::borderWidth * 2,
-    //  pClient->height + MewConst::titleHeight + MewConst::borderWidth);
-    //drawFrame(pClient);
-
     Atom state = m_xconn.atomNetWmState();
     XDeleteProperty(d, pClient->window, state);
 
@@ -614,7 +503,6 @@ void ClientManager::snap(Client* pClient, const std::string& edge)
   int by = pClient->csd ? 0 : MewConst::titleHeight;
   int bx2 = bx * 2;
   int byb = by + bx;
-
 
   int screenW = m_xconn.width();
   int screenH = usableHeight();
@@ -656,34 +544,6 @@ void ClientManager::snap(Client* pClient, const std::string& edge)
     pClient->width = screenW - bx2;
     pClient->height = screenH / 2 - byb;
   }
-  //if (edge == "left")
-  //{
-  //  pClient->x = 0;
-  //  pClient->y = 0;
-  //  pClient->width = screenW / 2 - MewConst::borderWidth * 2;
-  //  pClient->height = screenH - MewConst::titleHeight - MewConst::borderWidth;
-  //}
-  //else if (edge == "right")
-  //{
-  //  pClient->x = screenW / 2;
-  //  pClient->y = 0;
-  //  pClient->width = screenW / 2 - MewConst::borderWidth * 2;
-  //  pClient->height = screenH - MewConst::titleHeight - MewConst::borderWidth;
-  //}
-  //else if (edge == "top")
-  //{
-  //  pClient->x = 0;
-  //  pClient->y = 0;
-  //  pClient->width = screenW - MewConst::borderWidth * 2;
-  //  pClient->height = screenH / 2 - MewConst::titleHeight - MewConst::borderWidth;
-  //}
-  //else if (edge == "bottom")
-  //{
-  //  pClient->x = 0;
-  //  pClient->y = screenH / 2;
-  //  pClient->width = screenW - MewConst::borderWidth * 2;
-  //  pClient->height = screenH / 2 - MewConst::titleHeight - MewConst::borderWidth;
-  //}
   else
   {
     return;
@@ -728,8 +588,6 @@ void ClientManager::center(Client* pClient)
   int frameW = pClient->width + bx * 2;
   int frameH = pClient->height + by + bx;
 
-  //int frameW = pClient->width + MewConst::borderWidth * 2;
-  //int frameH = pClient->height + MewConst::titleHeight + MewConst::borderWidth;
   pClient->x = (screenW - frameW) / 2;
   pClient->y = (screenH - frameH) / 2;
   if (pClient->x < 0)
@@ -992,23 +850,6 @@ void ClientManager::manage(Window window)
   int bx = hasCSD ? 0 : MewConst::borderWidth;
   int by = hasCSD ? 0 : MewConst::titleHeight;
 
-  //// Detect client-side decorations (GTK, etc.)
-  //bool hasCSD = false;
-  //{
-  //  Atom gtkExtents = XInternAtom(d, "_GTK_FRAME_EXTENTS", False);
-  //  Atom actualType;
-  //  int actualFormat;
-  //  unsigned long nitems;
-  //  unsigned long bytesAfter;
-  //  unsigned char* data = nullptr;
-  //  if (XGetWindowProperty(d, window, gtkExtents, 0, 4, False, XA_CARDINAL,
-  //      &actualType, &actualFormat, &nitems, &bytesAfter, &data) == Success && data)
-  //  {
-  //    hasCSD = true;
-  //    XFree(data);
-  //  }
-  //}
-
   int screenW = m_xconn.width();
   int screenH = usableHeight();
 
@@ -1058,7 +899,6 @@ void ClientManager::manage(Window window)
     d, m_xconn.root(), x, y, frameW, frameH, 0,
     hasCSD ? 0 : MewConst::colorBorder,
     hasCSD ? 0 : MewConst::colorTitle);
-    //MewConst::colorBorder, MewConst::colorTitle);
   pClient->x = x;
   pClient->y = y;
   pClient->width = w;
@@ -1069,7 +909,6 @@ void ClientManager::manage(Window window)
   pClient->oldHeight = h;
   pClient->transient = isTransient;
   pClient->noMaximize = hasCSD ? true : isTransient;
-    //hasCSD ? true : isTransient;//isTransient;
 
   // Per-app geometry from config (matched by WM_CLASS)
   if (m_pConfig)
@@ -1152,7 +991,6 @@ void ClientManager::manage(Window window)
   int insetX = hasCSD ? 0 : MewConst::borderWidth;
   int insetY = hasCSD ? 0 : MewConst::titleHeight;
   XReparentWindow(d, window, pClient->frame, insetX, insetY);
-      //MewConst::borderWidth, MewConst::titleHeight);
   XMapWindow(d, pClient->frame);
   XMapWindow(d, window);
 

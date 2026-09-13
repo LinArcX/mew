@@ -164,10 +164,7 @@ WeatherWidget::WeatherWidget(XConnection& xconn, FontRenderer& font)
   : m_xconn(xconn)
   , m_font(font)
 {
-  Display* d = xconn.display();
-  int screen = xconn.screen();
-
-  m_iconFont.load(xconn.display(), xconn.screen(),
+ 	m_iconFont.load(xconn.display(), xconn.screen(),
     weathericons_regular_webfont_ttf,
     weathericons_regular_webfont_ttf_len,
     14.0);

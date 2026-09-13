@@ -85,21 +85,6 @@ void EmbeddedFont::draw(Display* pDisplay, int screen, Window window,
     reinterpret_cast<const FcChar8*>(text.c_str()),
     static_cast<int>(text.size()));
 
-  //XftColor color;
-  //XRenderColor rc;
-  //rc.red = 0xffff;
-  //rc.green = 0xffff;
-  //rc.blue = 0xffff;
-  //rc.alpha = 0xffff;
-  //XftColorAllocValue(pDisplay, DefaultVisual(pDisplay, screen),
-  //                   DefaultColormap(pDisplay, screen), &rc, &color);
-
-  //XftDrawStringUtf8(pDraw, &color, m_pFont, x, y,
-  //  reinterpret_cast<const FcChar8*>(text.c_str()),
-  //  static_cast<int>(text.size()));
-
-  //XftColorFree(pDisplay, DefaultVisual(pDisplay, screen),
-  //             DefaultColormap(pDisplay, screen), &color);
   XftDrawDestroy(pDraw);
 }
 

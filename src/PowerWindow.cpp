@@ -269,29 +269,6 @@ void PowerWindow::execute(int itemIndex)
   {
     doPoweroff();
   }
-
-  //if (action == 0)
-  //{
-  //  if (m_onReconfigure)
-  //  {
-  //    m_onReconfigure();
-  //  }
-  //}
-  //else if (action == 1)
-  //{
-  //  doReboot();
-  //}
-  //else if (action == 2)
-  //{
-  //  doPoweroff();
-  //}
-  //else if (action == 3)
-  //{
-  //  if (m_onQuit)
-  //  {
-  //    m_onQuit();
-  //  }
-  //}
 }
 
 void PowerWindow::handleKey(XKeyEvent* pEvent)

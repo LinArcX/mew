@@ -3,7 +3,6 @@ compile_commands.json
 
 build/*
 .cache/*
-garbage/*
 
 # auto-generated fonts
 src/hurmit_font_data.h

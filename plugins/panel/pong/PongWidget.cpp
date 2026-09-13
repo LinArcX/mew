@@ -233,23 +233,6 @@ bool PongWidget::handleEscape()
   return false;
 }
 
-//bool PongWidget::handleEscape()
-//{
-//  if (m_settingsActive)
-//  {
-//    hideSettingsPopup();
-//    return true;
-//  }
-//  if (m_gameActive)
-//  {
-//    m_gameActive = false;
-//    m_paused = false;
-//    releaseKeyboard();
-//    return true;
-//  }
-//  return false;
-//}
-
 bool PongWidget::handlePopupKey(XKeyEvent* pEvent)
 {
   if (!pEvent || !m_settingsActive)
@@ -292,28 +275,6 @@ bool PongWidget::handlePopupClick(XButtonEvent* pEvent)
   drawPopup();
   return true;
 }
-
-//bool PongWidget::handlePopupClick(XButtonEvent* pEvent)
-//{
-//  if (!pEvent || !m_settingsActive)
-//  {
-//    return false;
-//  }
-//
-//  XftFont* pFont = m_font.font();
-//  int ascent = pFont ? pFont->ascent : 10;
-//  int rel = pEvent->y - kSettingsPad - ascent;
-//  int row = rel / kSettingsRowH;
-//
-//  if (row >= 0 && row < 3)
-//  {
-//    m_difficulty = static_cast<Difficulty>(row);
-//    saveDifficulty();
-//    resetBall(1);
-//    drawPopup();
-//  }
-//  return true;
-//}
 
 Window PongWidget::popupWindow() const
 {
@@ -444,56 +405,6 @@ void PongWidget::drawPopup()
   m_font.setColor(0xffffff);
   XFreeGC(d, gc);
 }
-//void PongWidget::drawPopup()
-//{
-//  if (m_settingsPopup == None || !m_settingsActive)
-//  {
-//    return;
-//  }
-//
-//  Display* d = m_xconn.display();
-//  int screen = m_xconn.screen();
-//  GC gc = XCreateGC(d, m_settingsPopup, 0, nullptr);
-//
-//  XSetForeground(d, gc, 0x1e1e1e);
-//  XFillRectangle(d, m_settingsPopup, gc, 0, 0, m_settingsW, m_settingsH);
-//  XSetForeground(d, gc, 0x555555);
-//  XDrawRectangle(d, m_settingsPopup, gc, 0, 0, m_settingsW - 1, m_settingsH - 1);
-//
-//  const char* names[3] = { "Easy", "Medium", "Hard" };
-//  int selected = static_cast<int>(m_difficulty);
-//
-//  XftFont* pFont = m_font.font();
-//  int ascent = pFont ? pFont->ascent : 10;
-//
-//  for (int i = 0; i < 3; ++i)
-//  {
-//    int rowY = kSettingsPad + i * kSettingsRowH;
-//    int baseline = rowY + ascent;
-//
-//    if (i == selected)
-//    {
-//      XSetForeground(d, gc, 0x0a64c8);
-//      XFillRectangle(d, m_settingsPopup, gc, 2, rowY,
-//                     m_settingsW - 4, kSettingsRowH);
-//    }
-//
-//    m_font.setColor(0xffffff);
-//    m_font.draw(d, screen, m_settingsPopup,
-//                kSettingsPad + 4, baseline, names[i]);
-//
-//    if (i == selected)
-//    {
-//      m_font.setColor(0xffffff);
-//      m_font.draw(d, screen, m_settingsPopup,
-//                  m_settingsW - 18, baseline, "\xe2\x9c\x93");
-//    }
-//  }
-//
-//  m_font.setColor(0xffffff);
-//  XFreeGC(d, gc);
-//}
-
 bool PongWidget::tick()
 {
   if (!m_gameActive || m_paused)
@@ -543,43 +454,6 @@ bool PongWidget::tick()
 
   return true;
 }
-
-//bool PongWidget::tick()
-//{
-//  if (!m_gameActive || m_paused)
-//  {
-//    return false;
-//  }
-//
-//  struct timespec ts;
-//  clock_gettime(CLOCK_MONOTONIC, &ts);
-//  long long now = static_cast<long long>(ts.tv_sec) * 1000
-//                + ts.tv_nsec / 1000000;
-//
-//  if (m_lastMs == 0)
-//  {
-//    m_lastMs = now;
-//    return false;
-//  }
-//
-//  double dt = (now - m_lastMs) / 1000.0;
-//  m_lastMs = now;
-//  if (dt > 0.1)
-//  {
-//    dt = 0.1;
-//  }
-//
-//  // Sub-step for smooth motion + pixel-accurate collisions.
-//  const double subDt = 0.004;
-//  while (dt > 0)
-//  {
-//    double step = (dt < subDt) ? dt : subDt;
-//    updateGame(step);
-//    dt -= step;
-//  }
-//
-//  return true;
-//}
 
 void PongWidget::updateGame(double dt)
 {
@@ -681,91 +555,6 @@ void PongWidget::updateGame(double dt)
   }
 }
 
-//void PongWidget::updateGame(double dt)
-//{
-//  int widgetW = width();
-//  int fieldW = widgetW - 2 * kBtnW - 2;
-//  int fieldH = MewConst::panelHeight - 4;
-//
-//  // Read held keys.
-//  char keys[32];
-//  XQueryKeymap(m_xconn.display(), keys);
-//  auto isDown = [&](KeySym s) -> bool {
-//    KeyCode c = XKeysymToKeycode(m_xconn.display(), s);
-//    if (!c) return false;
-//    return (keys[c / 8] & (1 << (c % 8))) != 0;
-//  };
-//
-//  bool up = isDown(XK_Up) || isDown(XK_w) || isDown(XK_W);
-//  bool down = isDown(XK_Down) || isDown(XK_s) || isDown(XK_S);
-//
-//  const double playerSpeed = 90.0;
-//  if (up)   m_paddleL -= playerSpeed * dt;
-//  if (down) m_paddleL += playerSpeed * dt;
-//  if (m_paddleL < 0) m_paddleL = 0;
-//  if (m_paddleL > fieldH - kPaddleH) m_paddleL = fieldH - kPaddleH;
-//
-//  // AI
-//  double target = m_ballY - kPaddleH / 2.0 + kBallSize / 2.0;
-//  double aiSpeed = aiSpeedForDifficulty();
-//  if (target < m_paddleR - 1.0)      m_paddleR -= aiSpeed * dt;
-//  else if (target > m_paddleR + 1.0) m_paddleR += aiSpeed * dt;
-//  if (m_paddleR < 0) m_paddleR = 0;
-//  if (m_paddleR > fieldH - kPaddleH) m_paddleR = fieldH - kPaddleH;
-//
-//  // Move ball.
-//  m_ballX += m_ballVX * dt;
-//  m_ballY += m_ballVY * dt;
-//
-//  // Wall bounce.
-//  if (m_ballY < 0) { m_ballY = 0; m_ballVY = -m_ballVY; }
-//  if (m_ballY > fieldH - kBallSize)
-//  {
-//    m_ballY = fieldH - kBallSize;
-//    m_ballVY = -m_ballVY;
-//  }
-//
-//  // Player paddle (left side). Paddle occupies pixels 1..kPaddleW.
-//  const double playerPaddleRight = 1.0 + kPaddleW;
-//  if (m_ballVX < 0 && m_ballX <= playerPaddleRight)
-//  {
-//    if (m_ballY + kBallSize >= m_paddleL &&
-//        m_ballY <= m_paddleL + kPaddleH)
-//    {
-//      m_ballX = playerPaddleRight;
-//      m_ballVX = -m_ballVX;
-//      double hit = (m_ballY + kBallSize / 2.0) - (m_paddleL + kPaddleH / 2.0);
-//      m_ballVY += hit * 4.0;
-//      if (m_ballVY > 90) m_ballVY = 90;
-//      if (m_ballVY < -90) m_ballVY = -90;
-//    }
-//  }
-//
-//  // AI paddle (right side). Paddle occupies pixels fieldW-kPaddleW-1 .. fieldW-2.
-//  const double aiPaddleLeft = static_cast<double>(fieldW) - 1.0 - kPaddleW;
-//  if (m_ballVX > 0 && m_ballX + kBallSize >= aiPaddleLeft)
-//  {
-//    if (m_ballY + kBallSize >= m_paddleR &&
-//        m_ballY <= m_paddleR + kPaddleH)
-//    {
-//      m_ballX = aiPaddleLeft - kBallSize;
-//      m_ballVX = -m_ballVX;
-//    }
-//  }
-//
-//  // Score.
-//  if (m_ballX < -2)
-//  {
-//    m_scoreR++;
-//    resetBall(1);
-//  }
-//  else if (m_ballX > fieldW + 2)
-//  {
-//    m_scoreL++;
-//    resetBall(-1);
-//  }
-//}
-
 bool PongWidget::handleLocalClick(int localX, int screenX)
 {
   int widgetW = width();
@@ -783,30 +572,6 @@ bool PongWidget::handleLocalClick(int localX, int screenX)
   }
   return true;
 }
-
-//void PongWidget::handleLocalClick(int localX, int screenX)
-//{
-//  int widgetW = width();
-//
-//  if (localX < kBtnW)
-//  {
-//    handlePlayPauseButton();
-//    return;
-//  }
-//
-//  if (localX >= widgetW - kBtnW)
-//  {
-//    if (m_settingsActive)
-//    {
-//      hideSettingsPopup();
-//    }
-//    else
-//    {
-//      showSettingsPopup(screenX);
-//    }
-//    return;
-//  }
-//}
 
 bool PongWidget::onClick(int screenX)
 {
@@ -950,3 +715,4 @@ static PanelWidget* createPong(XConnection& xconn, FontRenderer& font)
 }
 
 static PanelWidgetRegistrar s_pongRegistrar("pong", createPong);
+

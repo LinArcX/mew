@@ -17,11 +17,6 @@ void Config::load()
   m_useEmbeddedSound = true;
   m_useEmbeddedLogoutSound = true;
 
-  m_volumeColorLow = 0x22aa44;
-  m_volumeColorMid = 0xffcc44;
-  m_volumeColorHigh = 0xcc2222;
-  m_volumeColorMuted = 0x666666;
-
   m_panelWidgets.clear();
 
   m_musicIconColor = 0xffffff;
@@ -131,26 +126,6 @@ void Config::load()
         m_musicEqColors.push_back(std::strtoul(item.c_str(), nullptr, 0));
       }
     }
-    else if (key == "volume_color_low")
-    {
-      if (!val.empty() && val[0] == '#') val = "0x" + val.substr(1);
-      m_volumeColorLow = std::strtoul(val.c_str(), nullptr, 0);
-    }
-    else if (key == "volume_color_mid")
-    {
-      if (!val.empty() && val[0] == '#') val = "0x" + val.substr(1);
-      m_volumeColorMid = std::strtoul(val.c_str(), nullptr, 0);
-    }
-    else if (key == "volume_color_high")
-    {
-      if (!val.empty() && val[0] == '#') val = "0x" + val.substr(1);
-      m_volumeColorHigh = std::strtoul(val.c_str(), nullptr, 0);
-    }
-    else if (key == "volume_color_muted")
-    {
-      if (!val.empty() && val[0] == '#') val = "0x" + val.substr(1);
-      m_volumeColorMuted = std::strtoul(val.c_str(), nullptr, 0);
-    }
     else if (key == "weather_text_color")
     {
       if (!val.empty() && val[0] == '#')
@@ -194,20 +169,6 @@ void Config::load()
       }
     }
 
-   // else if (key == "panel_widgets")
-   // {
-   //   m_panelWidgets.clear();
-   //   std::stringstream ss(val);
-   //   std::string item;
-   //   while (std::getline(ss, item, ','))
-   //   {
-   //     item = Util::trim(item);
-   //     if (!item.empty())
-   //     {
-   //       m_panelWidgets.push_back(item);
-   //     }
-   //   }
-   // }
     else if (key == "start_menu_items")
     {
       m_startMenuItems.clear();
@@ -570,7 +531,6 @@ void Config::loadKeybindings(Display* pDisplay)
     printf("mew: keybinding %s -> %s\n", keyString.c_str(), binding.command.c_str());
   }
 }
-
 
 const Config::AppGeometry* Config::appGeometry(const std::string& appName) const
 {
