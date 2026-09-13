@@ -46,6 +46,12 @@ private:
   double ballSpeedForDifficulty() const;
   double aiSpeedForDifficulty() const;
 
+  void initSounds();
+  void loadSoundEnabled();
+  void saveSoundEnabled();
+  void playSound(const std::string& path);
+  void finishGame(bool playerWon);
+
   XConnection& m_xconn;
   FontRenderer& m_font;
 
@@ -70,6 +76,20 @@ private:
   int m_settingsW = 130;
   int m_settingsH = 0;
 
+  // Win condition
+  static constexpr int kWinScore = 5;
+  bool m_gameOver = false;
+  time_t m_gameOverAt = 0;
+
+  // Sound
+  bool m_soundEnabled = true;
+  std::string m_soundDir;
+  std::string m_hitSound;
+  std::string m_wonRoundSound;
+  std::string m_lostRoundSound;
+  std::string m_wonGameSound;
+  std::string m_lostGameSound;
+
   unsigned long m_bgColor = 0x0a0a1a;
   unsigned long m_playerColor = 0x00d0ff;
   unsigned long m_aiColor = 0xff00cc;
@@ -80,4 +100,6 @@ private:
   static constexpr int kBallSize = 2;
   static constexpr int kSettingsRowH = 24;
   static constexpr int kSettingsPad = 8;
+  static constexpr int kSettingsRows = 4;  // Easy / Medium / Hard / Sound
+
 };

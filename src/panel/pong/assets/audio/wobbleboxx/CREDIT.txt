@@ -1,0 +1,13 @@
+This small sound fx pack contains 13 sounds that can be used for all kinds of level up, power up, get, check, click, ding, bat, hit, and much more...
+
+# Author
+WobbleBoxx Workshop
+
+# Website
+OpenGameArt: https://opengameart.org/content/level-up-power-up-coin-get-13-sounds
+
+# Changes
+Converted from MP3 to WAV.
+
+# LICENSE
+CC0

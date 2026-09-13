@@ -63,6 +63,38 @@ No dedicated keys. Difficulty is set from the popup and persisted.
 
 None embedded. Pure X11 drawing primitives (rectangles and polygons).
 
+## Sound
+
+Sounds are loaded at widget creation from `~/.config/mew/pong_sounds/`.
+Recognized filenames (any of `.wav`, `.ogg`, `.mp3`, `.flac`):
+
+| Event | Filename |
+|---|---|
+| Player paddle hits the ball | `hit.*` |
+| Player loses a round | `lost_round.*` |
+| Player wins a round | `won_round.*` |
+| Player loses the game | `lost_game.*` |
+| Player wins the game | `won_game.*` |
+
+Missing files are silently ignored — no error, no sound for that event.
+
+Playback uses `aplay` first (lowest latency), then `paplay`, then `mpv` as a
+fallback. No sound requires any of these at build time; if none is installed,
+audio is silently skipped.
+
+## Win condition
+
+First to **5 points** wins. When a player reaches 5:
+
+- The winning sound plays (`won_game` or `lost_game`).
+- The game freezes for 2 seconds.
+- Scores reset to 0 and the next round starts automatically.
+
+## Sound toggle
+
+The settings popup includes a `Sound: On/Off` row. Click it to toggle audio
+for all game events. The state is persisted to `~/.config/mew/pong_sound_enabled`.
+
 ## License
 
 Source code follows the project license.
