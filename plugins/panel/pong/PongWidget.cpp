@@ -766,29 +766,47 @@ void PongWidget::updateGame(double dt)
 //  }
 //}
 
-void PongWidget::handleLocalClick(int localX, int screenX)
+bool PongWidget::handleLocalClick(int localX, int screenX)
 {
   int widgetW = width();
 
   if (localX < kBtnW)
   {
     handlePlayPauseButton();
-    return;
+    return true;
   }
-
   if (localX >= widgetW - kBtnW)
   {
-    if (m_settingsActive)
-    {
-      hideSettingsPopup();
-    }
-    else
-    {
-      showSettingsPopup(screenX);
-    }
-    return;
+    if (m_settingsActive) hideSettingsPopup();
+    else                  showSettingsPopup(screenX);
+    return true;
   }
+  return true;
 }
+
+//void PongWidget::handleLocalClick(int localX, int screenX)
+//{
+//  int widgetW = width();
+//
+//  if (localX < kBtnW)
+//  {
+//    handlePlayPauseButton();
+//    return;
+//  }
+//
+//  if (localX >= widgetW - kBtnW)
+//  {
+//    if (m_settingsActive)
+//    {
+//      hideSettingsPopup();
+//    }
+//    else
+//    {
+//      showSettingsPopup(screenX);
+//    }
+//    return;
+//  }
+//}
 
 bool PongWidget::onClick(int screenX)
 {

@@ -13,6 +13,17 @@ Minimal, fast window manager for X.
 - **Hackable.** Flat modules, readable code, text-file config.
 - **Optional Widgets** Write your widgets and drop them in src/panel. re-compile mew, enjoy!
 
+
+## Plugins
+Switch to root directory of mew.
+1. for startMenu plugins:
+
+  `ln -s "$PWD/plugins/startMenu/apps/" "$PWD/src/plugins/startMenu/"`
+2. for panel plugins:
+
+  `ln -s "$PWD/plugins/panel/musicPlaye/" "$PWD/src/plugins/panel/"`
+
+
 ## dependencies
 ### tools
 ```

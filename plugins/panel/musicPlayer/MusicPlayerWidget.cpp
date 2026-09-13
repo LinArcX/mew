@@ -1005,6 +1005,31 @@ void MusicPlayerWidget::drawSeekPopup()
   XFreeGC(d, gc);
 }
 
+bool MusicPlayerWidget::handleLocalClick(int localX, int screenX)
+{
+  if (localX < 24)
+  {
+    showPopup(screenX);
+  }
+  else if (localX < 48)  { playPrev(); }
+  else if (localX < 72)  { togglePause(); }
+  else if (localX < 96)  { stopPlayback(); }
+  else if (localX < 120) { playNext(); }
+  else if (localX < 120 + eqWidth())
+  {
+    toggleSeekPopup(screenX);
+  }
+  return true;
+}
+
+void MusicPlayerWidget::handlePopupRelease(XButtonEvent* pEvent)
+{
+  if (pEvent && m_seekPopupActive)
+  {
+    commitSeek();
+  }
+}
+
 static PanelWidget* createMusic(XConnection& xconn, FontRenderer& font)
 {
   return new MusicPlayerWidget(xconn, font);

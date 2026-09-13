@@ -26,7 +26,7 @@ public:
   bool handlePopupKey(XKeyEvent* pEvent) override;
   bool handlePopupClick(XButtonEvent* pEvent) override;
 
-  void handleLocalClick(int localX, int screenX);
+  bool handleLocalClick(int localX, int screenX) override;
 
   static constexpr int kBtnW = 20;
 

@@ -47,6 +47,8 @@ public:
   void showSeekPopup(int screenX);
   void hideSeekPopup();
   void commitSeek();
+  bool handleLocalClick(int localX, int screenX) override;
+  void handlePopupRelease(XButtonEvent* pEvent) override;
 
 private:
   enum class Btn { NoBtn, Note, Prev, Play, Stop, Next, Label };

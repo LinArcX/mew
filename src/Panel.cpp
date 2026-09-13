@@ -1,7 +1,5 @@
 #include "Panel.hpp"
 #include "logo_data.h"
-#include "panel/musicPlayer/MusicPlayerWidget.hpp"
-#include "panel/pong/PongWidget.hpp"
 
 #include <sys/wait.h>
 #include <ctime>
@@ -1441,47 +1439,63 @@ void Panel::handleClick(int x)
     if (x >= widgetX && x < widgetX + w)
     {
       std::string id = pWidget->id();
-      if (id == "music")
+       for (PanelWidget* pWidget : m_widgets)
+  {
+    int w = pWidget->width();
+    if (x >= widgetX && x < widgetX + w)
+    {
+      int localX = x - widgetX;
+      if (!pWidget->handleLocalClick(localX, widgetX))
       {
-        int localX = x - widgetX;
-        MusicPlayerWidget* pm = static_cast<MusicPlayerWidget*>(pWidget);
-
-        if (localX < 24)
-        {
-          pm->showPopup(widgetX);         // note -> popup
-        }
-        else if (localX < 48)
-        {
-          pm->playPrev();
-        }
-        else if (localX < 72)
-        {
-          pm->togglePause();
-        }
-        else if (localX < 96)
-        {
-          pm->stopPlayback();
-        }
-        else if (localX < 120)
-        {
-          pm->playNext();
-        }
-        else if (localX < 120 + pm->eqWidth())
-        {
-          pm->showSeekPopup(widgetX);
-        }
-
-        draw();
-        return;
+        pWidget->onClick(widgetX);
       }
-      else if (id == "pong")
-      {
-        int localX = x - widgetX;
-        PongWidget* pg = static_cast<PongWidget*>(pWidget);
-        pg->handleLocalClick(localX, widgetX);
-        draw();
-        return;
+      draw();
+      return;
       }
+      widgetX += w;
+    }
+
+      //if (id == "music")
+      //{
+      //  int localX = x - widgetX;
+      //  MusicPlayerWidget* pm = static_cast<MusicPlayerWidget*>(pWidget);
+
+      //  if (localX < 24)
+      //  {
+      //    pm->showPopup(widgetX);         // note -> popup
+      //  }
+      //  else if (localX < 48)
+      //  {
+      //    pm->playPrev();
+      //  }
+      //  else if (localX < 72)
+      //  {
+      //    pm->togglePause();
+      //  }
+      //  else if (localX < 96)
+      //  {
+      //    pm->stopPlayback();
+      //  }
+      //  else if (localX < 120)
+      //  {
+      //    pm->playNext();
+      //  }
+      //  else if (localX < 120 + pm->eqWidth())
+      //  {
+      //    pm->showSeekPopup(widgetX);
+      //  }
+
+      //  draw();
+      //  return;
+      //}
+      //else if (id == "pong")
+      //{
+      //  int localX = x - widgetX;
+      //  PongWidget* pg = static_cast<PongWidget*>(pWidget);
+      //  pg->handleLocalClick(localX, widgetX);
+      //  draw();
+      //  return;
+      //}
       pWidget->onClick(widgetX);
       draw();
       return;

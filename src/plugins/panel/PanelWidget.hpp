@@ -72,4 +72,15 @@ public:
   virtual bool tick() { return false; }
 
   virtual void configure(const Config& config) { (void)config; }
+
+  /** @brief Widget-local click dispatch. Return true if consumed. */
+  virtual bool handleLocalClick(int localX, int screenX)
+  {
+    (void)localX; (void)screenX;
+    return false;
+  }
+
+  /** @brief Called on ButtonRelease inside this widget's popup. */
+  virtual void handlePopupRelease(XButtonEvent* pEvent) { (void)pEvent; }
+
 };

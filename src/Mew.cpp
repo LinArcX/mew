@@ -1,6 +1,5 @@
 #include "Mew.hpp"
 #include "Util.hpp"
-#include "panel/musicPlayer/MusicPlayerWidget.hpp"
 
 #include <X11/Xatom.h>
 #include <X11/keysym.h>
@@ -623,17 +622,33 @@ void Mew::processEvent(XEvent& event)
         {
           if (pW->popupWindow() == event.xbutton.window)
           {
-            MusicPlayerWidget* pm = dynamic_cast<MusicPlayerWidget*>(pW);
-            if (pm)
-            {
-              pm->commitSeek();
-            }
+            pW->handlePopupRelease(&event.xbutton);
             break;
           }
         }
       }
       break;
     }
+
+    //case ButtonRelease:
+    //{
+    //  if (m_pPanel)
+    //  {
+    //    for (PanelWidget* pW : m_pPanel->widgets())
+    //    {
+    //      if (pW->popupWindow() == event.xbutton.window)
+    //      {
+    //        MusicPlayerWidget* pm = dynamic_cast<MusicPlayerWidget*>(pW);
+    //        if (pm)
+    //        {
+    //          pm->commitSeek();
+    //        }
+    //        break;
+    //      }
+    //    }
+    //  }
+    //  break;
+    //}
     case LeaveNotify:
       if (m_pPanel && event.xcrossing.window == m_pPanel->window())
       {

@@ -13,9 +13,6 @@ for arg in "$@"; do
     --clean)   MODE="clean" ;;
     -h|--help)
       echo "Usage: scripts/build.sh [--debug|--release|--clean]"
-      echo "  --debug    (default) -g -pg -O0 -DDEBUG --coverage"
-      echo "  --release  -O2 -DNDEBUG"
-      echo "  --clean    remove generated files and build outputs"
       exit 0
       ;;
     *) echo "build.sh: unknown option: $arg" >&2; exit 1 ;;
@@ -32,9 +29,18 @@ CORE_GENERATED=(
   src/logout_wav_data.h
 )
 
-# ---------- plugin directories ----------
+# ---------- plugin infrastructure (always compiled) ----------
+PLUGIN_INFRA_DIRS=(
+  src/plugins/panel
+  src/plugins/startMenu
+)
+
+# ---------- plugin modules (only those under src/plugins/*/ ----------
 shopt -s nullglob
-MODULE_DIRS=( src/panel/*/ src/startMenu/*/ )
+MODULE_DIRS=(
+  src/plugins/panel/*/
+  src/plugins/startMenu/*/
+)
 shopt -u nullglob
 
 REAL_MODULES=()
@@ -42,7 +48,6 @@ for d in "${MODULE_DIRS[@]}"; do
   [ -d "$d" ] && REAL_MODULES+=("$d")
 done
 
-# ---------- plugin metadata ----------
 declare -A P_LD P_PKGS P_CLEAN P_XXD P_EXTRA_SRC
 
 parse_plugin() {
@@ -85,45 +90,31 @@ parse_plugin() {
 }
 
 # =========================================================
-# CLEAN MODE
+# CLEAN
 # =========================================================
 if [ "$MODE" = "clean" ]; then
   echo ">>> clean mode"
 
   for d in "${REAL_MODULES[@]}"; do
-    f="${d}compiler_flags.txt"
-    if [ ! -f "$f" ]; then
-      echo "  skipping: $(basename "$d") (no compiler_flags.txt)"
-      continue
-    fi
-    parse_plugin "$d"
+    [ -f "${d}compiler_flags.txt" ] && parse_plugin "$d"
   done
 
   echo ">>> removing core generated headers"
   for g in "${CORE_GENERATED[@]}"; do
-    if [ -f "$g" ]; then
-      echo "  rm $g"
-      rm -f "$g"
-    fi
+    [ -f "$g" ] && { echo "  rm $g"; rm -f "$g"; }
   done
 
   echo ">>> removing plugin clean files"
   for d in "${REAL_MODULES[@]}"; do
     for rel in ${P_CLEAN[$d]:-}; do
       p="${d}${rel}"
-      if [ -e "$p" ]; then
-        echo "  rm $p"
-        rm -f "$p"
-      fi
+      [ -e "$p" ] && { echo "  rm $p"; rm -f "$p"; }
     done
   done
 
   echo ">>> removing build directories"
   for out in build/debug build/release; do
-    if [ -d "$out" ]; then
-      echo "  rm -rf $out"
-      rm -rf "$out"
-    fi
+    [ -d "$out" ] && { echo "  rm -rf $out"; rm -rf "$out"; }
   done
 
   echo ">>> clean done"
@@ -131,26 +122,31 @@ if [ "$MODE" = "clean" ]; then
 fi
 
 # =========================================================
-# BUILD MODE
+# BUILD
 # =========================================================
 echo ">>> mode: $MODE"
 mkdir -p "build/$MODE"
 
 if [ "$MODE" = "debug" ]; then
-  CXXFLAGS="-std=c++23 -g -pg -O0 -DDEBUG --coverage -Isrc -Isrc/panel -Isrc/startMenu"
+  CXXFLAGS="-std=c++23 -g -pg -O0 -DDEBUG --coverage -Isrc -Isrc/plugins"
   BEAR_PREFIX="bear -- "
 else
-  CXXFLAGS="-std=c++23 -O2 -DNDEBUG -Isrc -Isrc/panel"
+  CXXFLAGS="-std=c++23 -O2 -DNDEBUG -Isrc -Isrc/plugins"
   BEAR_PREFIX=""
 fi
 
 # ---------- core sources ----------
 SRC=()
-for f in src/*.cpp;       do [ -f "$f" ] && SRC+=("$f"); done
-for f in src/panel/*.cpp; do [ -f "$f" ] && SRC+=("$f"); done
-for f in src/startMenu/*.cpp; do [ -f "$f" ] && SRC+=("$f"); done
+for f in src/*.cpp; do [ -f "$f" ] && SRC+=("$f"); done
 
-# ---------- core asset generation ----------
+# ---------- plugin infrastructure ----------
+for d in "${PLUGIN_INFRA_DIRS[@]}"; do
+  for f in "${d}"/*.cpp; do
+    [ -f "$f" ] && SRC+=("$f")
+  done
+done
+
+# ---------- core assets ----------
 echo ">>> generating core asset data"
 xxd -i -n hurmit_ttf   ./assets/fonts/Hermit/HurmitNerdFont-Regular.otf  > src/hurmit_font_data.h
 xxd -i -n symbols_ttf  ./assets/fonts/SymbolsNerdFontMono-Regular.ttf    > src/symbols_font_data.h
@@ -159,7 +155,7 @@ xxd -i -n logoFull_png ./assets/images/logoFull.jpg                      > src/l
 xxd -i -n login_wav    ./assets/audio/login.wav                          > src/login_wav_data.h
 xxd -i -n logout_wav   ./assets/audio/logout.wav                         > src/logout_wav_data.h
 
-# ---------- plugins ----------
+# ---------- plugin modules ----------
 echo ">>> scanning plugins"
 LD_FLAGS="-lasound"
 PKGS="x11 xft fontconfig freetype2 xcursor"
@@ -186,7 +182,7 @@ for d in "${REAL_MODULES[@]}"; do
   [ -n "${P_PKGS[$d]:-}" ] && PKGS="$PKGS ${P_PKGS[$d]}"
 done
 
-# ---------- plugin XXD assets ----------
+# ---------- plugin XXD ----------
 for d in "${REAL_MODULES[@]}"; do
   [ -n "${P_XXD[$d]:-}" ] || continue
   for entry in ${P_XXD[$d]}; do
