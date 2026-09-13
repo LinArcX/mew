@@ -1,6 +1,6 @@
 #include "WeatherWidget.hpp"
 #include "../PanelWidgetRegistry.hpp"
-#include "../../weather_font_data.h"
+#include "weather_font_data.h"
 
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
@@ -168,8 +168,8 @@ WeatherWidget::WeatherWidget(XConnection& xconn, FontRenderer& font)
   int screen = xconn.screen();
 
   m_iconFont.load(xconn.display(), xconn.screen(),
-    weather_ttf,
-    weather_ttf_len,
+    weathericons_regular_webfont_ttf,
+    weathericons_regular_webfont_ttf_len,
     14.0);
 }
 

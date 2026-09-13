@@ -22,7 +22,6 @@ LD_FLAGS="-lasound"
 # --- Core asset embedding (unchanged) ---
 echo ">>> generating core asset data"
 xxd -i -n hurmit_ttf   ./assets/fonts/Hermit/HurmitNerdFont-Regular.otf    > src/hurmit_font_data.h
-xxd -i -n weather_ttf  ./assets/fonts/weathericons-regular-webfont.ttf     > src/weather_font_data.h
 xxd -i -n symbols_ttf  ./assets/fonts/SymbolsNerdFontMono-Regular.ttf      > src/symbols_font_data.h
 xxd -i -n logo_png     ./assets/images/logo.jpg                            > src/logo_data.h
 xxd -i -n logoFull_png ./assets/images/logoFull.jpg                        > src/logoFull_data.h
