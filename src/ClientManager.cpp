@@ -1,4 +1,6 @@
 #include "ClientManager.hpp"
+#include "Util.hpp"
+
 #include <X11/Xutil.h>
 
 #include <X11/Xatom.h>
@@ -34,6 +36,79 @@ std::string ClientManager::windowTitle(Window window)
     return title.empty() ? "Untitled" : title;
   }
   return "Untitled";
+}
+
+void ClientManager::drawButtonGlyph(Display* d, Window win, int btnX, unsigned int codepoint)
+{
+  if (codepoint == 0)
+  {
+    return;
+  }
+  XftFont* pFont = m_font.font();
+  if (!pFont)
+  {
+    return;
+  }
+  std::string glyph = Util::codepointToUtf8(codepoint);
+  int textH = pFont->ascent + pFont->descent;
+  int baseline = MewConst::borderWidth
+    + (MewConst::titleHeight - MewConst::borderWidth + textH) / 2
+    - pFont->descent;
+  int glyphW = pFont->max_advance_width;
+  int glyphX = btnX + (MewConst::buttonWidth - glyphW) / 2;
+  m_font.draw(d, m_xconn.screen(), win, glyphX, baseline, glyph);
+}
+
+void ClientManager::drawWindowButtons(Display* d, Client* pClient, GC gc, int minX, int maxX, int closeX)
+{
+  unsigned int cpMin = 0xF068;
+  unsigned int cpMax = 0xF096;
+  unsigned int cpRestore = 0xF2D2;
+  unsigned int cpClose = 0xF00D;
+  if (m_pConfig)
+  {
+    cpMin = m_pConfig->windowButtonMin();
+    cpMax = m_pConfig->windowButtonMax();
+    cpRestore = m_pConfig->windowButtonRestore();
+    cpClose = m_pConfig->windowButtonClose();
+  }
+
+  XSetForeground(d, gc, MewConst::colorText);
+  m_font.setColor(MewConst::colorText);
+
+  if (cpMin != 0)
+  {
+    drawButtonGlyph(d, pClient->frame, minX, cpMin);
+  }
+  else
+  {
+    XDrawLine(d, pClient->frame, gc, minX + 9, MewConst::titleHeight / 2 + 4, minX + MewConst::buttonWidth - 9, MewConst::titleHeight / 2 + 4);
+  }
+
+  unsigned int cpMaxBtn = pClient->maximized ? cpRestore : cpMax;
+  if (cpMaxBtn != 0)
+  {
+    drawButtonGlyph(d, pClient->frame, maxX, cpMaxBtn);
+  }
+  else if (pClient->maximized)
+  {
+    XDrawRectangle(d, pClient->frame, gc, maxX + 9, 8, 10, 9);
+    XDrawRectangle(d, pClient->frame, gc, maxX + 12, 11, 10, 9);
+  }
+  else
+  {
+    XDrawRectangle(d, pClient->frame, gc, maxX + 9, 8, 11, 10);
+  }
+
+  if (cpClose != 0)
+  {
+    drawButtonGlyph(d, pClient->frame, closeX, cpClose);
+  }
+  else
+  {
+    XDrawLine(d, pClient->frame, gc, closeX + 9, 8, closeX + MewConst::buttonWidth - 9, MewConst::titleHeight - 9);
+    XDrawLine(d, pClient->frame, gc, closeX + MewConst::buttonWidth - 9, 8, closeX + 9, MewConst::titleHeight - 9);
+  }
 }
 
 Client* ClientManager::findClient(Window window)
@@ -137,21 +212,23 @@ void ClientManager::drawFrame(Client* pClient)
   XFillRectangle(d, pClient->frame, gc, maxX, buttonY, MewConst::buttonWidth, MewConst::titleHeight - MewConst::borderWidth);
   XFillRectangle(d, pClient->frame, gc, closeX, buttonY, MewConst::buttonWidth, MewConst::titleHeight - MewConst::borderWidth);
 
-  XSetForeground(d, gc, MewConst::colorText);
-  XDrawLine(d, pClient->frame, gc, minX + 9, MewConst::titleHeight / 2 + 4, minX + MewConst::buttonWidth - 9, MewConst::titleHeight / 2 + 4);
+  drawWindowButtons(d, pClient, gc, minX, maxX, closeX);
 
-  if (pClient->maximized)
-  {
-    XDrawRectangle(d, pClient->frame, gc, maxX + 9, 8, 10, 9);
-    XDrawRectangle(d, pClient->frame, gc, maxX + 12, 11, 10, 9);
-  }
-  else
-  {
-    XDrawRectangle(d, pClient->frame, gc, maxX + 9, 8, 11, 10);
-  }
+  //XSetForeground(d, gc, MewConst::colorText);
+  //XDrawLine(d, pClient->frame, gc, minX + 9, MewConst::titleHeight / 2 + 4, minX + MewConst::buttonWidth - 9, MewConst::titleHeight / 2 + 4);
 
-  XDrawLine(d, pClient->frame, gc, closeX + 9, 8, closeX + MewConst::buttonWidth - 9, MewConst::titleHeight - 9);
-  XDrawLine(d, pClient->frame, gc, closeX + MewConst::buttonWidth - 9, 8, closeX + 9, MewConst::titleHeight - 9);
+  //if (pClient->maximized)
+  //{
+  //  XDrawRectangle(d, pClient->frame, gc, maxX + 9, 8, 10, 9);
+  //  XDrawRectangle(d, pClient->frame, gc, maxX + 12, 11, 10, 9);
+  //}
+  //else
+  //{
+  //  XDrawRectangle(d, pClient->frame, gc, maxX + 9, 8, 11, 10);
+  //}
+
+  //XDrawLine(d, pClient->frame, gc, closeX + 9, 8, closeX + MewConst::buttonWidth - 9, MewConst::titleHeight - 9);
+  //XDrawLine(d, pClient->frame, gc, closeX + MewConst::buttonWidth - 9, 8, closeX + 9, MewConst::titleHeight - 9);
 
   std::string title = windowTitle(pClient->window);
   XftFont* pFont = m_font.font();

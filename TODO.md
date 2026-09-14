@@ -1,6 +1,3 @@
-- [ ] use beautiful icons for close/max/min on windows frames.
-  - [ ] there should be a possibility to change it from config file also.
-
 - [ ] keybindings window, should have a EDIT button at bottom. so when user click on it, it can be able to edit text.
   In Edit Mode, There should be a SAVE button at bottm, beside that there should be a VIEW-Mode button.
   So when user click on View-Mode, keybindings window come back to it's initial view mode state.
@@ -51,10 +48,13 @@
   - looks professional
   - link to pateron
 - [ ] add persian glyphs to current font.
+
 - [ ] windows title fonts
   currently it's hard-coded. finally it should read from conf file.
+
 - [ ] mouse theme
   currently it's hard-coded. finally it should read from conf file.
+
 - [ ] impelemnt windows theme
 
 - [ ] power manager (mandatory)

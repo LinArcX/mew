@@ -281,6 +281,22 @@ void Config::load()
     {
       m_windowTheme = val;
     }
+    else if (key == "window_button_min")
+    {
+      m_windowButtonMin = static_cast<unsigned int>(std::strtoul(val.c_str(), nullptr, 0));
+    }
+    else if (key == "window_button_max")
+    {
+      m_windowButtonMax = static_cast<unsigned int>(std::strtoul(val.c_str(), nullptr, 0));
+    }
+    else if (key == "window_button_restore")
+    {
+      m_windowButtonRestore = static_cast<unsigned int>(std::strtoul(val.c_str(), nullptr, 0));
+    }
+    else if (key == "window_button_close")
+    {
+      m_windowButtonClose = static_cast<unsigned int>(std::strtoul(val.c_str(), nullptr, 0));
+    }
     else
     {
       // Per-app geometry: app.pos.x / app.pos.y / app.width / app.height / app.maximized

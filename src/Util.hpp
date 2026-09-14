@@ -10,6 +10,9 @@ namespace Util
   /** @brief Expand leading ~ or ~/ using $HOME. */
   std::string expandHome(const std::string& path);
 
+  /** @brief Encode a Unicode codepoint as UTF-8. */
+  std::string codepointToUtf8(unsigned int codepoint);
+
   /** @brief Return $HOME/.config/mew. */
   std::string getConfigDirectory();
 

@@ -47,6 +47,10 @@ public:
   const std::string& logoutSound() const { return m_logoutSound; }
   /** @brief Reserved window theme name. */
   const std::string& windowTheme() const { return m_windowTheme; }
+  unsigned int windowButtonMin() const { return m_windowButtonMin; }
+  unsigned int windowButtonMax() const { return m_windowButtonMax; }
+  unsigned int windowButtonRestore() const { return m_windowButtonRestore; }
+  unsigned int windowButtonClose() const { return m_windowButtonClose; }
   /** @brief Parsed keybindings. */
   const std::vector<KeyBinding>& keybindings() const { return m_keybindings; }
 
@@ -117,6 +121,10 @@ private:
   std::string m_loginSound;
   std::string m_logoutSound;
   std::string m_windowTheme;
+  unsigned int m_windowButtonMin = 0xF068;      // nf-fa-minus
+  unsigned int m_windowButtonMax = 0xF096;      // nf-fa-square_o
+  unsigned int m_windowButtonRestore = 0xF2D2;  // nf-fa-window_restore
+  unsigned int m_windowButtonClose = 0xF00D;    // nf-fa-times
   std::vector<KeyBinding> m_keybindings;
   std::map<std::string, AppGeometry> m_appGeometry;
   std::vector<PanelWidgetEntry> m_panelWidgets;

@@ -128,6 +128,12 @@ private:
   /** @brief Cursor for a resize direction. */
   Cursor cursorFor(ResizeDirection direction);
 
+  /** @brief Draw all three titlebar buttons (glyphs or geometric fallback). */
+  void drawWindowButtons(Display* d, Client* pClient, GC gc, int minX, int maxX, int closeX);
+
+  /** @brief Draw a single Nerd Font glyph centered in a button. */
+  void drawButtonGlyph(Display* d, Window win, int btnX, unsigned int codepoint);
+
   XConnection& m_xconn;
   FontRenderer& m_font;
   std::vector<Client*> m_clients;
