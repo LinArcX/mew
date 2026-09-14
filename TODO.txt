@@ -1,10 +1,6 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
-- [ ] In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
-  - [ ] i know that some icons are SVG and stb_image doesn't support SVG.
-    tell me what is the best way(or minimal library maybe for svg loading?) to also show SVG icons.
-
 - [ ] add icons to power-managment pop-up.
 
 - [ ] add icons to start-menu items.
@@ -71,24 +67,15 @@
 - [ ] Cryptocurrency	BTC/ETH price from a public API; curl + JSON
 - [ ] System monitor graph	CPU+RAM mini graph over 60s
 
-## panel
-- [ ] New Feature: When i hover over date/time in panel, shows a pop-up calendar window.
-  It should be close when i:
-    hit ESCAPE
-    click on other apps or other part of mew.
-  The interface should be like orage:
-    https://web.archive.org/web/20171007225154/http://www.kolumbus.fi:80/~w408237/orage/
-  or gsimplecal:
-    https://github.com/dmedvinsky/gsimplecal
-
 ## startMenu
 - [ ] apps popup in start-menu only close when i press ESCAPE from keyboard.
   i want it to be close, when i click on other apps, or in general space also in WM.
-
-
 ---------------------------------------------------------------------------------
 # v8
 ## general
+- [+] In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
+  - i know that some icons are SVG and stb_image doesn't support SVG.
+    tell me what is the best way(or minimal library maybe for svg loading?) to also show SVG icons.
 - [+] add images to switcher pop-up.
 - [+] ability to change order of items in panel.
   There should be settings for it in conf file.

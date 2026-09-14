@@ -1,5 +1,6 @@
 #include "AppLauncher.hpp"
 #include "stb_image.h"
+#include "SvgLoader.hpp"
 #include <X11/Xutil.h>
 #include <cstdlib>
 #include <map>
@@ -542,8 +543,16 @@ void AppLauncher::drawIcon(Display* d, Window win, int x, int y, const std::stri
 
   int iw = 0;
   int ih = 0;
-  int ch = 0;
-  unsigned char* data = stbi_load(path.c_str(), &iw, &ih, &ch, 4);
+  unsigned char* data = nullptr;
+  if (path.size() > 4 && path.substr(path.size() - 4) == ".svg")
+  {
+    data = loadSvgRgba(path, &iw, &ih);
+  }
+  else
+  {
+    int ch = 0;
+    data = stbi_load(path.c_str(), &iw, &ih, &ch, 4);
+  }
   if (!data || iw <= 0 || ih <= 0)
   {
     GC gc = XCreateGC(d, win, 0, nullptr);
@@ -583,26 +592,27 @@ void AppLauncher::drawIcon(Display* d, Window win, int x, int y, const std::stri
       unsigned int r = 0;
       unsigned int g = 0;
       unsigned int b = 0;
-      unsigned int n = 0;
+      unsigned int aSum = 0;
       for (int sy = y0; sy < y1; ++sy)
       {
         for (int sx = x0; sx < x1; ++sx)
         {
           unsigned char* s = data + (sy * iw + sx) * 4;
-          r += s[0];
-          g += s[1];
-          b += s[2];
-          ++n;
+          unsigned int alpha = s[3];
+          r += s[0] * alpha;
+          g += s[1] * alpha;
+          b += s[2] * alpha;
+          aSum += alpha;
         }
       }
-      if (n == 0)
+      if (aSum == 0)
       {
-        n = 1;
+        aSum = 1;
       }
       char* dst = xdata + (py * size + px) * 4;
-      dst[0] = static_cast<char>(b / n);
-      dst[1] = static_cast<char>(g / n);
-      dst[2] = static_cast<char>(r / n);
+      dst[0] = static_cast<char>(b / aSum);
+      dst[1] = static_cast<char>(g / aSum);
+      dst[2] = static_cast<char>(r / aSum);
       dst[3] = 0;
     }
   }
