@@ -47,10 +47,10 @@ First you need to clone the project:
   `git clone https://github.com/LinArcX/mew`
 
 Then, for building it there are two possible ways:
-1. using `./scripts/build_debug.sh`
+1. using `./scripts/build.sh`
 ```sh
-chmod +x scripts/build_debug.sh
-./scripts/build_debug.sh
+chmod +x scripts/build.sh
+./scripts/build.sh --install            # builds release, installs to /usr/bin/mew
 ```
 2. using `./p`. Which gives you an interactive cli with more options. NOTE that fzf should be installed in this case.
 ```sh

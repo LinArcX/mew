@@ -23,18 +23,30 @@ fi
 
 # ---------- arguments ----------
 MODE="debug"
+MODE_SET=0
+INSTALL=0
 for arg in "$@"; do
   case "$arg" in
-    --debug)   MODE="debug" ;;
-    --release) MODE="release" ;;
+    --debug)   MODE="debug";   MODE_SET=1 ;;
+    --release) MODE="release"; MODE_SET=1 ;;
     --clean)   MODE="clean" ;;
+    --install) INSTALL=1 ;;
     -h|--help)
-      echo "Usage: scripts/build.sh [--debug|--release|--clean]"
+      echo "Usage: scripts/build.sh [--debug|--release|--clean] [--install]"
       exit 0
       ;;
     *) echo "build.sh: unknown option: $arg" >&2; exit 1 ;;
   esac
 done
+
+if [ "$MODE" = "clean" ] && [ "$INSTALL" = "1" ]; then
+  echo "build.sh: --clean and --install are mutually exclusive" >&2
+  exit 1
+fi
+
+if [ "$INSTALL" = "1" ] && [ "$MODE_SET" = "0" ]; then
+  MODE="release"
+fi
 
 # ---------- core generated headers ----------
 CORE_GENERATED=(
@@ -65,7 +77,7 @@ for d in "${MODULE_DIRS[@]}"; do
   [ -d "$d" ] && REAL_MODULES+=("$d")
 done
 
-declare -A P_LD P_PKGS P_CLEAN P_XXD P_EXTRA_SRC
+declare -A P_LD P_PKGS P_CLEAN P_XXD P_EXTRA_SRC P_ENABLE
 
 parse_plugin() {
   local dir="$1"
@@ -80,6 +92,9 @@ parse_plugin() {
     value="${line#*=}"
     value="$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     case "$key" in
+      ENABLE)
+        [ -n "$value" ] && P_ENABLE[$dir]="$value"
+        ;;
       LD_FLAGS)
         [ -n "$value" ] && P_LD[$dir]="${P_LD[$dir]:-} $value"
         ;;
@@ -123,15 +138,56 @@ if [ "$MODE" = "clean" ]; then
 
   echo "${C_CYAN}>>> removing plugin clean files${C_RESET}"
   for d in "${REAL_MODULES[@]}"; do
+    [ "${P_ENABLE[$d]:-true}" = "false" ] && continue
     for rel in ${P_CLEAN[$d]:-}; do
       p="${d}${rel}"
       [ -e "$p" ] && { echo "  ${C_DIM}rm $p${C_RESET}"; rm -f "$p"; }
     done
   done
 
+  echo "${C_CYAN}>>> removing root-level artifacts${C_RESET}"
+  for p in node_modules .cache; do
+    [ -d "$p" ] && { echo "  ${C_DIM}rm -rf $p${C_RESET}"; rm -rf "$p"; }
+  done
+  for p in gmon.out package-lock.json package.json compile_commands.json; do
+    [ -f "$p" ] && { echo "  ${C_DIM}rm $p${C_RESET}"; rm -f "$p"; }
+  done
+
   echo "${C_CYAN}>>> removing build directories${C_RESET}"
   for out in build/debug build/release; do
-    [ -d "$out" ] && { echo "  ${C_DIM}rm -rf $out${C_RESET}"; rm -rf "$out"; }
+    [ -d "$out" ] || continue
+    echo "  ${C_DIM}rm -rf $out${C_RESET}"
+    rm -rf "$out" 2>/dev/null || true
+    if [ ! -d "$out" ]; then
+      continue
+    fi
+
+    echo "  ${C_YELLOW}warning:${C_RESET} $out not fully removed:"
+    ls -la "$out" >&2
+
+    if ls "$out"/.fuse_hidden* >/dev/null 2>&1; then
+      echo "  ${C_YELLOW}hint:${C_RESET} .fuse_hidden* means a running process still holds"
+      echo "         a deleted file (likely a running 'mew'). Stop it and retry."
+    fi
+
+    if [ -t 0 ]; then
+      read -r -p "  retry with sudo to force-remove $out? [y/N] " ans
+      case "$ans" in
+        y|Y)
+          if sudo rm -rf "$out"; then
+            [ -d "$out" ] && echo "  ${C_RED}still failed:${C_RESET} $out" \
+                          || echo "  ${C_GREEN}removed${C_RESET} $out"
+          else
+            echo "  ${C_RED}sudo rm failed:${C_RESET} $out"
+          fi
+          ;;
+        *)
+          echo "  ${C_DIM}skipped${C_RESET}"
+          ;;
+      esac
+    else
+      echo "  ${C_DIM}non-interactive: skipping sudo prompt${C_RESET}"
+    fi
   done
 
   echo "${C_GREEN}>>> clean done${C_RESET}"
@@ -184,14 +240,19 @@ for d in "${REAL_MODULES[@]}"; do
     continue
   fi
 
+  parse_plugin "$d"
+
   name="$(basename "$d")"
+  if [ "${P_ENABLE[$d]:-true}" = "false" ]; then
+    echo "  ${C_DIM}disabled:${C_RESET} ${C_DIM}${name}${C_RESET}"
+    continue
+  fi
+
   if [[ "$d" == *"/startMenu/"* ]]; then
     echo "  ${C_LGREEN}plugin:${C_RESET} ${C_LGREEN}${name}${C_RESET}"
   else
     echo "  ${C_ORANGE}plugin:${C_RESET} ${C_ORANGE}${name}${C_RESET}"
   fi
-
-  parse_plugin "$d"
 
   for s in "${d}"*.cpp; do
     [ -f "$s" ] && SRC+=("$s")
@@ -208,6 +269,7 @@ done
 
 # ---------- plugin XXD ----------
 for d in "${REAL_MODULES[@]}"; do
+  [ "${P_ENABLE[$d]:-true}" = "false" ] && continue
   [ -n "${P_XXD[$d]:-}" ] || continue
   for entry in ${P_XXD[$d]}; do
     asset="${entry%%:*}"
@@ -245,3 +307,23 @@ $BEAR_PREFIX g++ $CXXFLAGS "${UNIQ[@]}" \
   $LD_FLAGS \
   -o "build/$MODE/mew"
 echo "${C_GREEN}>>> done:${C_RESET} ${C_BOLD}build/$MODE/mew${C_RESET}"
+
+# =========================================================
+# INSTALL
+# =========================================================
+if [ "$INSTALL" = "1" ]; then
+  BIN="build/$MODE/mew"
+  TARGET="/usr/bin/mew"
+
+  if [ ! -f "$BIN" ]; then
+    echo "build.sh: $BIN not found (build first)" >&2
+    exit 1
+  fi
+
+  echo "${C_CYAN}>>> installing to $TARGET${C_RESET}"
+  if ! install -m 755 "$BIN" "$TARGET" 2>/dev/null; then
+    echo "  ${C_DIM}requires sudo${C_RESET}"
+    sudo install -m 755 "$BIN" "$TARGET"
+  fi
+  echo "${C_GREEN}>>> installed:${C_RESET} ${C_BOLD}$TARGET${C_RESET}"
+fi

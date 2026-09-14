@@ -103,7 +103,7 @@ menu () {
   
   case $selected in
     "build(debug)")
-      ./scripts/build.sh --debug
+      ./scripts/build.sh --install --debug
       if [ $? -eq 1 ]; then
         # error
         mpg123 -f 3000 /home/linarcx/VoidConf/assets/error2.mp3 > /dev/null 2>&1 
@@ -156,7 +156,7 @@ menu () {
       fi
       ;;
     "build(release)")
-      ./scripts/build.sh --release
+      ./scripts/build.sh --install
       if [ $? -eq 1 ]; then
         # error
         mpg123 -f 3000 /home/linarcx/VoidConf/assets/error2.mp3 > /dev/null 2>&1 
