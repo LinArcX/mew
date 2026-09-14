@@ -1,15 +1,19 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
+- [ ] In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
+  - [ ] i know that some icons are SVG and stb_image doesn't support SVG.
+    tell me what is the best way(or minimal library maybe for svg loading?) to also show SVG icons.
+
 - [ ] add icons to power-managment pop-up.
 
 - [ ] add icons to start-menu items.
 
-- [ ] ability to change margin/padding of items in panel.
-  There should be settings for it in conf file.
-
 - [ ] ability to define position of panel.(top, bottom, left, right)
   it should be possible to adjust the position through conf file.
+
+- [ ] ability to change margin/padding of items in panel.
+  There should be settings for it in conf file.
 
 - [ ] keybindings window, should have a EDIT button at bottom. so when user click on it, it can be able to edit text.
   In Edit Mode, There should be a SAVE button at bottm, beside that there should be a VIEW-Mode button.
@@ -77,19 +81,11 @@
   or gsimplecal:
     https://github.com/dmedvinsky/gsimplecal
 
-- [ ] trying to change network interface in networkmanager plugin leads to system freeze.
-  Maybe because it needs sudo access under the hood? fix it then.
-
-- [ ] trying to use kill-switch network widget in panel leads to system freeze.
-  Does it need root access? (CAP_NET_ADMIN) implement it with polkit-devel or any other similar and minimal/safe way.
-
 ## startMenu
 - [ ] apps popup in start-menu only close when i press ESCAPE from keyboard.
   i want it to be close, when i click on other apps, or in general space also in WM.
 
-- [ ] In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
-  - [ ] i know that some icons are SVG and stb_image doesn't support SVG.
-    tell me what is the best way(or minimal library maybe for svg loading?) to also show SVG icons.
+
 ---------------------------------------------------------------------------------
 # v8
 ## general
