@@ -2,3 +2,4 @@
 LD_FLAGS=
 PKGCONF_FLAG=
 SRC=ClockWidget.cpp
+ENABLE=true
