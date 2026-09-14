@@ -1,10 +1,13 @@
+## Features
 - [ ] ability to define position of panel.(top, bottom, left, right)
   it should be possible to adjust the position through conf file.
+
+- [ ] ability to set panel items color + panel item hover color in config file.
 
 - [ ] ability to change margin/padding of items in panel.
   There should be settings for it in conf file.
 
-## plugins for panel
+### Plugins
 - [+] Pong game as panel widget.
 - [ ] System tray:	Own the _NET_SYSTEM_TRAY_S0 selection; embed StatusNotifierItem icons
 - [ ] Notification daemon(something like dunst): Libnotify daemon stub; show bell + count, click to open list

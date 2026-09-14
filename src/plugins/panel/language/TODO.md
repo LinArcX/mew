@@ -1,0 +1,3 @@
+- [ ] when clicking on keyboard switcher on panel, there should be a pop-up shows to user.
+  - this pop-up contains langauges in a list, so yuo can select from the list.
+  - we should show the flag of the language also.
