@@ -17,6 +17,54 @@ int ClientManager::usableHeight() const
   return m_xconn.height() - m_panelHeight;
 }
 
+void ClientManager::updateClientList()
+{
+  Display* d = m_xconn.display();
+  if (!d)
+  {
+    return;
+  }
+
+  // EWMH: client windows (not frames). _NET_CLIENT_LIST = mapping order.
+  // _NET_CLIENT_LIST_STACKING = bottom-to-top; m_clients is already that order
+  // after focus() moves the raised client to the end.
+  std::vector<Window> windows;
+  windows.reserve(m_clients.size());
+  for (Client* pClient : m_clients)
+  {
+    if (pClient && pClient->window != None)
+    {
+      windows.push_back(pClient->window);
+    }
+  }
+
+  const unsigned char* pData = windows.empty()
+    ? nullptr
+    : reinterpret_cast<unsigned char*>(windows.data());
+  const int count = static_cast<int>(windows.size());
+
+  XChangeProperty(
+    d, m_xconn.root(), m_xconn.atomNetClientList(), XA_WINDOW, 32, PropModeReplace,
+    pData, count);
+  XChangeProperty(
+    d, m_xconn.root(), m_xconn.atomNetClientListStacking(), XA_WINDOW, 32, PropModeReplace,
+    pData, count);
+}
+
+void ClientManager::updateActiveWindow(Client* pClient)
+{
+  Display* d = m_xconn.display();
+  if (!d)
+  {
+    return;
+  }
+
+  Window active = (pClient && pClient->window != None) ? pClient->window : None;
+  XChangeProperty(
+    d, m_xconn.root(), m_xconn.atomNetActiveWindow(), XA_WINDOW, 32, PropModeReplace,
+    reinterpret_cast<unsigned char*>(&active), 1);
+}
+
 std::string ClientManager::windowTitle(Window window)
 {
   Display* d = m_xconn.display();
@@ -292,6 +340,14 @@ void ClientManager::focus(Client* pClient)
     {
       drawFrame(pPrev);
     }
+    auto itFs = std::find(m_clients.begin(), m_clients.end(), pClient);
+    if (itFs != m_clients.end())
+    {
+      m_clients.erase(itFs);
+      m_clients.push_back(pClient);
+    }
+    updateClientList();
+    updateActiveWindow(pClient);
     return;
   }
 
@@ -334,6 +390,16 @@ void ClientManager::focus(Client* pClient)
   {
     drawFrame(pPrev);
   }
+
+  // Keep stacking order: bottom → top (focused last) for _NET_CLIENT_LIST_STACKING
+  auto it = std::find(m_clients.begin(), m_clients.end(), pClient);
+  if (it != m_clients.end())
+  {
+    m_clients.erase(it);
+    m_clients.push_back(pClient);
+  }
+  updateClientList();
+  updateActiveWindow(pClient);
 }
 
 void ClientManager::focusNext()
@@ -1077,6 +1143,7 @@ void ClientManager::manage(Window window)
   }
 
   m_clients.push_back(pClient);
+  updateClientList();
   resize(pClient);
   focus(pClient);
 
@@ -1121,11 +1188,16 @@ void ClientManager::unmanage(Client* pClient)
   XDestroyWindow(d, pClient->frame);
   m_clients.erase(std::remove(m_clients.begin(), m_clients.end(), pClient), m_clients.end());
   delete pClient;
+  updateClientList();
 
   // Restore keyboard focus to another window (fixes neovim hollow cursor)
   if (!m_clients.empty())
   {
     focus(m_clients.back());
+  }
+  else
+  {
+    updateActiveWindow(nullptr);
   }
 }
 

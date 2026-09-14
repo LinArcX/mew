@@ -118,6 +118,18 @@ public:
   /** @brief Screen height minus panel height. */
   int usableHeight() const;
 
+  /**
+   * @brief Publish _NET_CLIENT_LIST and _NET_CLIENT_LIST_STACKING on root.
+   * Call after manage/unmanage so tools like wmctrl see the client set.
+   */
+  void updateClientList();
+
+  /**
+   * @brief Publish _NET_ACTIVE_WINDOW on root for the focused client (or None).
+   * @param pClient Focused client, or nullptr for none.
+   */
+  void updateActiveWindow(Client* pClient);
+
 private:
   /** @brief Read window title from X properties. */
   std::string windowTitle(Window window);

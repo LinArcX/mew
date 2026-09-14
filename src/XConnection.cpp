@@ -34,6 +34,13 @@ bool XConnection::open()
   m_atomNetWmStateMaxHorz = XInternAtom(m_pDisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
   m_atomNetSupported = XInternAtom(m_pDisplay, "_NET_SUPPORTED", False);
   m_atomNetSupportingWmCheck = XInternAtom(m_pDisplay, "_NET_SUPPORTING_WM_CHECK", False);
+  m_atomNetClientList = XInternAtom(m_pDisplay, "_NET_CLIENT_LIST", False);
+  m_atomNetClientListStacking = XInternAtom(m_pDisplay, "_NET_CLIENT_LIST_STACKING", False);
+  m_atomNetActiveWindow = XInternAtom(m_pDisplay, "_NET_ACTIVE_WINDOW", False);
+  m_atomNetNumberOfDesktops = XInternAtom(m_pDisplay, "_NET_NUMBER_OF_DESKTOPS", False);
+  m_atomNetCurrentDesktop = XInternAtom(m_pDisplay, "_NET_CURRENT_DESKTOP", False);
+  m_atomNetDesktopViewport = XInternAtom(m_pDisplay, "_NET_DESKTOP_VIEWPORT", False);
+  m_atomNetDesktopGeometry = XInternAtom(m_pDisplay, "_NET_DESKTOP_GEOMETRY", False);
 
   setupEwmh();
   return true;
@@ -70,11 +77,51 @@ void XConnection::setupEwmh()
     m_atomNetWmStateFullscreen,
     m_atomNetWmStateMaxVert,
     m_atomNetWmStateMaxHorz,
+    m_atomNetClientList,
+    m_atomNetClientListStacking,
+    m_atomNetActiveWindow,
+    m_atomNetNumberOfDesktops,
+    m_atomNetCurrentDesktop,
+    m_atomNetDesktopViewport,
+    m_atomNetDesktopGeometry,
   };
   XChangeProperty(
     m_pDisplay, m_root, m_atomNetSupported, XA_ATOM, 32, PropModeReplace,
     reinterpret_cast<unsigned char*>(supported),
     static_cast<int>(sizeof(supported) / sizeof(supported[0])));
+
+  // Single desktop (required by many EWMH clients / wmctrl)
+  long one = 1;
+  long zero = 0;
+  XChangeProperty(
+    m_pDisplay, m_root, m_atomNetNumberOfDesktops, XA_CARDINAL, 32, PropModeReplace,
+    reinterpret_cast<unsigned char*>(&one), 1);
+  XChangeProperty(
+    m_pDisplay, m_root, m_atomNetCurrentDesktop, XA_CARDINAL, 32, PropModeReplace,
+    reinterpret_cast<unsigned char*>(&zero), 1);
+
+  long viewport[2] = {0, 0};
+  XChangeProperty(
+    m_pDisplay, m_root, m_atomNetDesktopViewport, XA_CARDINAL, 32, PropModeReplace,
+    reinterpret_cast<unsigned char*>(viewport), 2);
+
+  long geometry[2] = {DisplayWidth(m_pDisplay, m_screen), DisplayHeight(m_pDisplay, m_screen)};
+  XChangeProperty(
+    m_pDisplay, m_root, m_atomNetDesktopGeometry, XA_CARDINAL, 32, PropModeReplace,
+    reinterpret_cast<unsigned char*>(geometry), 2);
+
+  // Empty client list until first manage()
+  XChangeProperty(
+    m_pDisplay, m_root, m_atomNetClientList, XA_WINDOW, 32, PropModeReplace,
+    nullptr, 0);
+  XChangeProperty(
+    m_pDisplay, m_root, m_atomNetClientListStacking, XA_WINDOW, 32, PropModeReplace,
+    nullptr, 0);
+
+  Window none = None;
+  XChangeProperty(
+    m_pDisplay, m_root, m_atomNetActiveWindow, XA_WINDOW, 32, PropModeReplace,
+    reinterpret_cast<unsigned char*>(&none), 1);
 }
 
 void XConnection::close()

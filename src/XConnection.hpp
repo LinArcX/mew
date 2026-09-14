@@ -83,6 +83,12 @@ public:
 
   /** @brief _NET_WM_MOVERESIZE atom. */
   Atom atomNetWmMoveResize() const { return m_atomNetWmMoveResize; }
+  /** @brief _NET_CLIENT_LIST atom. */
+  Atom atomNetClientList() const { return m_atomNetClientList; }
+  /** @brief _NET_CLIENT_LIST_STACKING atom. */
+  Atom atomNetClientListStacking() const { return m_atomNetClientListStacking; }
+  /** @brief _NET_ACTIVE_WINDOW atom. */
+  Atom atomNetActiveWindow() const { return m_atomNetActiveWindow; }
 
 private:
   Cursor loadCursor(const char* themeName, unsigned int fallbackShape);
@@ -102,6 +108,13 @@ private:
   Atom m_atomNetSupported = None;
   Atom m_atomNetSupportingWmCheck = None;
   Atom m_atomNetWmMoveResize = None;
+  Atom m_atomNetClientList = None;
+  Atom m_atomNetClientListStacking = None;
+  Atom m_atomNetActiveWindow = None;
+  Atom m_atomNetNumberOfDesktops = None;
+  Atom m_atomNetCurrentDesktop = None;
+  Atom m_atomNetDesktopViewport = None;
+  Atom m_atomNetDesktopGeometry = None;
 
   Cursor m_cursorDefault = None;
   Cursor m_cursorResizeH = None;
