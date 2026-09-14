@@ -13,15 +13,16 @@ namespace
 {
   struct PowerItem
   {
+    const char* icon;
     const char* name;
     int action;
   };
 
   const PowerItem kItems[] = {
-    {"Logout",          0},
-    {"Reconfigure mew", 1},
-    {"Reboot",          2},
-    {"Poweroff",        3}
+    {"\xef\x82\x8b", "Logout",          0},  // nf-fa-sign_out
+    {"\xef\x80\xa1", "Reconfigure mew", 1},  // nf-fa-refresh
+    {"\xef\x80\x9e", "Reboot",          2},  // nf-fa-repeat
+    {"\xef\x80\x91", "Poweroff",        3}   // nf-fa-power_off
   };
 
   constexpr int kItemCount = static_cast<int>(sizeof(kItems) / sizeof(kItems[0]));
@@ -193,7 +194,8 @@ void PowerWindow::draw()
     }
     int itemIdx = m_filtered[i];
     int bl = y + (kLineH + (pFont ? pFont->ascent : 10)) / 2 - 2;
-    m_font.draw(d, m_xconn.screen(), m_window, kPad + 8, bl, kItems[itemIdx].name);
+    m_font.draw(d, m_xconn.screen(), m_window, kPad + 8,  bl, kItems[itemIdx].icon);
+    m_font.draw(d, m_xconn.screen(), m_window, kPad + 32, bl, kItems[itemIdx].name);
   }
 
   XFreeGC(d, gc);

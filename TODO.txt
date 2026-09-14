@@ -1,8 +1,6 @@
 ---------------------------------------------------------------------------------
 # v9
 ## general
-- [ ] add icons to power-managment pop-up.
-
 - [ ] add icons to start-menu items.
 
 - [ ] ability to define position of panel.(top, bottom, left, right)
@@ -73,6 +71,7 @@
 ---------------------------------------------------------------------------------
 # v8
 ## general
+- [+] add icons to power-managment pop-up.
 - [+] In Apps popup, i can't see icons for all apps. just some of them have. why? can you fix it?
   - i know that some icons are SVG and stb_image doesn't support SVG.
     tell me what is the best way(or minimal library maybe for svg loading?) to also show SVG icons.
