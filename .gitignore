@@ -1,8 +1,10 @@
-gmon.out
-compile_commands.json
-
 build/*
 .cache/*
+gmon.out
+package.json
+node_modules/
+package-lock.json
+compile_commands.json
 
 # auto-generated fonts
 src/hurmit_font_data.h
