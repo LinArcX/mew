@@ -1,6 +1,5 @@
 #include "panel/PanelWidgetRegistry.hpp"
 #include "NetworkWidget.hpp"
-
 #include <X11/Xutil.h>
 #include <dirent.h>
 #include <algorithm>
@@ -8,6 +7,32 @@
 #include <cstdlib>
 #include <ctime>
 #include <unistd.h>
+
+int NetworkWidget::width() const
+{
+  XftFont* pFont = m_font.font();
+  if (!pFont)
+  {
+    return 110;
+  }
+
+  std::string label = m_selected.empty() ? "net" : m_selected;
+  if (label.size() > 8)
+  {
+    label = label.substr(0, 8);
+  }
+
+  XGlyphInfo ext{};
+  XftTextExtentsUtf8(
+    m_xconn.display(),
+    pFont,
+    reinterpret_cast<const FcChar8*>(label.c_str()),
+    static_cast<int>(label.size()),
+    &ext);
+
+  // 22 = 16px indicator + 6px gap, + 12px padding.
+  return 22 + ext.xOff + 12;
+}
 
 NetworkWidget::~NetworkWidget()
 {

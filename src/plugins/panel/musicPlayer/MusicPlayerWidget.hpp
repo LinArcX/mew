@@ -1,10 +1,10 @@
 #pragma once
 
 #include "../PanelWidget.hpp"
-#include "../../XConnection.hpp"
-#include "../../FontRenderer.hpp"
-#include "../../Config.hpp"
-#include "../../EmbeddedFont.hpp"
+#include "../XConnection.hpp"
+#include "../FontRenderer.hpp"
+#include "../Config.hpp"
+#include "../EmbeddedFont.hpp"
 
 #include <sys/un.h>
 #include <sys/socket.h>
@@ -46,6 +46,7 @@ public:
   void showPopup(int screenX);
   void showSeekPopup(int screenX);
   void hideSeekPopup();
+  void toggleSeekPopup(int screenX);
   void commitSeek();
   bool handleLocalClick(int localX, int screenX) override;
   void handlePopupRelease(XButtonEvent* pEvent) override;

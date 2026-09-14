@@ -1,6 +1,6 @@
 #include "PongWidget.hpp"
 #include "../PanelWidgetRegistry.hpp"
-#include "../../Util.hpp"
+#include "../Util.hpp"
 
 #include "player_wav_data.h"
 #include "opponent_wav_data.h"

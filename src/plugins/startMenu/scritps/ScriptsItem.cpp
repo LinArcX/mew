@@ -1,6 +1,6 @@
 #include "ScriptsItem.hpp"
 #include "../StartMenuRegistry.hpp"
-#include "../../Util.hpp"
+#include "../Util.hpp"
 
 #include <X11/Xutil.h>
 #include <dirent.h>

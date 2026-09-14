@@ -1,3 +1,4 @@
+#include "panel/PanelWidgetRegistry.hpp"
 #include "LanguageWidget.hpp"
 #include <X11/XKBlib.h>
 #include <cstdio>

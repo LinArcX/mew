@@ -14,7 +14,7 @@ public:
   ~NetworkWidget() override;
 
   const char* id() const override { return "network"; }
-  int width() const override { return 110; }
+  int width() const override;
   bool anchorRight() const override { return true; }
   void draw(Display* d, Window panel, int x, int baseline) override;
   bool onClick(int) override { return false; }

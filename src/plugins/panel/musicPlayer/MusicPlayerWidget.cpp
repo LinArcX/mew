@@ -1,7 +1,7 @@
 #include "MusicPlayerWidget.hpp"
 #include "../PanelWidgetRegistry.hpp"
-#include "../../Util.hpp"
-#include "../../symbols_font_data.h"
+#include "../Util.hpp"
+#include "../symbols_font_data.h"
 
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
@@ -783,6 +783,18 @@ void MusicPlayerWidget::hideSeekPopup()
   }
   m_seekPopupActive = false;
   m_seekDragging = false;
+}
+
+void MusicPlayerWidget::toggleSeekPopup(int screenX)
+{
+  if (m_seekPopupActive)
+  {
+    hideSeekPopup();
+  }
+  else
+  {
+    showSeekPopup(screenX);
+  }
 }
 
 void MusicPlayerWidget::drawSeekPopup()
