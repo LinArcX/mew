@@ -9,6 +9,11 @@
 
 ### Plugins
 - [+] Pong game as panel widget.
+- [ ] File Manager:
+  just a button in panel. When you click on it, a pop-up menu will show to you.
+  you can navigate direcotories, create/delete/rename files. just basic stuff.
+- [ ] Calculator.
+  just a button in panel. When you click on it, a pop-up menu will show to you.
 - [ ] System tray:	Own the _NET_SYSTEM_TRAY_S0 selection; embed StatusNotifierItem icons
 - [ ] Notification daemon(something like dunst): Libnotify daemon stub; show bell + count, click to open list
 - [ ] CPU: Overall or per-core usage, temp if /sys/class/thermal present	(read /proc/stat)
