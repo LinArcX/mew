@@ -27,6 +27,7 @@ Apply these rules strictly when writing or editing C++ code.
 - Pointer variables start with `p` (example - `pName`).
   If they are also member variables, they start with `m_p` (example - `m_pName`).
 - Classes, Enums, and Structs names should be PascalCase.
+- Cpp file names should be PascalCase. (their header files should be .hpp not .h)
 - Choose descriptive names for variables and functions.
 
 ## Language Features and Safety
