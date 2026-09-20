@@ -1,3 +1,7 @@
+- [x] after you did previous changes, add icons to start-menu items.
+
+- [ ] calculator plugin.
+
 - [ ] rename Apps in start menu to appLauncher.
 
 - [ ] rename Scripts in start menu to mewConf.
@@ -8,8 +12,6 @@
   - PowerManager
   - appLauncher
   - mewConf
-
-- [x] after you did previous changes, add icons to start-menu items.
 
 - [ ] apps popup in start-menu only close when i press ESCAPE from keyboard.
   i want it to be close, when i click on other apps, or in general space also in WM.
