@@ -1,5 +1,5 @@
-#include "panel/PanelWidgetRegistry.hpp"
-#include "VolumeWidget.hpp"
+#include "panel/PanelPluginRegistry.hpp"
+#include "VolumePlugin.hpp"
 #include "Mew.hpp"
 #include "Util.hpp"
 #include <X11/Xutil.h>
@@ -10,13 +10,13 @@
 #include <sstream>
 #include <unistd.h>
 
-VolumeWidget::~VolumeWidget()
+VolumePlugin::~VolumePlugin()
 {
   if (m_popup != None && m_xconn.display())
     XDestroyWindow(m_xconn.display(), m_popup);
 }
 
-void VolumeWidget::resolveControl(std::string& device, std::string& control) const
+void VolumePlugin::resolveControl(std::string& device, std::string& control) const
 {
   device.clear();
   control = "Master";
@@ -35,7 +35,7 @@ void VolumeWidget::resolveControl(std::string& device, std::string& control) con
   }
 }
 
-void VolumeWidget::refresh()
+void VolumePlugin::refresh()
 {
   std::string device, control;
   resolveControl(device, control);
@@ -65,7 +65,7 @@ void VolumeWidget::refresh()
   m_lastRefresh = time(nullptr);
 }
 
-void VolumeWidget::setPercent(int pct)
+void VolumePlugin::setPercent(int pct)
 {
   if (pct < 0) pct = 0;
   if (pct > 100) pct = 100;
@@ -84,7 +84,7 @@ void VolumeWidget::setPercent(int pct)
   refresh();
 }
 
-void VolumeWidget::toggleMute()
+void VolumePlugin::toggleMute()
 {
   std::string device, control;
   resolveControl(device, control);
@@ -96,7 +96,7 @@ void VolumeWidget::toggleMute()
   refresh();
 }
 
-void VolumeWidget::draw(Display* d, Window panel, int x, int baseline)
+void VolumePlugin::draw(Display* d, Window panel, int x, int baseline)
 {
   if (!m_valid) refresh();
   char buf[32];
@@ -107,12 +107,12 @@ void VolumeWidget::draw(Display* d, Window panel, int x, int baseline)
   m_font.draw(d, m_xconn.screen(), panel, x, baseline, buf);
 }
 
-std::string VolumeWidget::tooltip() const
+std::string VolumePlugin::tooltip() const
 {
   return "Volume (click to open slider)";
 }
 
-bool VolumeWidget::tick()
+bool VolumePlugin::tick()
 {
   time_t now = time(nullptr);
   if (!m_valid || now - m_lastRefresh >= 3)
@@ -123,7 +123,7 @@ bool VolumeWidget::tick()
   return false;
 }
 
-void VolumeWidget::showPopup(int screenX)
+void VolumePlugin::showPopup(int screenX)
 {
   Display* d = m_xconn.display();
   int sw = m_xconn.width();
@@ -154,7 +154,7 @@ void VolumeWidget::showPopup(int screenX)
   drawPopup();
 }
 
-void VolumeWidget::hidePopup()
+void VolumePlugin::hidePopup()
 {
   if (m_popup != None && m_popupActive)
   {
@@ -165,7 +165,7 @@ void VolumeWidget::hidePopup()
   m_dragging = false;
 }
 
-void VolumeWidget::drawPopup()
+void VolumePlugin::drawPopup()
 {
   if (m_popup == None || !m_popupActive) return;
   Display* d = m_xconn.display();
@@ -217,20 +217,20 @@ void VolumeWidget::drawPopup()
   XFreeGC(d, gc);
 }
 
-bool VolumeWidget::handleLocalClick(int, int screenX)
+bool VolumePlugin::handleLocalClick(int, int screenX)
 {
   if (m_popupActive) hidePopup();
   else               showPopup(screenX);
   return true;
 }
 
-bool VolumeWidget::handleEscape()
+bool VolumePlugin::handleEscape()
 {
   if (m_popupActive) { hidePopup(); return true; }
   return false;
 }
 
-bool VolumeWidget::handlePopupClick(XButtonEvent* e)
+bool VolumePlugin::handlePopupClick(XButtonEvent* e)
 {
   if (!m_popupActive) return false;
   if (e->y >= kPopupH - 40 && e->y < kPopupH - 14)
@@ -249,7 +249,7 @@ bool VolumeWidget::handlePopupClick(XButtonEvent* e)
   return true;
 }
 
-bool VolumeWidget::handlePopupMotion(XMotionEvent* e)
+bool VolumePlugin::handlePopupMotion(XMotionEvent* e)
 {
   if (!m_popupActive || !m_dragging) return false;
   if (!(e->state & Button1Mask)) return false;
@@ -262,5 +262,5 @@ bool VolumeWidget::handlePopupMotion(XMotionEvent* e)
   return true;
 }
 
-static PanelWidget* createVolume(XConnection& x, FontRenderer& f) { return new VolumeWidget(x, f); }
-static PanelWidgetRegistrar s_volume("volume", createVolume);
+static PanelPlugin* createVolume(XConnection& x, FontRenderer& f) { return new VolumePlugin(x, f); }
+static PanelPluginRegistrar s_volume("volume", createVolume);

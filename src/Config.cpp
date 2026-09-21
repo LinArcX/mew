@@ -17,7 +17,7 @@ void Config::load()
   m_useEmbeddedSound = true;
   m_useEmbeddedLogoutSound = true;
 
-  m_panelWidgets.clear();
+  m_panelPlugins.clear();
 
   m_musicIconColor = 0xffffff;
   m_musicNoteColor = 0xffffff;
@@ -31,7 +31,7 @@ void Config::load()
   m_startMenuItems.push_back("power");
 
   m_appGeometry.clear();
-  m_panelWidgets.clear();
+  m_panelPlugins.clear();
 
   std::string path = Util::getConfigDirectory() + "/config";
   std::ifstream file(path);
@@ -138,9 +138,9 @@ void Config::load()
     {
       m_weatherLocation = val;
     }
-       else if (key == "panel_widgets")
+       else if (key == "panel_plugins")
     {
-      m_panelWidgets.clear();
+      m_panelPlugins.clear();
       std::stringstream ss(val);
       std::string item;
       while (std::getline(ss, item, ','))
@@ -150,7 +150,7 @@ void Config::load()
         {
           continue;
         }
-        PanelWidgetEntry e;
+        PanelPluginEntry e;
         size_t at = item.find('@');
         if (at != std::string::npos)
         {
@@ -164,7 +164,7 @@ void Config::load()
         }
         if (!e.id.empty())
         {
-          m_panelWidgets.push_back(e);
+          m_panelPlugins.push_back(e);
         }
       }
     }

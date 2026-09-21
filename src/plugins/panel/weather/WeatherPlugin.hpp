@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../PanelWidget.hpp"
+#include "../PanelPlugin.hpp"
 #include "EmbeddedFont.hpp"
 #include "XConnection.hpp"
 #include "FontRenderer.hpp"
@@ -18,11 +18,11 @@ struct ForecastDay
   std::string min;
 };
 
-class WeatherWidget : public PanelWidget
+class WeatherPlugin : public PanelPlugin
 {
 public:
-  WeatherWidget(XConnection& xconn, FontRenderer& font);
-  ~WeatherWidget() override;
+  WeatherPlugin(XConnection& xconn, FontRenderer& font);
+  ~WeatherPlugin() override;
 
   const char* id() const override { return "weather"; }
   int width() const override { return kWidth; }

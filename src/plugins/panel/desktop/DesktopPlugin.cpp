@@ -1,7 +1,7 @@
-#include "DesktopWidget.hpp"
+#include "DesktopPlugin.hpp"
 #include "Mew.hpp"
 
-int DesktopWidget::width() const
+int DesktopPlugin::width() const
 {
   XftFont* pFont = m_font.font();
   if (!pFont)
@@ -22,12 +22,12 @@ int DesktopWidget::width() const
   return ext.xOff + 16;
 }
 
-void DesktopWidget::draw(Display* d, Window panel, int x, int baseline)
+void DesktopPlugin::draw(Display* d, Window panel, int x, int baseline)
 {
   m_font.draw(d, m_xconn.screen(), panel, x, baseline, "\xef\x92\xa9");
 }
 
-bool DesktopWidget::handleLocalClick(int, int)
+bool DesktopPlugin::handleLocalClick(int, int)
 {
   if (!m_showing)
   {
@@ -52,9 +52,9 @@ bool DesktopWidget::handleLocalClick(int, int)
   return true;
 }
 
-static PanelWidget* createDesktop(XConnection& x, FontRenderer& f)
+static PanelPlugin* createDesktop(XConnection& x, FontRenderer& f)
 {
-  return new DesktopWidget(x, f, *Mew::instance()->clientManager());
+  return new DesktopPlugin(x, f, *Mew::instance()->clientManager());
 }
 
-static PanelWidgetRegistrar s_desktop("desktop", createDesktop);
+static PanelPluginRegistrar s_desktop("desktop", createDesktop);

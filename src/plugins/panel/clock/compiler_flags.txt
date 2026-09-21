@@ -1,5 +1,5 @@
 # Pong widget
 LD_FLAGS=
 PKGCONF_FLAG=
-SRC=ClockWidget.cpp
+SRC=ClockPlugin.cpp
 ENABLE=true

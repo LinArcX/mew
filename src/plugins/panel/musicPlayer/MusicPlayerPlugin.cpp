@@ -1,5 +1,5 @@
-#include "MusicPlayerWidget.hpp"
-#include "../PanelWidgetRegistry.hpp"
+#include "MusicPlayerPlugin.hpp"
+#include "../PanelPluginRegistry.hpp"
 #include "../Util.hpp"
 #include "symbols_font_data.h"
 
@@ -126,7 +126,7 @@ namespace
   }
 }
 
-MusicPlayerWidget::MusicPlayerWidget(XConnection& xconn, FontRenderer& font)
+MusicPlayerPlugin::MusicPlayerPlugin(XConnection& xconn, FontRenderer& font)
   : m_xconn(xconn)
   , m_font(font)
 {
@@ -136,7 +136,7 @@ MusicPlayerWidget::MusicPlayerWidget(XConnection& xconn, FontRenderer& font)
   scanFiles();
 }
 
-MusicPlayerWidget::~MusicPlayerWidget()
+MusicPlayerPlugin::~MusicPlayerPlugin()
 {
   hidePopup();
   stopPlayback();
@@ -147,7 +147,7 @@ MusicPlayerWidget::~MusicPlayerWidget()
   }
 }
 
-void MusicPlayerWidget::configure(const Config& config)
+void MusicPlayerPlugin::configure(const Config& config)
 {
   (void)config;
   m_noteColor = config.musicNoteColor();
@@ -162,7 +162,7 @@ void MusicPlayerWidget::configure(const Config& config)
                     m_eqBars * (kEqBarW + kEqBarGap) + 8;
 }
 
-MusicPlayerWidget::Btn MusicPlayerWidget::buttonAt(int localX) const
+MusicPlayerPlugin::Btn MusicPlayerPlugin::buttonAt(int localX) const
 {
   if (localX < 0 || localX >= m_computedWidth) return Btn::NoBtn;
   if (localX < kMusicIconW) return Btn::Note;
@@ -175,7 +175,7 @@ MusicPlayerWidget::Btn MusicPlayerWidget::buttonAt(int localX) const
   return Btn::Label;
 }
 
-void MusicPlayerWidget::loadDirs()
+void MusicPlayerPlugin::loadDirs()
 {
   m_dirs.clear();
   std::ifstream f(dirsFilePath());
@@ -201,14 +201,14 @@ void MusicPlayerWidget::loadDirs()
   }
 }
 
-void MusicPlayerWidget::saveDirs()
+void MusicPlayerPlugin::saveDirs()
 {
   std::ofstream f(dirsFilePath());
   if (!f.is_open()) return;
   for (const std::string& d : m_dirs) f << d << '\n';
 }
 
-void MusicPlayerWidget::scanFiles()
+void MusicPlayerPlugin::scanFiles()
 {
   m_files.clear();
   for (const std::string& d : m_dirs) scanRecursive(d, m_files);
@@ -243,7 +243,7 @@ pid_t spawnPlayer(const std::string& path, const std::string& socketPath)
   _exit(1);
 }
 
-void MusicPlayerWidget::playIndex(size_t idx)
+void MusicPlayerPlugin::playIndex(size_t idx)
 {
   stopPlayback();
   if (m_files.empty()) return;
@@ -259,7 +259,7 @@ void MusicPlayerWidget::playIndex(size_t idx)
   m_playStart = time(nullptr);
 }
 
-void MusicPlayerWidget::stopPlayback()
+void MusicPlayerPlugin::stopPlayback()
 {
   if (m_playerPid > 0)
   {
@@ -277,7 +277,7 @@ void MusicPlayerWidget::stopPlayback()
   m_paused = false;
 }
 
-void MusicPlayerWidget::togglePause()
+void MusicPlayerPlugin::togglePause()
 {
   if (m_playerPid <= 0)
   {
@@ -300,19 +300,19 @@ void MusicPlayerWidget::togglePause()
   }
 }
 
-void MusicPlayerWidget::playNext()
+void MusicPlayerPlugin::playNext()
 {
   if (m_files.empty()) return;
   playIndex((m_current + 1) % m_files.size());
 }
 
-void MusicPlayerWidget::playPrev()
+void MusicPlayerPlugin::playPrev()
 {
   if (m_files.empty()) return;
   playIndex((m_current == 0) ? m_files.size() - 1 : m_current - 1);
 }
 
-void MusicPlayerWidget::draw(Display* display, Window panel, int x, int baseline)
+void MusicPlayerPlugin::draw(Display* display, Window panel, int x, int baseline)
 {
   int screen = m_xconn.screen();
 
@@ -365,7 +365,7 @@ void MusicPlayerWidget::draw(Display* display, Window panel, int x, int baseline
   XFreeGC(display, gc);
 }
 
-bool MusicPlayerWidget::tick()
+bool MusicPlayerPlugin::tick()
 {
   bool needRedraw = false;
 
@@ -422,18 +422,18 @@ bool MusicPlayerWidget::tick()
   return needRedraw;
 }
 
-bool MusicPlayerWidget::onClick(int screenX)
+bool MusicPlayerPlugin::onClick(int screenX)
 {
   (void)screenX;
   // The caller passes the widget's left edge; but we need localX.
-  // PanelWidget interface doesn't give us localX, so we ask Panel to route
+  // PanelPlugin interface doesn't give us localX, so we ask Panel to route
   // raw x through handleClick -> we get it via popupWindow focus instead.
   // For simplicity: this widget expects Panel to have already computed
   // localX and dispatched to buttonAt(). See Panel::handleClick().
   return false;
 }
 
-std::string MusicPlayerWidget::tooltip() const
+std::string MusicPlayerPlugin::tooltip() const
 {
   if (m_playerPid <= 0 && m_trackName.empty())
   {
@@ -446,7 +446,7 @@ std::string MusicPlayerWidget::tooltip() const
   return m_trackName;
 }
 
-bool MusicPlayerWidget::handleEscape()
+bool MusicPlayerPlugin::handleEscape()
 {
   if (m_seekPopupActive)
   {
@@ -461,7 +461,7 @@ bool MusicPlayerWidget::handleEscape()
   return false;
 }
 
-void MusicPlayerWidget::showPopup(int screenX)
+void MusicPlayerPlugin::showPopup(int screenX)
 {
   Display* d = m_xconn.display();
   if (m_dirs.empty() && m_files.empty())
@@ -512,7 +512,7 @@ void MusicPlayerWidget::showPopup(int screenX)
   drawPopup();
 }
 
-void MusicPlayerWidget::hidePopup()
+void MusicPlayerPlugin::hidePopup()
 {
   if (m_popup != None && m_popupActive)
   {
@@ -526,7 +526,7 @@ void MusicPlayerWidget::hidePopup()
   m_popupActive = false;
 }
 
-void MusicPlayerWidget::drawPopup()
+void MusicPlayerPlugin::drawPopup()
 {
   if (m_popup == None || !m_popupActive) return;
 
@@ -586,7 +586,7 @@ void MusicPlayerWidget::drawPopup()
   XFreeGC(d, gc);
 }
 
-bool MusicPlayerWidget::handlePopupKey(XKeyEvent* pEvent)
+bool MusicPlayerPlugin::handlePopupKey(XKeyEvent* pEvent)
 {
   if (!pEvent || !m_popupActive) return false;
 
@@ -634,7 +634,7 @@ bool MusicPlayerWidget::handlePopupKey(XKeyEvent* pEvent)
   return true;
 }
 
-bool MusicPlayerWidget::handlePopupMotion(XMotionEvent* pEvent)
+bool MusicPlayerPlugin::handlePopupMotion(XMotionEvent* pEvent)
 {
   if (!pEvent || !m_seekPopupActive || !m_seekDragging)
   {
@@ -653,7 +653,7 @@ bool MusicPlayerWidget::handlePopupMotion(XMotionEvent* pEvent)
   return true;
 }
 
-void MusicPlayerWidget::commitSeek()
+void MusicPlayerPlugin::commitSeek()
 {
   if (m_seekPopupActive && m_seekDragging && m_duration > 0)
   {
@@ -662,7 +662,7 @@ void MusicPlayerWidget::commitSeek()
   m_seekDragging = false;
 }
 
-bool MusicPlayerWidget::handlePopupClick(XButtonEvent* pEvent)
+bool MusicPlayerPlugin::handlePopupClick(XButtonEvent* pEvent)
 {
   if (!pEvent) return false;
 
@@ -721,7 +721,7 @@ bool MusicPlayerWidget::handlePopupClick(XButtonEvent* pEvent)
   return true;
 }
 
-double MusicPlayerWidget::queryMpv(const char* property) const
+double MusicPlayerPlugin::queryMpv(const char* property) const
 {
   if (m_playerPid <= 0 || m_mpvSocket.empty()) return -1.0;
   std::string cmd = std::string("{\"command\":[\"get_property\",\"") + property + "\"]}";
@@ -729,7 +729,7 @@ double MusicPlayerWidget::queryMpv(const char* property) const
   return parseMpvDouble(resp);
 }
 
-bool MusicPlayerWidget::sendMpvSeek(double seconds) const
+bool MusicPlayerPlugin::sendMpvSeek(double seconds) const
 {
   if (m_playerPid <= 0 || m_mpvSocket.empty()) return false;
   char buf[128];
@@ -739,7 +739,7 @@ bool MusicPlayerWidget::sendMpvSeek(double seconds) const
   return resp.find("\"error\":\"success\"") != std::string::npos;
 }
 
-void MusicPlayerWidget::showSeekPopup(int screenX)
+void MusicPlayerPlugin::showSeekPopup(int screenX)
 {
   Display* d = m_xconn.display();
 
@@ -775,7 +775,7 @@ void MusicPlayerWidget::showSeekPopup(int screenX)
   drawSeekPopup();
 }
 
-void MusicPlayerWidget::hideSeekPopup()
+void MusicPlayerPlugin::hideSeekPopup()
 {
   if (m_seekPopup != None && m_seekPopupActive)
   {
@@ -785,7 +785,7 @@ void MusicPlayerWidget::hideSeekPopup()
   m_seekDragging = false;
 }
 
-void MusicPlayerWidget::toggleSeekPopup(int screenX)
+void MusicPlayerPlugin::toggleSeekPopup(int screenX)
 {
   if (m_seekPopupActive)
   {
@@ -797,7 +797,7 @@ void MusicPlayerWidget::toggleSeekPopup(int screenX)
   }
 }
 
-void MusicPlayerWidget::drawSeekPopup()
+void MusicPlayerPlugin::drawSeekPopup()
 {
   if (m_seekPopup == None || !m_seekPopupActive) return;
 
@@ -852,7 +852,7 @@ void MusicPlayerWidget::drawSeekPopup()
   XFreeGC(d, gc);
 }
 
-bool MusicPlayerWidget::handleLocalClick(int localX, int screenX)
+bool MusicPlayerPlugin::handleLocalClick(int localX, int screenX)
 {
   if (localX < 24)
   {
@@ -869,7 +869,7 @@ bool MusicPlayerWidget::handleLocalClick(int localX, int screenX)
   return true;
 }
 
-void MusicPlayerWidget::handlePopupRelease(XButtonEvent* pEvent)
+void MusicPlayerPlugin::handlePopupRelease(XButtonEvent* pEvent)
 {
   if (pEvent && m_seekPopupActive)
   {
@@ -877,10 +877,10 @@ void MusicPlayerWidget::handlePopupRelease(XButtonEvent* pEvent)
   }
 }
 
-static PanelWidget* createMusic(XConnection& xconn, FontRenderer& font)
+static PanelPlugin* createMusic(XConnection& xconn, FontRenderer& font)
 {
-  return new MusicPlayerWidget(xconn, font);
+  return new MusicPlayerPlugin(xconn, font);
 }
 
-static PanelWidgetRegistrar s_musicRegistrar("music", createMusic);
+static PanelPluginRegistrar s_musicRegistrar("music", createMusic);
 

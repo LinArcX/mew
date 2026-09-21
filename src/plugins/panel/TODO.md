@@ -8,7 +8,7 @@
   There should be settings for it in conf file.
 
 ### Plugins
-- [+] Pong game as panel widget.
+- [+] Pong game as panel plugin.
 - [ ] File Manager:
   just a button in panel. When you click on it, a pop-up menu will show to you.
   you can navigate direcotories, create/delete/rename files. just basic stuff.

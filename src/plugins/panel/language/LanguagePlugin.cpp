@@ -1,5 +1,5 @@
-#include "panel/PanelWidgetRegistry.hpp"
-#include "LanguageWidget.hpp"
+#include "panel/PanelPluginRegistry.hpp"
+#include "LanguagePlugin.hpp"
 #include <X11/XKBlib.h>
 #include <cstdio>
 #include <cstring>
@@ -7,7 +7,7 @@
 #include <vector>
 #include <algorithm>
 
-int LanguageWidget::width() const
+int LanguagePlugin::width() const
 {
   XftFont* pFont = m_font.font();
   if (!pFont)
@@ -28,7 +28,7 @@ int LanguageWidget::width() const
   return ext.xOff + 16;
 }
 
-void LanguageWidget::refresh()
+void LanguagePlugin::refresh()
 {
   XkbStateRec st{};
   if (XkbGetState(m_xconn.display(), XkbUseCoreKbd, &st) == Success)
@@ -85,13 +85,13 @@ void LanguageWidget::refresh()
   XkbFreeKeyboard(desc, 0, True);
 }
 
-void LanguageWidget::draw(Display* d, Window panel, int x, int baseline)
+void LanguagePlugin::draw(Display* d, Window panel, int x, int baseline)
 {
   refresh();
   m_font.draw(d, m_xconn.screen(), panel, x, baseline, m_name);
 }
 
-bool LanguageWidget::handleLocalClick(int, int)
+bool LanguagePlugin::handleLocalClick(int, int)
 {
   refresh();
   int next = (m_group + 1) % m_count;
@@ -100,5 +100,5 @@ bool LanguageWidget::handleLocalClick(int, int)
   return true;
 }
 
-static PanelWidget* createLanguage(XConnection& x, FontRenderer& f) { return new LanguageWidget(x, f); }
-static PanelWidgetRegistrar s_language("language", createLanguage);
+static PanelPlugin* createLanguage(XConnection& x, FontRenderer& f) { return new LanguagePlugin(x, f); }
+static PanelPluginRegistrar s_language("language", createLanguage);

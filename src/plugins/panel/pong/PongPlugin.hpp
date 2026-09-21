@@ -1,16 +1,16 @@
 #pragma once
 
-#include "../PanelWidget.hpp"
+#include "../PanelPlugin.hpp"
 #include "XConnection.hpp"
 #include "FontRenderer.hpp"
 #include "Config.hpp"
 #include "Types.hpp"
 
-class PongWidget : public PanelWidget
+class PongPlugin : public PanelPlugin
 {
 public:
-  PongWidget(XConnection& xconn, FontRenderer& font);
-  ~PongWidget() override;
+  PongPlugin(XConnection& xconn, FontRenderer& font);
+  ~PongPlugin() override;
 
   const char* id() const override { return "pong"; }
   int width() const override { return m_xconn.width() / 6; }

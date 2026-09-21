@@ -4,7 +4,7 @@
 #include "Config.hpp"
 #include "FontRenderer.hpp"
 #include "XConnection.hpp"
-#include "panel/PanelWidgetRegistry.hpp"
+#include "panel/PanelPluginRegistry.hpp"
 #include "startMenu/StartMenuRegistry.hpp"
 
 #include <X11/Xlib.h>
@@ -155,7 +155,7 @@ public:
   void drawItemSubmenu(Window w);
   void hideItemSubmenus();
 
-  std::vector<PanelWidget*>& widgets() { return m_widgets; }
+  std::vector<PanelPlugin*>& plugins() { return m_plugins; }
 
 private:
   void showStartMenu();
@@ -189,8 +189,8 @@ private:
 
   Pixmap m_backBuffer = None;
   int m_backBufferW = 0;
-  std::vector<PanelWidget*> m_widgets;
-  PanelWidget* m_pHoverWidget = nullptr;
+  std::vector<PanelPlugin*> m_plugins;
+  PanelPlugin* m_pHoverPlugin = nullptr;
 
   std::vector<StartMenuItem*> m_startItems;
   int m_startMenuY = 0;

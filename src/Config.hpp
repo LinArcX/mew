@@ -65,13 +65,13 @@ public:
   bool useEmbeddedSound() const { return m_useEmbeddedSound; }
   bool useEmbeddedLogoutSound() const { return m_useEmbeddedLogoutSound; }
 
-  struct PanelWidgetEntry
+  struct PanelPluginEntry
   {
     std::string id;
-    std::string position;   // "left", "center", "right", or "" for widget default
+    std::string position;   // "left", "center", "right", or "" for plugin default
   };
 
-  const std::vector<PanelWidgetEntry>& panelWidgets() const { return m_panelWidgets; }
+  const std::vector<PanelPluginEntry>& panelPlugins() const { return m_panelPlugins; }
 
   struct AppGeometry
   {
@@ -127,7 +127,7 @@ private:
   unsigned int m_windowButtonClose = 0xF00D;    // nf-fa-times
   std::vector<KeyBinding> m_keybindings;
   std::map<std::string, AppGeometry> m_appGeometry;
-  std::vector<PanelWidgetEntry> m_panelWidgets;
+  std::vector<PanelPluginEntry> m_panelPlugins;
   std::string m_weatherLocation;
   unsigned long m_weatherIconColor = 0xffffff;
   unsigned long m_weatherTextColor = 0xffffff;

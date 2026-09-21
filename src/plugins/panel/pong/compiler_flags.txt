@@ -1,7 +1,7 @@
 # Pong widget
 LD_FLAGS=
 PKGCONF_FLAG=
-SRC=PongWidget.cpp
+SRC=PongPlugin.cpp
 XXD=assets/audio/wobbleboxx/player.wav:player_wav_data.h
 XXD=assets/audio/wobbleboxx/opponent.wav:opponent_wav_data.h
 XXD=assets/audio/wobbleboxx/win.wav:win_wav_data.h

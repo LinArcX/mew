@@ -1,8 +1,8 @@
 # Panel plugins
 
-Each panel widget should implement `PanelWidget` (see PanelWidget.hpp).
+Each panel plugin should implement `PanelPlugin` (see PanelPlugin.hpp).
 
-Current widgets still live in `Panel.cpp` and will be migrated one-by-one:
+Current plugins still live in `Panel.cpp` and will be migrated one-by-one:
 
 - StartButton
 - LanguageSwitcher
@@ -16,7 +16,7 @@ Current widgets still live in `Panel.cpp` and will be migrated one-by-one:
 - clock
 - desktop
 
-To add a widget:
-1. Create `src/panel/MyWidget.hpp` + `.cpp` implementing `PanelWidget`
-2. Construct it from `Panel` and append to the widget list
+To add a plugin:
+1. Create `src/panel/MyPlugin.hpp` + `.cpp` implementing `PanelPlugin`
+2. Construct it from `Panel` and append to the plugin list
 3. Add the `.cpp` to the Makefile `MODULAR_SRC` list

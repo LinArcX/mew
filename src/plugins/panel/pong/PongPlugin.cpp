@@ -1,5 +1,5 @@
-#include "PongWidget.hpp"
-#include "../PanelWidgetRegistry.hpp"
+#include "PongPlugin.hpp"
+#include "../PanelPluginRegistry.hpp"
 #include "../Util.hpp"
 
 #include "player_wav_data.h"
@@ -31,7 +31,7 @@ std::string findSoundInDir(const std::string& dir, const std::string& base)
   return "";
 }
 
-PongWidget::PongWidget(XConnection& xconn, FontRenderer& font)
+PongPlugin::PongPlugin(XConnection& xconn, FontRenderer& font)
   : m_xconn(xconn)
   , m_font(font)
 {
@@ -41,7 +41,7 @@ PongWidget::PongWidget(XConnection& xconn, FontRenderer& font)
   loadSoundEnabled();
 }
 
-PongWidget::~PongWidget()
+PongPlugin::~PongPlugin()
 {
   releaseKeyboard();
   if (m_settingsPopup != None && m_xconn.display())
@@ -51,12 +51,12 @@ PongWidget::~PongWidget()
   }
 }
 
-void PongWidget::configure(const Config& config)
+void PongPlugin::configure(const Config& config)
 {
   (void)config;
 }
 
-void PongWidget::initSounds()
+void PongPlugin::initSounds()
 {
   m_soundDir = Util::getConfigDirectory() + "/pong_sounds";
   m_hitSound       = findSoundInDir(m_soundDir, "hit");
@@ -66,7 +66,7 @@ void PongWidget::initSounds()
   m_lostGameSound  = findSoundInDir(m_soundDir, "lost_game");
 }
 
-void PongWidget::loadSoundEnabled()
+void PongPlugin::loadSoundEnabled()
 {
   std::string path = Util::getConfigDirectory() + "/pong_sound_enabled";
   std::ifstream f(path);
@@ -77,7 +77,7 @@ void PongWidget::loadSoundEnabled()
   }
 }
 
-void PongWidget::saveSoundEnabled()
+void PongPlugin::saveSoundEnabled()
 {
   std::string path = Util::getConfigDirectory() + "/pong_sound_enabled";
   std::ofstream f(path);
@@ -87,7 +87,7 @@ void PongWidget::saveSoundEnabled()
   }
 }
 
-void PongWidget::playSound(const std::string& path)
+void PongPlugin::playSound(const std::string& path)
 {
   if (!m_soundEnabled || path.empty())
   {
@@ -118,14 +118,14 @@ void PongWidget::playSound(const std::string& path)
   _exit(1);
 }
 
-void PongWidget::finishGame(bool playerWon)
+void PongPlugin::finishGame(bool playerWon)
 {
   m_gameOver = true;
   m_gameOverAt = time(nullptr);
   playSound(playerWon ? m_wonGameSound : m_lostGameSound);
 }
 
-void PongWidget::loadDifficulty()
+void PongPlugin::loadDifficulty()
 {
   std::string path = Util::getConfigDirectory() + "/pong_difficulty";
   std::ifstream f(path);
@@ -136,7 +136,7 @@ void PongWidget::loadDifficulty()
   }
 }
 
-void PongWidget::saveDifficulty()
+void PongPlugin::saveDifficulty()
 {
   std::string path = Util::getConfigDirectory() + "/pong_difficulty";
   std::ofstream f(path);
@@ -146,7 +146,7 @@ void PongWidget::saveDifficulty()
   }
 }
 
-double PongWidget::ballSpeedForDifficulty() const
+double PongPlugin::ballSpeedForDifficulty() const
 {
   switch (m_difficulty)
   {
@@ -157,7 +157,7 @@ double PongWidget::ballSpeedForDifficulty() const
   return 70.0;
 }
 
-double PongWidget::aiSpeedForDifficulty() const
+double PongPlugin::aiSpeedForDifficulty() const
 {
   switch (m_difficulty)
   {
@@ -168,18 +168,18 @@ double PongWidget::aiSpeedForDifficulty() const
   return 60.0;
 }
 
-void PongWidget::grabKeyboard()
+void PongPlugin::grabKeyboard()
 {
   XGrabKeyboard(m_xconn.display(), m_xconn.root(), False,
                 GrabModeAsync, GrabModeAsync, CurrentTime);
 }
 
-void PongWidget::releaseKeyboard()
+void PongPlugin::releaseKeyboard()
 {
   XUngrabKeyboard(m_xconn.display(), CurrentTime);
 }
 
-void PongWidget::handlePlayPauseButton()
+void PongPlugin::handlePlayPauseButton()
 {
   if (!m_gameActive)
   {
@@ -204,7 +204,7 @@ void PongWidget::handlePlayPauseButton()
   }
 }
 
-void PongWidget::resetBall(int dir)
+void PongPlugin::resetBall(int dir)
 {
   int fieldW = width() - 2 * kBtnW - 2;
   m_ballX = fieldW / 2;
@@ -213,7 +213,7 @@ void PongWidget::resetBall(int dir)
   m_ballVY = ballSpeedForDifficulty() * 0.4 * ((rand() % 2) ? 1 : -1);
 }
 
-bool PongWidget::handleEscape()
+bool PongPlugin::handleEscape()
 {
   if (m_settingsActive)
   {
@@ -233,7 +233,7 @@ bool PongWidget::handleEscape()
   return false;
 }
 
-bool PongWidget::handlePopupKey(XKeyEvent* pEvent)
+bool PongPlugin::handlePopupKey(XKeyEvent* pEvent)
 {
   if (!pEvent || !m_settingsActive)
   {
@@ -248,7 +248,7 @@ bool PongWidget::handlePopupKey(XKeyEvent* pEvent)
   return true;
 }
 
-bool PongWidget::handlePopupClick(XButtonEvent* pEvent)
+bool PongPlugin::handlePopupClick(XButtonEvent* pEvent)
 {
   if (!pEvent || !m_settingsActive)
   {
@@ -276,12 +276,12 @@ bool PongWidget::handlePopupClick(XButtonEvent* pEvent)
   return true;
 }
 
-Window PongWidget::popupWindow() const
+Window PongPlugin::popupWindow() const
 {
   return m_settingsActive ? m_settingsPopup : None;
 }
 
-void PongWidget::showSettingsPopup(int screenX)
+void PongPlugin::showSettingsPopup(int screenX)
 {
   Display* d = m_xconn.display();
   m_settingsH = kSettingsPad * 2 + kSettingsRows * kSettingsRowH + 4;
@@ -319,7 +319,7 @@ void PongWidget::showSettingsPopup(int screenX)
   drawPopup();
 }
 
-void PongWidget::hideSettingsPopup()
+void PongPlugin::hideSettingsPopup()
 {
   if (m_settingsPopup != None && m_settingsActive)
   {
@@ -329,7 +329,7 @@ void PongWidget::hideSettingsPopup()
   m_settingsActive = false;
 }
 
-void PongWidget::drawPopup()
+void PongPlugin::drawPopup()
 {
   if (m_settingsPopup == None || !m_settingsActive)
   {
@@ -405,7 +405,7 @@ void PongWidget::drawPopup()
   m_font.setColor(0xffffff);
   XFreeGC(d, gc);
 }
-bool PongWidget::tick()
+bool PongPlugin::tick()
 {
   if (!m_gameActive || m_paused)
   {
@@ -455,7 +455,7 @@ bool PongWidget::tick()
   return true;
 }
 
-void PongWidget::updateGame(double dt)
+void PongPlugin::updateGame(double dt)
 {
   int widgetW = width();
   int fieldW = widgetW - 2 * kBtnW - 2;
@@ -555,7 +555,7 @@ void PongWidget::updateGame(double dt)
   }
 }
 
-bool PongWidget::handleLocalClick(int localX, int screenX)
+bool PongPlugin::handleLocalClick(int localX, int screenX)
 {
   int widgetW = width();
 
@@ -573,13 +573,13 @@ bool PongWidget::handleLocalClick(int localX, int screenX)
   return true;
 }
 
-bool PongWidget::onClick(int screenX)
+bool PongPlugin::onClick(int screenX)
 {
   (void)screenX;
   return false;
 }
 
-std::string PongWidget::tooltip() const
+std::string PongPlugin::tooltip() const
 {
   char buf[80];
   const char* diff =
@@ -589,7 +589,7 @@ std::string PongWidget::tooltip() const
   return buf;
 }
 
-void PongWidget::draw(Display* display, Window panel, int x, int baseline)
+void PongPlugin::draw(Display* display, Window panel, int x, int baseline)
 {
   (void)baseline;
 
@@ -709,10 +709,10 @@ void PongWidget::draw(Display* display, Window panel, int x, int baseline)
   XFreeGC(display, gc);
 }
 
-static PanelWidget* createPong(XConnection& xconn, FontRenderer& font)
+static PanelPlugin* createPong(XConnection& xconn, FontRenderer& font)
 {
-  return new PongWidget(xconn, font);
+  return new PongPlugin(xconn, font);
 }
 
-static PanelWidgetRegistrar s_pongRegistrar("pong", createPong);
+static PanelPluginRegistrar s_pongRegistrar("pong", createPong);
 

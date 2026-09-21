@@ -1,17 +1,17 @@
 #pragma once
-#include "panel/PanelWidget.hpp"
+#include "panel/PanelPlugin.hpp"
 #include "XConnection.hpp"
 #include "FontRenderer.hpp"
 #include <X11/Xlib.h>
 #include <string>
 #include <vector>
 
-class NetworkWidget : public PanelWidget
+class NetworkPlugin : public PanelPlugin
 {
 public:
-  NetworkWidget(XConnection& xconn, FontRenderer& font)
+  NetworkPlugin(XConnection& xconn, FontRenderer& font)
     : m_xconn(xconn), m_font(font) {}
-  ~NetworkWidget() override;
+  ~NetworkPlugin() override;
 
   const char* id() const override { return "network"; }
   int width() const override;

@@ -1,13 +1,13 @@
 #pragma once
-#include "panel/PanelWidget.hpp"
+#include "panel/PanelPlugin.hpp"
 #include "XConnection.hpp"
 #include "FontRenderer.hpp"
 #include "ClientManager.hpp"
 
-class DesktopWidget : public PanelWidget
+class DesktopPlugin : public PanelPlugin
 {
 public:
-  DesktopWidget(XConnection& xconn, FontRenderer& font, ClientManager& clients)
+  DesktopPlugin(XConnection& xconn, FontRenderer& font, ClientManager& clients)
     : m_xconn(xconn), m_font(font), m_clients(clients) {}
 
   const char* id() const override { return "desktop"; }

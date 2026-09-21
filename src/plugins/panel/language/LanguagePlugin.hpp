@@ -1,13 +1,13 @@
 #pragma once
-#include "panel/PanelWidget.hpp"
+#include "panel/PanelPlugin.hpp"
 #include "XConnection.hpp"
 #include "FontRenderer.hpp"
 #include <string>
 
-class LanguageWidget : public PanelWidget
+class LanguagePlugin : public PanelPlugin
 {
 public:
-  LanguageWidget(XConnection& xconn, FontRenderer& font)
+  LanguagePlugin(XConnection& xconn, FontRenderer& font)
     : m_xconn(xconn), m_font(font) {}
 
   const char* id() const override { return "language"; }

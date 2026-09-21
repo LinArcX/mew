@@ -1,15 +1,15 @@
 #pragma once
-#include "../PanelWidget.hpp"
+#include "../PanelPlugin.hpp"
 #include "../XConnection.hpp"
 #include "../FontRenderer.hpp"
 #include "Config.hpp"
 #include <ctime>
 #include <string>
 
-class ClockWidget : public PanelWidget
+class ClockPlugin : public PanelPlugin
 {
 public:
-  ClockWidget(XConnection& xconn, FontRenderer& font)
+  ClockPlugin(XConnection& xconn, FontRenderer& font)
     : m_xconn(xconn), m_font(font) {}
 
   const char* id() const override { return "clock"; }

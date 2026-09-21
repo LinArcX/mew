@@ -1,17 +1,17 @@
 #pragma once
-#include "panel/PanelWidget.hpp"
+#include "panel/PanelPlugin.hpp"
 #include "XConnection.hpp"
 #include "FontRenderer.hpp"
 #include "Config.hpp"
 #include <X11/Xlib.h>
 #include <string>
 
-class VolumeWidget : public PanelWidget
+class VolumePlugin : public PanelPlugin
 {
 public:
-  VolumeWidget(XConnection& xconn, FontRenderer& font)
+  VolumePlugin(XConnection& xconn, FontRenderer& font)
     : m_xconn(xconn), m_font(font) {}
-  ~VolumeWidget() override;
+  ~VolumePlugin() override;
 
   const char* id() const override { return "volume"; }
   int width() const override { return 35; }

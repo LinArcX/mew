@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../PanelWidget.hpp"
+#include "../PanelPlugin.hpp"
 #include "../XConnection.hpp"
 #include "../FontRenderer.hpp"
 #include "../Config.hpp"
@@ -13,11 +13,11 @@
 #include <vector>
 #include <sys/types.h>
 
-class MusicPlayerWidget : public PanelWidget
+class MusicPlayerPlugin : public PanelPlugin
 {
 public:
-  MusicPlayerWidget(XConnection& xconn, FontRenderer& font);
-  ~MusicPlayerWidget() override;
+  MusicPlayerPlugin(XConnection& xconn, FontRenderer& font);
+  ~MusicPlayerPlugin() override;
 
   const char* id() const override { return "music"; }
   int width() const override { return m_computedWidth; }

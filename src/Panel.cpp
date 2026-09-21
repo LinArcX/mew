@@ -34,13 +34,13 @@ Panel::~Panel()
   }
   m_startItems.clear();
 
-  m_pHoverWidget = nullptr;
+  m_pHoverPlugin = nullptr;
 
-  for (PanelWidget* pWidget : m_widgets)
+  for (PanelPlugin* pPlugin : m_plugins)
   {
-    delete pWidget;
+    delete pPlugin;
   }
-  m_widgets.clear();
+  m_plugins.clear();
   if (m_startMenu != None)
   {
     XDestroyWindow(d, m_startMenu);
@@ -206,40 +206,40 @@ void Panel::create()
 
   XMapRaised(d, m_window);
   loadStartIcon();
-  m_widgets.clear();
+  m_plugins.clear();
 
-  std::vector<Config::PanelWidgetEntry> entries;
+  std::vector<Config::PanelPluginEntry> entries;
   if (m_pConfig)
   {
-    entries = m_pConfig->panelWidgets();
+    entries = m_pConfig->panelPlugins();
   }
 
-  for (const Config::PanelWidgetEntry& e : entries)
+  for (const Config::PanelPluginEntry& e : entries)
   {
-    PanelWidget* pWidget = PanelWidgetRegistry::instance().createOne(e.id, m_xconn, m_font);
-    if (!pWidget)
+    PanelPlugin* pPlugin = PanelPluginRegistry::instance().createOne(e.id, m_xconn, m_font);
+    if (!pPlugin)
     {
       continue;
     }
 
-    PanelPosition pos = pWidget->anchorRight() ? PanelPosition::Right : PanelPosition::Left;
+    PanelPosition pos = pPlugin->anchorRight() ? PanelPosition::Right : PanelPosition::Left;
     if      (e.position == "left")   pos = PanelPosition::Left;
     else if (e.position == "center") pos = PanelPosition::Center;
     else if (e.position == "right")  pos = PanelPosition::Right;
 
-    pWidget->setPosition(pos);
-    m_widgets.push_back(pWidget);
+    pPlugin->setPosition(pos);
+    m_plugins.push_back(pPlugin);
   }
 
   std::vector<std::string> menuIds =
     m_pConfig ? m_pConfig->startMenuItems() : std::vector<std::string>{"apps","keybindings","power"};
   m_startItems = StartMenuRegistry::instance().create(menuIds);
 
-  for (PanelWidget* pWidget : m_widgets)
+  for (PanelPlugin* pPlugin : m_plugins)
   {
     if (m_pConfig)
     {
-      pWidget->configure(*m_pConfig);
+      pPlugin->configure(*m_pConfig);
     }
   }
   draw();
@@ -368,35 +368,35 @@ void Panel::draw()
    // Pre-compute group widths for center and right.
   int centerTotal = 0;
   int rightTotal = 0;
-  for (PanelWidget* pWidget : m_widgets)
+  for (PanelPlugin* pPlugin : m_plugins)
   {
-    int w = pWidget->width();
-    if (pWidget->position() == PanelPosition::Center) centerTotal += w;
-    else if (pWidget->position() == PanelPosition::Right) rightTotal += w;
+    int w = pPlugin->width();
+    if (pPlugin->position() == PanelPosition::Center) centerTotal += w;
+    else if (pPlugin->position() == PanelPosition::Right) rightTotal += w;
   }
 
   int leftCursor   = 44;
   int centerCursor = (screenW - centerTotal) / 2;
   int rightCursor  = screenW - rightTotal;
 
-  for (PanelWidget* pWidget : m_widgets)
+  for (PanelPlugin* pPlugin : m_plugins)
   {
-    int w = pWidget->width();
+    int w = pPlugin->width();
     int x = 0;
-    switch (pWidget->position())
+    switch (pPlugin->position())
     {
       case PanelPosition::Left:   x = leftCursor;   leftCursor += w;   break;
       case PanelPosition::Center: x = centerCursor; centerCursor += w; break;
       case PanelPosition::Right:  x = rightCursor;  rightCursor += w;  break;
     }
 
-    if (pWidget == m_pHoverWidget)
+    if (pPlugin == m_pHoverPlugin)
     {
       XSetForeground(d, gc, m_hoverColor);
       XFillRectangle(d, m_backBuffer, gc, x, 0, w, MewConst::panelHeight);
     }
 
-    pWidget->draw(d, m_backBuffer, x, baseline);
+    pPlugin->draw(d, m_backBuffer, x, baseline);
   }
 
   XCopyArea(d, m_backBuffer, m_window, gc, 0, 0, screenW, MewConst::panelHeight, 0, 0);
@@ -540,22 +540,22 @@ void Panel::handleClick(int x)
 
    int centerTotal = 0;
   int rightTotal = 0;
-  for (PanelWidget* pWidget : m_widgets)
+  for (PanelPlugin* pPlugin : m_plugins)
   {
-    int w = pWidget->width();
-    if (pWidget->position() == PanelPosition::Center) centerTotal += w;
-    else if (pWidget->position() == PanelPosition::Right) rightTotal += w;
+    int w = pPlugin->width();
+    if (pPlugin->position() == PanelPosition::Center) centerTotal += w;
+    else if (pPlugin->position() == PanelPosition::Right) rightTotal += w;
   }
 
   int leftCursor   = 44;
   int centerCursor = (m_xconn.width() - centerTotal) / 2;
   int rightCursor  = m_xconn.width() - rightTotal;
 
-  for (PanelWidget* pWidget : m_widgets)
+  for (PanelPlugin* pPlugin : m_plugins)
   {
-    int w = pWidget->width();
+    int w = pPlugin->width();
     int wx = 0;
-    switch (pWidget->position())
+    switch (pPlugin->position())
     {
       case PanelPosition::Left:   wx = leftCursor;   leftCursor += w;   break;
       case PanelPosition::Center: wx = centerCursor; centerCursor += w; break;
@@ -564,9 +564,9 @@ void Panel::handleClick(int x)
 
     if (x >= wx && x < wx + w)
     {
-      if (!pWidget->handleLocalClick(x - wx, wx))
+      if (!pPlugin->handleLocalClick(x - wx, wx))
       {
-        pWidget->onClick(wx);
+        pPlugin->onClick(wx);
       }
       draw();
       return;
@@ -639,9 +639,9 @@ void Panel::showTooltip(int x, const char* text)
 void Panel::tick()
 {
   bool needRedraw = false;
-  for (PanelWidget* pWidget : m_widgets)
+  for (PanelPlugin* pPlugin : m_plugins)
   {
-    if (pWidget->tick())
+    if (pPlugin->tick())
       needRedraw = true;
   }
   if (needRedraw)
@@ -654,25 +654,25 @@ void Panel::handleMotion(int x)
 
     int centerTotal = 0;
   int rightTotal = 0;
-  for (PanelWidget* pWidget : m_widgets)
+  for (PanelPlugin* pPlugin : m_plugins)
   {
-    int w = pWidget->width();
-    if (pWidget->position() == PanelPosition::Center) centerTotal += w;
-    else if (pWidget->position() == PanelPosition::Right) rightTotal += w;
+    int w = pPlugin->width();
+    if (pPlugin->position() == PanelPosition::Center) centerTotal += w;
+    else if (pPlugin->position() == PanelPosition::Right) rightTotal += w;
   }
 
   int leftCursor   = 44;
   int centerCursor = (m_xconn.width() - centerTotal) / 2;
   int rightCursor  = m_xconn.width() - rightTotal;
 
-  PanelWidget* pOver = nullptr;
+  PanelPlugin* pOver = nullptr;
   int hoverX = 0;
 
-  for (PanelWidget* pWidget : m_widgets)
+  for (PanelPlugin* pPlugin : m_plugins)
   {
-    int w = pWidget->width();
+    int w = pPlugin->width();
     int wx = 0;
-    switch (pWidget->position())
+    switch (pPlugin->position())
     {
       case PanelPosition::Left:   wx = leftCursor;   leftCursor += w;   break;
       case PanelPosition::Center: wx = centerCursor; centerCursor += w; break;
@@ -681,15 +681,15 @@ void Panel::handleMotion(int x)
 
     if (x >= wx && x < wx + w)
     {
-      pOver = pWidget;
+      pOver = pPlugin;
       hoverX = wx;
       break;
     }
   }
-  if (pOver != m_pHoverWidget)
+  if (pOver != m_pHoverPlugin)
   {
-    if (m_pHoverWidget) m_pHoverWidget->onUnhover();
-    m_pHoverWidget = pOver;
+    if (m_pHoverPlugin) m_pHoverPlugin->onUnhover();
+    m_pHoverPlugin = pOver;
     if (pOver) pOver->onHover(hoverX);
     draw();
   }
@@ -717,9 +717,9 @@ void Panel::handleMotion(int x)
 
 bool Panel::handleEscape()
 {
-  for (PanelWidget* pWidget : m_widgets)
+  for (PanelPlugin* pPlugin : m_plugins)
   {
-    if (pWidget->handleEscape())
+    if (pPlugin->handleEscape())
       return true;
   }
   return false;
@@ -727,7 +727,7 @@ bool Panel::handleEscape()
 }
 void Panel::handleLeave()
 {
-  if (m_pHoverWidget) { m_pHoverWidget->onUnhover(); m_pHoverWidget = nullptr; }
+  if (m_pHoverPlugin) { m_pHoverPlugin->onUnhover(); m_pHoverPlugin = nullptr; }
   m_hoverZone = -1;
   hideTooltip();
   draw();

@@ -1,4 +1,4 @@
 # Pong widget
 LD_FLAGS=
 PKGCONF_FLAG=
-SRC=NetworkWidget.cpp
+SRC=NetworkPlugin.cpp

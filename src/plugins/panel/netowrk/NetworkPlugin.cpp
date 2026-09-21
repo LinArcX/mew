@@ -1,5 +1,5 @@
-#include "panel/PanelWidgetRegistry.hpp"
-#include "NetworkWidget.hpp"
+#include "panel/PanelPluginRegistry.hpp"
+#include "NetworkPlugin.hpp"
 #include <X11/Xutil.h>
 #include <dirent.h>
 #include <algorithm>
@@ -8,7 +8,7 @@
 #include <ctime>
 #include <unistd.h>
 
-int NetworkWidget::width() const
+int NetworkPlugin::width() const
 {
   XftFont* pFont = m_font.font();
   if (!pFont)
@@ -34,13 +34,13 @@ int NetworkWidget::width() const
   return 22 + ext.xOff + 12;
 }
 
-NetworkWidget::~NetworkWidget()
+NetworkPlugin::~NetworkPlugin()
 {
   if (m_popup != None && m_xconn.display())
     XDestroyWindow(m_xconn.display(), m_popup);
 }
 
-bool NetworkWidget::isUp(const std::string& n) const
+bool NetworkPlugin::isUp(const std::string& n) const
 {
   std::ifstream f("/sys/class/net/" + n + "/operstate");
   std::string s;
@@ -48,7 +48,7 @@ bool NetworkWidget::isUp(const std::string& n) const
   return s == "up";
 }
 
-void NetworkWidget::refresh()
+void NetworkPlugin::refresh()
 {
   m_ifaces.clear();
   DIR* d = opendir("/sys/class/net");
@@ -74,7 +74,7 @@ void NetworkWidget::refresh()
   m_lastRefresh = time(nullptr);
 }
 
-void NetworkWidget::killSwitch()
+void NetworkPlugin::killSwitch()
 {
   if (m_selected.empty()) refresh();
   if (m_selected.empty()) return;
@@ -90,7 +90,7 @@ void NetworkWidget::killSwitch()
   refresh();
 }
 
-void NetworkWidget::draw(Display* d, Window panel, int x, int baseline)
+void NetworkPlugin::draw(Display* d, Window panel, int x, int baseline)
 {
   if (m_lastRefresh == 0) refresh();
   GC gc = XCreateGC(d, panel, 0, nullptr);
@@ -103,7 +103,7 @@ void NetworkWidget::draw(Display* d, Window panel, int x, int baseline)
   m_font.draw(d, m_xconn.screen(), panel, x + 22, baseline, label);
 }
 
-bool NetworkWidget::tick()
+bool NetworkPlugin::tick()
 {
   time_t now = time(nullptr);
   if (now - m_lastRefresh >= 5)
@@ -114,7 +114,7 @@ bool NetworkWidget::tick()
   return false;
 }
 
-void NetworkWidget::showPopup(int screenX)
+void NetworkPlugin::showPopup(int screenX)
 {
   Display* d = m_xconn.display();
   refresh();
@@ -147,7 +147,7 @@ void NetworkWidget::showPopup(int screenX)
   drawPopup();
 }
 
-void NetworkWidget::hidePopup()
+void NetworkPlugin::hidePopup()
 {
   if (m_popup != None && m_popupActive)
   {
@@ -157,7 +157,7 @@ void NetworkWidget::hidePopup()
   m_popupActive = false;
 }
 
-void NetworkWidget::drawPopup()
+void NetworkPlugin::drawPopup()
 {
   if (m_popup == None || !m_popupActive) return;
   Display* d = m_xconn.display();
@@ -195,7 +195,7 @@ void NetworkWidget::drawPopup()
   XFreeGC(d, gc);
 }
 
-bool NetworkWidget::handleLocalClick(int localX, int screenX)
+bool NetworkPlugin::handleLocalClick(int localX, int screenX)
 {
   if (localX < 20)
   {
@@ -207,13 +207,13 @@ bool NetworkWidget::handleLocalClick(int localX, int screenX)
   return true;
 }
 
-bool NetworkWidget::handleEscape()
+bool NetworkPlugin::handleEscape()
 {
   if (m_popupActive) { hidePopup(); return true; }
   return false;
 }
 
-bool NetworkWidget::handlePopupClick(XButtonEvent* e)
+bool NetworkPlugin::handlePopupClick(XButtonEvent* e)
 {
   if (!m_popupActive) return false;
   int idx = e->y / kRowH;
@@ -233,5 +233,5 @@ bool NetworkWidget::handlePopupClick(XButtonEvent* e)
   return true;
 }
 
-static PanelWidget* createNetwork(XConnection& x, FontRenderer& f) { return new NetworkWidget(x, f); }
-static PanelWidgetRegistrar s_network("network", createNetwork);
+static PanelPlugin* createNetwork(XConnection& x, FontRenderer& f) { return new NetworkPlugin(x, f); }
+static PanelPluginRegistrar s_network("network", createNetwork);

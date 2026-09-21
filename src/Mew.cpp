@@ -496,7 +496,7 @@ void Mew::processEvent(XEvent& event)
       Window w = event.xbutton.window;
       if (m_pPanel)
       {
-        for (PanelWidget* pW : m_pPanel->widgets())
+        for (PanelPlugin* pW : m_pPanel->plugins())
         {
           if (pW->popupWindow() == w)
           {
@@ -509,7 +509,7 @@ void Mew::processEvent(XEvent& event)
         }
       }
 
-      for (PanelWidget* pW : m_pPanel->widgets())
+      for (PanelPlugin* pW : m_pPanel->plugins())
       {
         if (pW->popupWindow() != None && pW->popupWindow() != w)
         {
@@ -567,7 +567,7 @@ void Mew::processEvent(XEvent& event)
     case MotionNotify:
      if (m_pPanel)
       {
-        for (PanelWidget* pW : m_pPanel->widgets())
+        for (PanelPlugin* pW : m_pPanel->plugins())
         {
           if (pW->popupWindow() == event.xmotion.window)
           {
@@ -588,7 +588,7 @@ void Mew::processEvent(XEvent& event)
     {
       if (m_pPanel)
       {
-        for (PanelWidget* pW : m_pPanel->widgets())
+        for (PanelPlugin* pW : m_pPanel->plugins())
         {
           if (pW->popupWindow() == event.xbutton.window)
           {
@@ -627,7 +627,7 @@ void Mew::processEvent(XEvent& event)
       }
       if (m_pPanel)
       {
-        for (PanelWidget* pW : m_pPanel->widgets())
+        for (PanelPlugin* pW : m_pPanel->plugins())
         {
           if (w == pW->popupWindow())
           {
@@ -703,7 +703,7 @@ void Mew::processEvent(XEvent& event)
       if (m_pPanel)
       {
         bool handled = false;
-        for (PanelWidget* pW : m_pPanel->widgets())
+        for (PanelPlugin* pW : m_pPanel->plugins())
         {
           if (pW->hasFocusedPopup() && pW->handlePopupKey(key))
           {

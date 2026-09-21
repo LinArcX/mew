@@ -1,7 +1,7 @@
-#include "ClockWidget.hpp"
-#include "../PanelWidgetRegistry.hpp"
+#include "ClockPlugin.hpp"
+#include "../PanelPluginRegistry.hpp"
 
-void ClockWidget::draw(Display* d, Window panel, int x, int baseline)
+void ClockPlugin::draw(Display* d, Window panel, int x, int baseline)
 {
   time_t now = time(nullptr);
   struct tm* t = localtime(&now);
@@ -13,7 +13,7 @@ void ClockWidget::draw(Display* d, Window panel, int x, int baseline)
   m_font.draw(d, m_xconn.screen(), panel, x, baseline, buf);
 }
 
-int ClockWidget::width() const
+int ClockPlugin::width() const
 {
   // Match the exact string produced by draw(): "%Y-%B-%d" plus time.
   std::string sample =
@@ -37,9 +37,9 @@ int ClockWidget::width() const
   return ext.xOff + 12;
 }
 
-std::string ClockWidget::tooltip() const { return "Date and time"; }
+std::string ClockPlugin::tooltip() const { return "Date and time"; }
 
-bool ClockWidget::tick()
+bool ClockPlugin::tick()
 {
   time_t now = time(nullptr);
   if (now == m_lastDraw) return false;
@@ -47,5 +47,5 @@ bool ClockWidget::tick()
   return true;
 }
 
-static PanelWidget* createClock(XConnection& x, FontRenderer& f) { return new ClockWidget(x, f); }
-static PanelWidgetRegistrar s_clock("clock", createClock);
+static PanelPlugin* createClock(XConnection& x, FontRenderer& f) { return new ClockPlugin(x, f); }
+static PanelPluginRegistrar s_clock("clock", createClock);

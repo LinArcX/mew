@@ -1,5 +1,5 @@
-#include "WeatherWidget.hpp"
-#include "../PanelWidgetRegistry.hpp"
+#include "WeatherPlugin.hpp"
+#include "../PanelPluginRegistry.hpp"
 #include "weather_font_data.h"
 
 #include <X11/Xutil.h>
@@ -160,7 +160,7 @@ namespace
   }
 }
 
-WeatherWidget::WeatherWidget(XConnection& xconn, FontRenderer& font)
+WeatherPlugin::WeatherPlugin(XConnection& xconn, FontRenderer& font)
   : m_xconn(xconn)
   , m_font(font)
 {
@@ -170,7 +170,7 @@ WeatherWidget::WeatherWidget(XConnection& xconn, FontRenderer& font)
     14.0);
 }
 
-WeatherWidget::~WeatherWidget()
+WeatherPlugin::~WeatherPlugin()
 {
   hidePopup();
   if (m_popup != None && m_xconn.display())
@@ -180,7 +180,7 @@ WeatherWidget::~WeatherWidget()
   }
 }
 
-const char* WeatherWidget::iconForDesc(const std::string& desc)
+const char* WeatherPlugin::iconForDesc(const std::string& desc)
 {
   if (desc.find("Sunny") != std::string::npos || desc.find("Clear") != std::string::npos)
     return "\xef\x80\x8d";     // wi-day-sunny U+F00D
@@ -201,7 +201,7 @@ const char* WeatherWidget::iconForDesc(const std::string& desc)
   return "\xef\x80\x93";
 }
 
-const char* WeatherWidget::iconForCode(int code)
+const char* WeatherPlugin::iconForCode(int code)
 {
   if (code == 0) return "\xef\x80\x8d";                             // clear -> day-sunny
   if (code <= 2) return "\xef\x80\x82";                             // few clouds -> day-cloudy
@@ -216,14 +216,14 @@ const char* WeatherWidget::iconForCode(int code)
   return "\xef\x80\x93";
 }
 
-void WeatherWidget::configure(const Config& config)
+void WeatherPlugin::configure(const Config& config)
 {
   m_locationOverride = config.weatherLocation();
   m_iconColor = config.weatherIconColor();
   m_textColor = config.weatherTextColor();
 }
 
-bool WeatherWidget::fetch()
+bool WeatherPlugin::fetch()
 {
   std::string url = m_locationOverride.empty()
     ? "wttr.in/?format=j1"
@@ -268,7 +268,7 @@ bool WeatherWidget::fetch()
   return true;
 }
 
-bool WeatherWidget::fetchForecast(const std::string& lat, const std::string& lon)
+bool WeatherPlugin::fetchForecast(const std::string& lat, const std::string& lon)
 {
   std::string url =
     "api.open-meteo.com/v1/forecast?latitude=" + lat +
@@ -315,7 +315,7 @@ bool WeatherWidget::fetchForecast(const std::string& lat, const std::string& lon
   return !m_forecast.empty();
 }
 
-bool WeatherWidget::tick()
+bool WeatherPlugin::tick()
 {
   time_t now = time(nullptr);
   if (m_valid && (now - m_lastFetch) < kRefreshSeconds)
@@ -326,7 +326,7 @@ bool WeatherWidget::tick()
   return false;
 }
 
-void WeatherWidget::drawPopup()
+void WeatherPlugin::drawPopup()
 {
   if (m_popup == None || !m_popupActive)
   {
@@ -399,7 +399,7 @@ void WeatherWidget::drawPopup()
   XFreeGC(d, gc);
 }
 
-void WeatherWidget::showPopup(int screenX)
+void WeatherPlugin::showPopup(int screenX)
 {
   Display* d = m_xconn.display();
   int rows = static_cast<int>(m_forecast.size());
@@ -454,7 +454,7 @@ void WeatherWidget::showPopup(int screenX)
   }
 }
 
-void WeatherWidget::hidePopup()
+void WeatherPlugin::hidePopup()
 {
   if (m_popup != None && m_popupActive)
   {
@@ -472,17 +472,17 @@ void WeatherWidget::hidePopup()
   m_popupActive = false;
 }
 
-void WeatherWidget::onHover(int screenX)
+void WeatherPlugin::onHover(int screenX)
 {
   (void)screenX;
 }
 
-void WeatherWidget::onUnhover()
+void WeatherPlugin::onUnhover()
 {
   // Popup stays open until ESC or click outside. Nothing to do here.
 }
 
-std::string WeatherWidget::tooltip() const
+std::string WeatherPlugin::tooltip() const
 {
   if (!m_valid)
   {
@@ -491,7 +491,7 @@ std::string WeatherWidget::tooltip() const
   return m_location + ": " + m_desc + ", " + m_temp + "C";
 }
 
-bool WeatherWidget::onClick(int screenX)
+bool WeatherPlugin::onClick(int screenX)
 {
   time_t now = time(nullptr);
   if (!m_valid || (now - m_lastFetch) >= kRefreshSeconds)
@@ -506,7 +506,7 @@ bool WeatherWidget::onClick(int screenX)
   return true;
 }
 
-bool WeatherWidget::handleEscape()
+bool WeatherPlugin::handleEscape()
 {
   if (m_popupActive)
   {
@@ -516,7 +516,7 @@ bool WeatherWidget::handleEscape()
   return false;
 }
 
-void WeatherWidget::draw(Display* display, Window panel, int x, int baseline)
+void WeatherPlugin::draw(Display* display, Window panel, int x, int baseline)
 {
   if (!m_valid)
   {
@@ -537,11 +537,11 @@ void WeatherWidget::draw(Display* display, Window panel, int x, int baseline)
   m_font.draw(display, screen, panel, x, baseline, text);
 }
 
-static PanelWidget* createWeather(XConnection& xconn, FontRenderer& font)
+static PanelPlugin* createWeather(XConnection& xconn, FontRenderer& font)
 {
-  return new WeatherWidget(xconn, font);
+  return new WeatherPlugin(xconn, font);
 }
 
-static PanelWidgetRegistrar s_weatherRegistrar("weather", createWeather);
+static PanelPluginRegistrar s_weatherRegistrar("weather", createWeather);
 
 
