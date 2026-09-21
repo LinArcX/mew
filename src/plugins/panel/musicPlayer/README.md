@@ -1,13 +1,13 @@
-# Music Player Widget
+# Music Player Plugin
 
-Panel widget that plays audio files from user-configured directories and
+Panel plugin that plays audio files from user-configured directories and
 provides playback controls plus a seek slider and an animated equalizer.
 
-## Registering the widget
+## Registering the plugin
 
-Add `music` to `panel_widgets` in `~/.config/mew/config`:
+Add `music` to `panel_plugins` in `~/.config/mew/config`:
 
-    panel_widgets = weather,music,pong
+    panel_plugins = weather,music,pong
 
 ## Layout
 
@@ -35,7 +35,7 @@ Add `music` to `panel_widgets` in `~/.config/mew/config`:
 
 ## Music directories popup
 
-Clicking ♪ opens a list of directories that the widget scans for audio files.
+Clicking ♪ opens a list of directories that the plugin scans for audio files.
 
 - **Add**: type a path in the input row at the bottom and press Enter.
 - **Remove**: click the red trash icon on the right of a row.

@@ -288,8 +288,8 @@ void PongPlugin::showSettingsPopup(int screenX)
 
   int screenW = m_xconn.width();
   int screenH = m_xconn.height();
-  int widgetW = width();
-  int px = screenX + widgetW - m_settingsW;
+  int pluginW = width();
+  int px = screenX + pluginW - m_settingsW;
   int py = screenH - MewConst::panelHeight - m_settingsH - 4;
   if (px < 0) px = 0;
   if (px + m_settingsW > screenW) px = screenW - m_settingsW;
@@ -457,8 +457,8 @@ bool PongPlugin::tick()
 
 void PongPlugin::updateGame(double dt)
 {
-  int widgetW = width();
-  int fieldW = widgetW - 2 * kBtnW - 2;
+  int pluginW = width();
+  int fieldW = pluginW - 2 * kBtnW - 2;
   int fieldH = MewConst::panelHeight - 4;
 
   char keys[32];
@@ -557,14 +557,14 @@ void PongPlugin::updateGame(double dt)
 
 bool PongPlugin::handleLocalClick(int localX, int screenX)
 {
-  int widgetW = width();
+  int pluginW = width();
 
   if (localX < kBtnW)
   {
     handlePlayPauseButton();
     return true;
   }
-  if (localX >= widgetW - kBtnW)
+  if (localX >= pluginW - kBtnW)
   {
     if (m_settingsActive) hideSettingsPopup();
     else                  showSettingsPopup(screenX);
@@ -594,21 +594,21 @@ void PongPlugin::draw(Display* display, Window panel, int x, int baseline)
   (void)baseline;
 
   GC gc = XCreateGC(display, panel, 0, nullptr);
-  int widgetW = width();
-  int widgetH = MewConst::panelHeight;
+  int pluginW = width();
+  int pluginH = MewConst::panelHeight;
 
   // Outer.
   XSetForeground(display, gc, m_bgColor);
-  XFillRectangle(display, panel, gc, x, 0, widgetW, widgetH);
+  XFillRectangle(display, panel, gc, x, 0, pluginW, pluginH);
   XSetForeground(display, gc, 0x2a2a3a);
-  XDrawRectangle(display, panel, gc, x, 0, widgetW - 1, widgetH - 1);
+  XDrawRectangle(display, panel, gc, x, 0, pluginW - 1, pluginH - 1);
 
   // --- Left section: play/pause button ---
   XSetForeground(display, gc, 0x14142a);
-  XFillRectangle(display, panel, gc, x + 1, 1, kBtnW - 1, widgetH - 2);
+  XFillRectangle(display, panel, gc, x + 1, 1, kBtnW - 1, pluginH - 2);
 
   int btnY = 5;
-  int btnH = widgetH - 10;
+  int btnH = pluginH - 10;
   if (btnH < 6) btnH = 6;
   int iconW = kBtnW - 10;
   int iconX = x + (kBtnW - iconW) / 2;
@@ -636,13 +636,13 @@ void PongPlugin::draw(Display* display, Window panel, int x, int baseline)
 
   // Separator between button and field.
   XSetForeground(display, gc, 0x3a3a5a);
-  XFillRectangle(display, panel, gc, x + kBtnW, 1, 1, widgetH - 2);
+  XFillRectangle(display, panel, gc, x + kBtnW, 1, 1, pluginH - 2);
 
   // --- Field ---
   int fieldX = x + kBtnW + 1;
   int fieldY = 2;
-  int fieldW = widgetW - 2 * kBtnW - 2;
-  int fieldH = widgetH - 4;
+  int fieldW = pluginW - 2 * kBtnW - 2;
+  int fieldH = pluginH - 4;
 
   XSetForeground(display, gc, 0x050510);
   XFillRectangle(display, panel, gc, fieldX, fieldY, fieldW, fieldH);
@@ -688,22 +688,22 @@ void PongPlugin::draw(Display* display, Window panel, int x, int baseline)
 
   // --- Right section: settings button ---
   XSetForeground(display, gc, 0x14142a);
-  XFillRectangle(display, panel, gc, x + widgetW - kBtnW, 1,
-                 kBtnW - 1, widgetH - 2);
+  XFillRectangle(display, panel, gc, x + pluginW - kBtnW, 1,
+                 kBtnW - 1, pluginH - 2);
 
-  int setBtnX = x + widgetW - kBtnW;
+  int setBtnX = x + pluginW - kBtnW;
   int lineW = 12;
   int lineX = setBtnX + (kBtnW - lineW) / 2;
   int lineY1 = 6;
   int lineY2 = btnY + btnH / 2 - 1;
-  int lineY3 = widgetH - 8;
+  int lineY3 = pluginH - 8;
 
   XSetForeground(display, gc, m_gameActive ? 0x8888cc : 0x666688);
   XFillRectangle(display, panel, gc, lineX, lineY1, lineW, 2);
   XFillRectangle(display, panel, gc, lineX, lineY2, lineW, 2);
   XFillRectangle(display, panel, gc, lineX, lineY3, lineW, 2);
 
-  // Restore default font color so other widgets aren't affected.
+  // Restore default font color so other plugins aren't affected.
   m_font.setColor(0xffffff);
 
   XFreeGC(display, gc);

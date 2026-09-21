@@ -11,7 +11,7 @@ Minimal, fast window manager for X.
 - **Keyboard-first.** Everything is a keybinding. Snap, maximize, fullscreen, launcher, power — all scriptable.
 - **Batteries included, nothing bloated.** Panel, app launcher, switcher, background, sounds in one ~15k-line codebase.
 - **Hackable.** Flat modules, readable code, text-file config.
-- **Optional Widgets** Write your widgets and drop them in src/panel. re-compile mew, enjoy!
+- **Optional Plugins** Write your plugins and drop them in src/panel. re-compile mew, enjoy!
 
 
 ## Plugins
@@ -127,7 +127,7 @@ mouse_size         = 24
 mouse_theme        = dmz-white
 
 # panel
-panel_widgets      = weather #,cpu,memory
+panel_plugins      = weather #,cpu,memory
 
 weather_location   = Antibes
 weather_icon_color = #ffcc44

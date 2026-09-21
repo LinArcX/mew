@@ -1,14 +1,14 @@
-# Weather Widget
+# Weather Plugin
 
-Panel widget that shows the current weather for an auto-detected or
+Panel plugin that shows the current weather for an auto-detected or
 user-specified location. Uses Unicode-free Weather Icons PUA glyphs that are
 embedded in the mew binary — no system font install required.
 
-## Registering the widget
+## Registering the plugin
 
-Add `weather` to `panel_widgets` in `~/.config/mew/config`:
+Add `weather` to `panel_plugins` in `~/.config/mew/config`:
 
-    panel_widgets = weather,music,pong
+    panel_plugins = weather,music,pong
 
 ## Layout
 
@@ -85,7 +85,7 @@ Refreshed every 30 minutes. Clicking the widget forces an immediate refresh.
 
 ## Notes
 
-- If `curl` is missing, the widget stays hidden and prints nothing to the panel.
+- If `curl` is missing, the plugin stays hidden and prints nothing to the panel.
 - The forecast popup's row colors are not configurable; they are tied to the
   temperature ranges by design.
 - Only `weather_icon_color` and `weather_text_color` affect the panel strip,

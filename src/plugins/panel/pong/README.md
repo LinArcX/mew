@@ -1,15 +1,15 @@
-# Pong Widget
+# Pong Plugin
 
 Minimal Pong game embedded in the panel. Player controls the left paddle with
 the keyboard; the AI plays on the right.
 
-## Registering the widget
+## Registering the plugin
 
-Add `pong` to `panel_widgets` in `~/.config/mew/config`:
+Add `pong` to `panel_plugins` in `~/.config/mew/config`:
 
-    `panel_widgets = weather,music,pong`
+    `panel_plugins = weather,music,pong`
 
-The widget occupies one fifth of the total screen width and the full panel
+The plugin occupies one fifth of the total screen width and the full panel
 height.
 
 ## Layout
@@ -21,7 +21,7 @@ height.
 ```
 
 The button section and the field are drawn as separate regions but live inside
-the same widget window.
+the same plugin window.
 
 ## Controls
 
