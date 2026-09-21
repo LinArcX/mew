@@ -35,8 +35,22 @@
 #     - zeal
 #     - www.devdocs.io 
 
+applyPath() {
+  if [ -n $@ ]; then
+    if python3 scripts/extractFiles.py "$@"; then
+      echo "Patch Success!"
+      ./scripts/build.sh --debug
+    else
+      echo "Patch Failed!"
+    fi
+  fi
+}
+
 menu () {
   commands=(
+    # patch
+    "create patch"
+
     # debug
     "build(debug)" "run(debug)" "gf2" "gf2 attach" "rr record" "gf2 --rr-replay" "clean(debug)"
 
@@ -102,6 +116,15 @@ menu () {
   selected=$(printf '%s\n' "${commands[@]}" | fzf --header="project:")
   
   case $selected in
+    "create patch")
+      read -r -p "Enter name of yoru patch: (it will be save in patches/) " filename
+      file="patches/${filename}.json"
+      nvim "$file"
+      if [ $? -eq 0 ] && [ -s "$file" ]; then
+        applyPatch $file
+        #./scripts/applyPatch.sh $file
+      fi
+      ;;
     "build(debug)")
       ./scripts/build.sh --install --debug
       if [ $? -eq 1 ]; then
