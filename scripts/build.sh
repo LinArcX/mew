@@ -200,11 +200,16 @@ fi
 echo "${C_BOLD}${C_CYAN}>>> mode:${C_RESET} ${C_BOLD}$MODE${C_RESET}"
 mkdir -p "build/$MODE"
 
+GEN_DIR="build/$MODE/generated"
+GEN_CORE="$GEN_DIR/core"
+GEN_PLUGINS="$GEN_DIR/plugins"
+mkdir -p "$GEN_CORE" "$GEN_PLUGINS"
+
 if [ "$MODE" = "debug" ]; then
-  CXXFLAGS="-std=c++23 -g -pg -O0 -DDEBUG --coverage -Isrc -Isrc/plugins"
+  CXXFLAGS="-std=c++23 -g -pg -O0 -DDEBUG --coverage -Isrc -Isrc/plugins -I$GEN_CORE"
   BEAR_PREFIX="bear -- "
 else
-  CXXFLAGS="-std=c++23 -O2 -DNDEBUG -Isrc -Isrc/plugins"
+  CXXFLAGS="-std=c++23 -O2 -DNDEBUG -Isrc -Isrc/plugins -I$GEN_CORE"
   BEAR_PREFIX=""
 fi
 
@@ -221,12 +226,12 @@ done
 
 # ---------- core assets ----------
 echo "${C_CYAN}>>> generating core asset data${C_RESET}"
-xxd -i -n hurmit_ttf   ./assets/fonts/Hermit/HurmitNerdFont-Regular.otf  > src/hurmit_font_data.h
-xxd -i -n symbols_ttf  ./assets/fonts/SymbolsNerdFontMono-Regular.ttf    > src/symbols_font_data.h
-xxd -i -n logo_png     ./assets/images/logo.jpg                          > src/logo_data.h
-xxd -i -n logoFull_png ./assets/images/logoFull.jpg                      > src/logoFull_data.h
-xxd -i -n login_wav    ./assets/audio/login.wav                          > src/login_wav_data.h
-xxd -i -n logout_wav   ./assets/audio/logout.wav                         > src/logout_wav_data.h
+xxd -i -n hurmit_ttf   ./assets/fonts/Hermit/HurmitNerdFont-Regular.otf  > "$GEN_CORE/hurmit_font_data.h"
+xxd -i -n symbols_ttf  ./assets/fonts/SymbolsNerdFontMono-Regular.ttf    > "$GEN_CORE/symbols_font_data.h"
+xxd -i -n logo_png     ./assets/images/logo.jpg                          > "$GEN_CORE/logo_data.h"
+xxd -i -n logoFull_png ./assets/images/logoFull.jpg                      > "$GEN_CORE/logoFull_data.h"
+xxd -i -n login_wav    ./assets/audio/login.wav                          > "$GEN_CORE/login_wav_data.h"
+xxd -i -n logout_wav   ./assets/audio/logout.wav                         > "$GEN_CORE/logout_wav_data.h"
 
 # ---------- plugin modules ----------
 echo "${C_CYAN}>>> scanning plugin modules${C_RESET}"
@@ -254,6 +259,10 @@ for d in "${REAL_MODULES[@]}"; do
     echo "  ${C_ORANGE}plugin:${C_RESET} ${C_ORANGE}${name}${C_RESET}"
   fi
 
+  # Per-plugin include path for generated headers (xxd outputs).
+  mkdir -p "$GEN_PLUGINS/$name"
+  CXXFLAGS="$CXXFLAGS -I$GEN_PLUGINS/$name"
+
   for s in "${d}"*.cpp; do
     [ -f "$s" ] && SRC+=("$s")
   done
@@ -271,12 +280,13 @@ done
 for d in "${REAL_MODULES[@]}"; do
   [ "${P_ENABLE[$d]:-true}" = "false" ] && continue
   [ -n "${P_XXD[$d]:-}" ] || continue
+  name="$(basename "$d")"
   for entry in ${P_XXD[$d]}; do
     asset="${entry%%:*}"
     header="${entry#*:}"
     [ "$asset" = "$header" ] && continue
     ap="${d}${asset}"
-    op="${d}${header}"
+    op="$GEN_PLUGINS/$name/$header"
     if [ ! -f "$ap" ]; then
       echo "    ${C_RED}warning:${C_RESET} asset not found: ${C_DIM}$ap${C_RESET}" >&2
       continue

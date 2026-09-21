@@ -1,6 +1,7 @@
 build/*
 .cache/*
 gmon.out
+patches/*
 skills.txt
 package.json
 node_modules/
@@ -8,18 +9,3 @@ package-lock.json
 compile_commands.json
 scripts/extractFiles.py
 .opencode/opencode.json
-
-# auto-generated fonts
-src/hurmit_font_data.h
-src/symbols_font_data.h
-
-# auto-generated images
-src/logoFull_data.h
-src/logo_data.h
-
-# auto-generated audio
-src/login_wav_data.h
-src/logout_wav_data.h
-
-# Plugin-local ignore files (per-developer, not committed)
-src/panel/*/.gitignore

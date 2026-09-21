@@ -35,9 +35,9 @@
 #     - zeal
 #     - www.devdocs.io 
 
-applyPath() {
-  if [ -n $@ ]; then
-    if python3 scripts/extractFiles.py "$@"; then
+function applyPatch() {
+  if [ -n $1 ]; then
+    if python3 scripts/extractFiles.py "$1"; then
       echo "Patch Success!"
       ./scripts/build.sh --debug
     else
@@ -46,7 +46,7 @@ applyPath() {
   fi
 }
 
-menu () {
+function menu () {
   commands=(
     # patch
     "create patch"
@@ -121,8 +121,7 @@ menu () {
       file="patches/${filename}.json"
       nvim "$file"
       if [ $? -eq 0 ] && [ -s "$file" ]; then
-        applyPatch $file
-        #./scripts/applyPatch.sh $file
+        applyPatch "$file"
       fi
       ;;
     "build(debug)")
