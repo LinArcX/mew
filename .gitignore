@@ -2,6 +2,8 @@ build/*
 .cache/*
 gmon.out
 patches/*
+tree.txt
+sources.txt
 skills.txt
 package.json
 node_modules/

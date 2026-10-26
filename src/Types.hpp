@@ -4,61 +4,76 @@
 #include <string>
 #include <vector>
 
+/**
+ * @brief Bookkeeping for one managed client window.
+ *
+ * Stores the frame id, current geometry, cached "old" geometry for
+ * maximize/restore, state flags, and misc bookkeeping such as the
+ * expected UnmapNotify count and last title click time.
+ */
 struct Client
 {
-  Window window = None;
-  Window frame = None;
+  Window window = None;      ///< Client top-level X window.
+  Window frame = None;       ///< WM-owned frame wrapping the client.
 
-  int x = 0;
-  int y = 0;
-  int width = 0;
-  int height = 0;
+  int x = 0;                 ///< Frame x in root coordinates.
+  int y = 0;                 ///< Frame y in root coordinates.
+  int width = 0;             ///< Client width in pixels.
+  int height = 0;            ///< Client height in pixels.
 
-  int oldX = 0;
-  int oldY = 0;
-  int oldWidth = 0;
-  int oldHeight = 0;
+  int oldX = 0;              ///< Saved x for maximize/restore.
+  int oldY = 0;              ///< Saved y for maximize/restore.
+  int oldWidth = 0;          ///< Saved width for maximize/restore.
+  int oldHeight = 0;         ///< Saved height for maximize/restore.
 
-  bool maximized = false;
-  bool minimized = false;
-  bool fullscreen = false;
-  bool transient = false;   // dialog / transient window
-  bool noMaximize = false;  // disable maximize button
-  bool csd = false;  // client-side decorations (GTK)
+  bool maximized = false;    ///< True while maximized.
+  bool minimized = false;    ///< True while minimized (unmapped).
+  bool fullscreen = false;   ///< True while fullscreen.
+  bool transient = false;    ///< True for dialog / transient windows.
+  bool noMaximize = false;   ///< Disable the maximize button.
+  bool csd = false;          ///< Client provides its own decorations (GTK).
 
-  // Expected UnmapNotify count to ignore (reparent/fullscreen transitions).
-  int ignoreUnmap = 0;
+  int ignoreUnmap = 0;       ///< UnmapNotify count to ignore (reparent/fullscreen).
 
-  Time lastTitleClick = 0;
+  Time lastTitleClick = 0;   ///< Timestamp of previous titlebar click.
 };
 
+/**
+ * @brief One parsed keybinding entry from ~/.config/mew/keybindings.
+ */
 struct KeyBinding
 {
-  KeyCode keycode = 0;
-  unsigned int modifiers = 0;
-  std::string command;
-  std::string display;
+  KeyCode keycode = 0;          ///< X keycode resolved from the keysym.
+  unsigned int modifiers = 0;   ///< Modifier mask (Mod4, Control, Shift, ...).
+  std::string command;          ///< Action name or shell command.
+  std::string display;          ///< Human-readable form for the keybindings window.
 };
 
+/**
+ * @brief One application entry parsed from a .desktop file.
+ */
 struct DesktopApp
 {
-  std::string name;
-  std::string exec;
-  std::string icon;   // Icon= from .desktop (name or path)
-  int useCount = 0;   // launch frequency
+  std::string name;         ///< Display name (Name=).
+  std::string exec;         ///< Exec command line, %-substitutions stripped.
+  std::string icon;         ///< Icon= field (name or absolute path).
+  int useCount = 0;         ///< Launch frequency, drives the sort order.
 };
 
+/**
+ * @brief Which edge or corner of a frame the pointer is over.
+ */
 enum class ResizeDirection
 {
-  NoEdge,
-  Left,
-  Right,
-  Top,
-  Bottom,
-  TopLeft,
-  TopRight,
-  BottomLeft,
-  BottomRight
+  NoEdge,      ///< Not on any edge.
+  Left,        ///< Left edge.
+  Right,       ///< Right edge.
+  Top,         ///< Top edge.
+  Bottom,      ///< Bottom edge.
+  TopLeft,     ///< Top-left corner.
+  TopRight,    ///< Top-right corner.
+  BottomLeft,  ///< Bottom-left corner.
+  BottomRight  ///< Bottom-right corner.
 };
 
 namespace MewConst

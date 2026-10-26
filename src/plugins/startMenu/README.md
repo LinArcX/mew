@@ -1,20 +1,20 @@
 # Start Menu Modules
 
-Each subdirectory is a start menu item. Drop a folder in `src/startMenu/`
-with at least one `.cpp` and register it via `StartMenuItemRegistrar`.
+Each subdirectory is a start menu item. Drop a folder in
+`src/plugins/startMenu/` with at least one `.cpp` and register it via
+`StartMenuItemRegistrar`.
 
 ## Layout
-src/startMenu/
+
+```
+src/plugins/startMenu/
 ├── StartMenuItem.hpp
 ├── StartMenuRegistry.hpp/.cpp
 ├── apps/AppsItem.cpp
 ├── keybindings/KeybindingsItem.cpp
 ├── power/PowerItem.cpp
 └── scripts/ScriptsItem.cpp
-
-## default plugins
-- apps
-- keybindings
+```
 
 ## Enabling items
 
@@ -24,16 +24,18 @@ In `~/.config/mew/config`:
 
 Items appear in the given order. Unknown ids are skipped.
 
-Default (when the key is absent): `apps,keybindings,power`.
+If the key is absent, the default is `apps,keybindings,power`.
 
 ## Adding a new item
 
-1. `mkdir src/startMenu/myitem`
+1. `mkdir src/plugins/startMenu/myitem`
 2. Create `MyItem.hpp` / `MyItem.cpp` implementing `StartMenuItem`.
 3. Register at file scope:
 
-```cpp
-static StartMenuItem* createMyItem() { return new MyItem(); }
-static StartMenuItemRegistrar s_myItem("myitem", createMyItem);
+   ```cpp
+   static StartMenuItem* createMyItem() { return new MyItem(); }
+   static StartMenuItemRegistrar s_myItem("myitem", createMyItem);
+   ```
 
-4. Add myitem to start_menu_items.
+4. Add a `compiler_flags.txt` with `SRC=MyItem.cpp`.
+5. Add `myitem` to `start_menu_items`.
