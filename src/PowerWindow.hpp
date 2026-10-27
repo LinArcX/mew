@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FontRenderer.hpp"
+#include "Sound.hpp"
 #include "XConnection.hpp"
 
 #include <X11/Xlib.h>
@@ -14,7 +15,7 @@
 class PowerWindow
 {
 public:
-  PowerWindow(XConnection& xconn, FontRenderer& font);
+  PowerWindow(XConnection& xconn, FontRenderer& font, Sound& sound);
   ~PowerWindow();
 
   void show();
@@ -37,6 +38,7 @@ private:
 
   XConnection& m_xconn;
   FontRenderer& m_font;
+  Sound& m_sound;
 
   Window m_window = None;
   bool m_active = false;

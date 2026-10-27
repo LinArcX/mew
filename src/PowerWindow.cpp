@@ -39,9 +39,10 @@ namespace
   }
 }
 
-PowerWindow::PowerWindow(XConnection& xconn, FontRenderer& font)
+PowerWindow::PowerWindow(XConnection& xconn, FontRenderer& font, Sound& sound)
   : m_xconn(xconn)
   , m_font(font)
+  , m_sound(sound)
 {
 }
 
@@ -238,10 +239,12 @@ void PowerWindow::execute(int itemIndex)
   }
   else if (action == 2)
   {
+    m_sound.playEmbeddedLogoutBlocking();
     doReboot();
   }
   else if (action == 3)
   {
+    m_sound.playEmbeddedLogoutBlocking();
     doPoweroff();
   }
 }

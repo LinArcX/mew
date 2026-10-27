@@ -839,7 +839,7 @@ int Mew::run()
     m_pPolkitAgent = nullptr;
   }
 
-  m_pPower = new PowerWindow(m_xconn, m_font);
+  m_pPower = new PowerWindow(m_xconn, m_font, m_sound);
   m_pPower->setOnReconfigure(onReconfigure);
   m_pPower->setOnQuit(onQuit);
   m_pLauncher = new AppLauncher(m_xconn, m_font);

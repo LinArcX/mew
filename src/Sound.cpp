@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
 
@@ -137,7 +138,7 @@ void Sound::play(const std::string& path)
   _exit(0);
 }
 
-void Sound::playEmbedded(const unsigned char* pData, size_t len)
+void Sound::playEmbedded(const unsigned char* pData, size_t len, bool wait)
 {
   if (!pData || len < 44)
   {
@@ -147,6 +148,11 @@ void Sound::playEmbedded(const unsigned char* pData, size_t len)
   pid_t pid = fork();
   if (pid != 0)
   {
+    if (wait && pid > 0)
+    {
+      int status = 0;
+      waitpid(pid, &status, 0);
+    }
     return;
   }
 
@@ -246,10 +252,15 @@ void Sound::playEmbedded(const unsigned char* pData, size_t len)
 
 void Sound::playEmbeddedLogin()
 {
-  playEmbedded(login_wav, login_wav_len);
+  playEmbedded(login_wav, login_wav_len, false);
 }
 
 void Sound::playEmbeddedLogout()
 {
-  playEmbedded(logout_wav, logout_wav_len);
+  playEmbedded(logout_wav, logout_wav_len, false);
+}
+
+void Sound::playEmbeddedLogoutBlocking()
+{
+  playEmbedded(logout_wav, logout_wav_len, true);
 }
