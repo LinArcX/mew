@@ -253,6 +253,7 @@ StartMenuContext Panel::makeStartMenuContext()
   ctx.pConfig = m_pConfig;
   ctx.onShowLauncher = m_onShowLauncher;
   ctx.onShowKeybindings = m_onShowKeybindings;
+  ctx.onShowDiagnostics = m_onShowDiagnostics;
   ctx.onQuit = m_onQuit;
   ctx.onReconfigure = m_onReconfigure;
   return ctx;

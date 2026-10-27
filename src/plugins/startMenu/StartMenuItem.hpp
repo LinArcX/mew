@@ -18,6 +18,7 @@ struct StartMenuContext
 
   void (*onShowLauncher)() = nullptr;
   void (*onShowKeybindings)() = nullptr;
+  void (*onShowDiagnostics)() = nullptr;
   void (*onQuit)() = nullptr;
   void (*onReconfigure)() = nullptr;
 };

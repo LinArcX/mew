@@ -11,6 +11,7 @@ src/plugins/startMenu/
 ├── StartMenuItem.hpp
 ├── StartMenuRegistry.hpp/.cpp
 ├── apps/AppsItem.cpp
+├── diagnostics/DiagnosticsItem.cpp
 ├── keybindings/KeybindingsItem.cpp
 ├── power/PowerItem.cpp
 └── scripts/ScriptsItem.cpp

@@ -29,6 +29,8 @@ Mew::~Mew()
   m_pLauncher = nullptr;
   delete m_pKeybindings;
   m_pKeybindings = nullptr;
+  delete m_pDiagnostics;
+  m_pDiagnostics = nullptr;
   delete m_pPolkitAgent;
   m_pPolkitAgent = nullptr;
 
@@ -83,6 +85,14 @@ void Mew::onShowKeybindings()
   }
 }
 
+void Mew::onShowDiagnostics()
+{
+  if (s_pInstance && s_pInstance->m_pDiagnostics)
+  {
+    s_pInstance->m_pDiagnostics->show();
+  }
+}
+
 void Mew::onQuit()
 {
   if (s_pInstance)
@@ -131,6 +141,10 @@ void Mew::raiseOverlays()
   if (m_pKeybindings)
   {
     m_pKeybindings->raiseIfActive();
+  }
+  if (m_pDiagnostics)
+  {
+    m_pDiagnostics->raiseIfActive();
   }
   if (m_pPanel)
   {
@@ -522,6 +536,11 @@ void Mew::processEvent(XEvent& event)
         m_pKeybindings->handleClick(&event.xbutton);
         break;
       }
+      if (m_pDiagnostics && m_pDiagnostics->isActive() && w == m_pDiagnostics->window())
+      {
+        m_pDiagnostics->handleClick(&event.xbutton);
+        break;
+      }
       if (m_pPanel && w == m_pPanel->window())
       {
         m_pPanel->handleClick(event.xbutton.x);
@@ -618,6 +637,11 @@ void Mew::processEvent(XEvent& event)
       if (m_pKeybindings && w == m_pKeybindings->window())
       {
         m_pKeybindings->draw();
+        break;
+      }
+      if (m_pDiagnostics && w == m_pDiagnostics->window())
+      {
+        m_pDiagnostics->draw();
         break;
       }
       if (m_pPanel && w == m_pPanel->window())
@@ -731,6 +755,11 @@ void Mew::processEvent(XEvent& event)
           m_pKeybindings->hide();
           break;
         }
+        if (m_pDiagnostics && m_pDiagnostics->isActive())
+        {
+          m_pDiagnostics->hide();
+          break;
+        }
         if (m_pPower && m_pPower->isActive())
         {
           m_pPower->hide();
@@ -745,6 +774,11 @@ void Mew::processEvent(XEvent& event)
       if (m_pKeybindings && m_pKeybindings->isActive())
       {
         m_pKeybindings->handleKey(key);
+        break;
+      }
+      if (m_pDiagnostics && m_pDiagnostics->isActive())
+      {
+        m_pDiagnostics->handleKey(key);
         break;
       }
       if (handleCustomKeybinding(key))
@@ -831,6 +865,7 @@ int Mew::run()
 
   m_pSwitcher = new WindowSwitcher(m_xconn, m_font, *m_pClients);
   m_pKeybindings = new KeybindingsWindow(m_xconn, m_font, m_config);
+  m_pDiagnostics = new DiagnosticsWindow(m_xconn, m_font);
   m_pPolkitAgent = new PolkitAgent(m_xconn.display(), m_xconn.screen());
   if (!m_pPolkitAgent->start())
   {
@@ -850,6 +885,7 @@ int Mew::run()
   m_pPanel->setConfig(&m_config);
   m_pPanel->setOnShowLauncher(onShowLauncher);
   m_pPanel->setOnShowKeybindings(onShowKeybindings);
+  m_pPanel->setOnShowDiagnostics(onShowDiagnostics);
   m_pPanel->setOnQuit(onQuit);
   m_pPanel->setOnReconfigure(onReconfigure);
 

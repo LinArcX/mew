@@ -4,6 +4,7 @@
 #include "Background.hpp"
 #include "ClientManager.hpp"
 #include "Config.hpp"
+#include "DiagnosticsWindow.hpp"
 #include "FontRenderer.hpp"
 #include "KeybindingsWindow.hpp"
 #include "Panel.hpp"
@@ -67,6 +68,7 @@ private:
 
   static void onShowLauncher();
   static void onShowKeybindings();
+  static void onShowDiagnostics();
   static void onQuit();
   static void onReconfigure();
   static void onRaiseOverlays();
@@ -81,6 +83,7 @@ private:
   ClientManager* m_pClients = nullptr;
   WindowSwitcher* m_pSwitcher = nullptr;
   KeybindingsWindow* m_pKeybindings = nullptr;
+  DiagnosticsWindow* m_pDiagnostics = nullptr;
   AppLauncher* m_pLauncher = nullptr;
   Panel* m_pPanel = nullptr;
   PowerWindow* m_pPower = nullptr;

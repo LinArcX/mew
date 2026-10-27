@@ -85,6 +85,11 @@ public:
   void setOnShowKeybindings(void (*fn)()) { m_onShowKeybindings = fn; }
 
   /**
+   * @brief Callback when user picks Diagnostics.
+   */
+  void setOnShowDiagnostics(void (*fn)()) { m_onShowDiagnostics = fn; }
+
+  /**
    * @brief Callback when user picks Logout.
    */
   void setOnQuit(void (*fn)()) { m_onQuit = fn; }
@@ -197,6 +202,7 @@ private:
 
   void (*m_onShowLauncher)() = nullptr;
   void (*m_onShowKeybindings)() = nullptr;
+  void (*m_onShowDiagnostics)() = nullptr;
   void (*m_onQuit)() = nullptr;
   void (*m_onReconfigure)() = nullptr;
 

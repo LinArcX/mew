@@ -25,6 +25,11 @@
   - looks professional
   - link to pateron
 
+- [ ] Implement Approach C: Out-of-process plugin architecture.
+  - [x] Step 1: Diagnostics Window and start menu entry.
+  - [ ] Step 2: PluginProcess wrapper (spawn child processes, capture stdout/stderr).
+  - [ ] Step 3: Migrate weather/network to out-of-process.
+
 ## Bugs
 - [ ] sometimes, i want to upload files to some website, so normally nemo pops up with image preview panel inside it.
   in this cases, the buttons in bottom(Canel, Ok) are not fully visible. for example just half of OK button is visilbe. fix it.
