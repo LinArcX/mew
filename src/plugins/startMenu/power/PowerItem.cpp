@@ -1,5 +1,6 @@
 #include "PowerItem.hpp"
 #include "../StartMenuRegistry.hpp"
+#include "Sound.hpp"
 #include "Util.hpp"
 
 #include <X11/Xutil.h>
@@ -86,11 +87,15 @@ void PowerItem::drawSubmenu(Display* d, int screen)
 
 void PowerItem::doReboot()
 {
+  Sound sound;
+  sound.playEmbeddedLogoutBlocking();
   Util::requestReboot();
 }
 
 void PowerItem::doPoweroff()
 {
+  Sound sound;
+  sound.playEmbeddedLogoutBlocking();
   Util::requestPoweroff();
 }
 
