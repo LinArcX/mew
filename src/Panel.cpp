@@ -366,18 +366,21 @@ void Panel::draw()
   }
 
    // Pre-compute group widths for center and right.
+  constexpr int kPluginGap = 16;
   int centerTotal = 0;
   int rightTotal = 0;
   for (PanelPlugin* pPlugin : m_plugins)
   {
     int w = pPlugin->width();
-    if (pPlugin->position() == PanelPosition::Center) centerTotal += w;
-    else if (pPlugin->position() == PanelPosition::Right) rightTotal += w;
+    if (pPlugin->position() == PanelPosition::Center) centerTotal += w + kPluginGap;
+    else if (pPlugin->position() == PanelPosition::Right) rightTotal += w + kPluginGap;
   }
+  if (centerTotal > 0) centerTotal -= kPluginGap;
+  if (rightTotal > 0) rightTotal -= kPluginGap;
 
   int leftCursor   = 44;
   int centerCursor = (screenW - centerTotal) / 2;
-  int rightCursor  = screenW - rightTotal;
+  int rightCursor  = screenW - rightTotal - 12;
 
   for (PanelPlugin* pPlugin : m_plugins)
   {
@@ -385,9 +388,9 @@ void Panel::draw()
     int x = 0;
     switch (pPlugin->position())
     {
-      case PanelPosition::Left:   x = leftCursor;   leftCursor += w;   break;
-      case PanelPosition::Center: x = centerCursor; centerCursor += w; break;
-      case PanelPosition::Right:  x = rightCursor;  rightCursor += w;  break;
+      case PanelPosition::Left:   x = leftCursor;   leftCursor += w + kPluginGap;   break;
+      case PanelPosition::Center: x = centerCursor; centerCursor += w + kPluginGap; break;
+      case PanelPosition::Right:  x = rightCursor;  rightCursor += w + kPluginGap;  break;
     }
 
     if (pPlugin == m_pHoverPlugin)
@@ -538,18 +541,21 @@ void Panel::doPoweroff()
 void Panel::handleClick(int x)
 {
 
-   int centerTotal = 0;
+   constexpr int kPluginGap = 16;
+  int centerTotal = 0;
   int rightTotal = 0;
   for (PanelPlugin* pPlugin : m_plugins)
   {
     int w = pPlugin->width();
-    if (pPlugin->position() == PanelPosition::Center) centerTotal += w;
-    else if (pPlugin->position() == PanelPosition::Right) rightTotal += w;
+    if (pPlugin->position() == PanelPosition::Center) centerTotal += w + kPluginGap;
+    else if (pPlugin->position() == PanelPosition::Right) rightTotal += w + kPluginGap;
   }
+  if (centerTotal > 0) centerTotal -= kPluginGap;
+  if (rightTotal > 0) rightTotal -= kPluginGap;
 
   int leftCursor   = 44;
   int centerCursor = (m_xconn.width() - centerTotal) / 2;
-  int rightCursor  = m_xconn.width() - rightTotal;
+  int rightCursor  = m_xconn.width() - rightTotal - 12;
 
   for (PanelPlugin* pPlugin : m_plugins)
   {
@@ -557,9 +563,9 @@ void Panel::handleClick(int x)
     int wx = 0;
     switch (pPlugin->position())
     {
-      case PanelPosition::Left:   wx = leftCursor;   leftCursor += w;   break;
-      case PanelPosition::Center: wx = centerCursor; centerCursor += w; break;
-      case PanelPosition::Right:  wx = rightCursor;  rightCursor += w;  break;
+      case PanelPosition::Left:   wx = leftCursor;   leftCursor += w + kPluginGap;   break;
+      case PanelPosition::Center: wx = centerCursor; centerCursor += w + kPluginGap; break;
+      case PanelPosition::Right:  wx = rightCursor;  rightCursor += w + kPluginGap;  break;
     }
 
     if (x >= wx && x < wx + w)
@@ -608,11 +614,11 @@ void Panel::showTooltip(int x, const char* text)
       reinterpret_cast<const FcChar8*>(text),
       static_cast<int>(std::strlen(text)),
       &ext);
-    tw = ext.xOff + 16;
+    tw = ext.xOff + 24;
   }
   else
   {
-    tw = static_cast<int>(std::strlen(text)) * 9 + 16;
+    tw = static_cast<int>(std::strlen(text)) * 9 + 24;
   }
 
   int th = 22;
@@ -670,18 +676,21 @@ void Panel::tick()
 void Panel::handleMotion(int x)
 {
 
-    int centerTotal = 0;
+    constexpr int kPluginGap = 16;
+  int centerTotal = 0;
   int rightTotal = 0;
   for (PanelPlugin* pPlugin : m_plugins)
   {
     int w = pPlugin->width();
-    if (pPlugin->position() == PanelPosition::Center) centerTotal += w;
-    else if (pPlugin->position() == PanelPosition::Right) rightTotal += w;
+    if (pPlugin->position() == PanelPosition::Center) centerTotal += w + kPluginGap;
+    else if (pPlugin->position() == PanelPosition::Right) rightTotal += w + kPluginGap;
   }
+  if (centerTotal > 0) centerTotal -= kPluginGap;
+  if (rightTotal > 0) rightTotal -= kPluginGap;
 
   int leftCursor   = 44;
   int centerCursor = (m_xconn.width() - centerTotal) / 2;
-  int rightCursor  = m_xconn.width() - rightTotal;
+  int rightCursor  = m_xconn.width() - rightTotal - 12;
 
   PanelPlugin* pOver = nullptr;
   int hoverX = 0;
@@ -692,9 +701,9 @@ void Panel::handleMotion(int x)
     int wx = 0;
     switch (pPlugin->position())
     {
-      case PanelPosition::Left:   wx = leftCursor;   leftCursor += w;   break;
-      case PanelPosition::Center: wx = centerCursor; centerCursor += w; break;
-      case PanelPosition::Right:  wx = rightCursor;  rightCursor += w;  break;
+      case PanelPosition::Left:   wx = leftCursor;   leftCursor += w + kPluginGap;   break;
+      case PanelPosition::Center: wx = centerCursor; centerCursor += w + kPluginGap; break;
+      case PanelPosition::Right:  wx = rightCursor;  rightCursor += w + kPluginGap;  break;
     }
 
     if (x >= wx && x < wx + w)
