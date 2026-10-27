@@ -19,7 +19,7 @@ int DesktopPlugin::width() const
     static_cast<int>(icon.size()),
     &ext);
 
-  return ext.xOff + 16;
+  return ext.xOff;
 }
 
 void DesktopPlugin::draw(Display* d, Window panel, int x, int baseline)

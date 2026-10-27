@@ -25,7 +25,7 @@ int LanguagePlugin::width() const
     static_cast<int>(name.size()),
     &ext);
 
-  return ext.xOff + 16;
+  return ext.xOff;
 }
 
 void LanguagePlugin::refresh()

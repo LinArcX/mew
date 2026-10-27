@@ -30,8 +30,8 @@ public:
   /** @brief Plugin id used in config ("volume"). */
   const char* id() const override { return "volume"; }
 
-  /** @brief Fixed pixel width (icon or percentage). */
-  int width() const override { return 35; }
+  /** @brief Pixel width sized to fit the current volume string. */
+  int width() const override;
 
   /** @brief Anchor to the right group of the panel. */
   bool anchorRight() const override { return true; }

@@ -30,8 +30,8 @@ int NetworkPlugin::width() const
     static_cast<int>(label.size()),
     &ext);
 
-  // 22 = 16px indicator + 6px gap, + 12px padding.
-  return 22 + ext.xOff + 12;
+  // 22 = 16px indicator + 6px gap.
+  return 22 + ext.xOff;
 }
 
 NetworkPlugin::~NetworkPlugin()

@@ -117,7 +117,7 @@ function menu () {
   
   case $selected in
     "create patch")
-      read -r -p "Enter name of yoru patch: (it will be save in patches/) " filename
+      read -r -p "Enter name of yoru patch: " filename
       file="patches/${filename}.json"
       nvim "$file"
       if [ $? -eq 0 ] && [ -s "$file" ]; then

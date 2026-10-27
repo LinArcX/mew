@@ -10,6 +10,28 @@
 #include <sstream>
 #include <unistd.h>
 
+int VolumePlugin::width() const
+{
+  XftFont* pFont = m_font.font();
+  if (!pFont) return 35;
+
+  char buf[32];
+  if (m_muted || m_percent <= 0)
+    snprintf(buf, sizeof(buf), "\xf3\xb0\x96\x81");
+  else
+    snprintf(buf, sizeof(buf), "%d%%", m_percent);
+
+  XGlyphInfo ext{};
+  XftTextExtentsUtf8(
+    m_xconn.display(),
+    pFont,
+    reinterpret_cast<const FcChar8*>(buf),
+    static_cast<int>(std::strlen(buf)),
+    &ext);
+
+  return ext.xOff;
+}
+
 VolumePlugin::~VolumePlugin()
 {
   if (m_popup != None && m_xconn.display())

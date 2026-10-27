@@ -596,7 +596,25 @@ void Panel::showTooltip(int x, const char* text)
 {
   Display* d = m_xconn.display();
   int screenH = m_xconn.height();
-  int tw = static_cast<int>(std::strlen(text)) * 9 + 16;
+
+  XftFont* pFont = m_font.font();
+  int tw = 0;
+  if (pFont)
+  {
+    XGlyphInfo ext{};
+    XftTextExtentsUtf8(
+      d,
+      pFont,
+      reinterpret_cast<const FcChar8*>(text),
+      static_cast<int>(std::strlen(text)),
+      &ext);
+    tw = ext.xOff + 16;
+  }
+  else
+  {
+    tw = static_cast<int>(std::strlen(text)) * 9 + 16;
+  }
+
   int th = 22;
   int tx = x;
   int ty = screenH - MewConst::panelHeight - th - 4;

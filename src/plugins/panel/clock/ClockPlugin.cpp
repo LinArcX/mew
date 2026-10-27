@@ -1,5 +1,7 @@
 #include "ClockPlugin.hpp"
 #include "../PanelPluginRegistry.hpp"
+#include <cstdio>
+#include <cstring>
 
 void ClockPlugin::draw(Display* d, Window panel, int x, int baseline)
 {
@@ -14,7 +16,12 @@ void ClockPlugin::draw(Display* d, Window panel, int x, int baseline)
 
 int ClockPlugin::width() const
 {
-  std::string sample = std::string("\xee\x99\x81 ") + "00:00:00";
+  time_t now = time(nullptr);
+  struct tm* t = localtime(&now);
+  char timePart[16];
+  strftime(timePart, sizeof(timePart), "%H:%M:%S", t);
+  char buf[80];
+  snprintf(buf, sizeof(buf), "\xee\x99\x81 %s", timePart);
 
   XftFont* pFont = m_font.font();
   if (!pFont)
@@ -26,11 +33,11 @@ int ClockPlugin::width() const
   XftTextExtentsUtf8(
     m_xconn.display(),
     pFont,
-    reinterpret_cast<const FcChar8*>(sample.c_str()),
-    static_cast<int>(sample.size()),
+    reinterpret_cast<const FcChar8*>(buf),
+    static_cast<int>(std::strlen(buf)),
     &ext);
 
-  return ext.xOff + 12;
+  return ext.xOff;
 }
 
 std::string ClockPlugin::tooltip() const { return "Time"; }

@@ -1,6 +1,7 @@
 #include "DatePlugin.hpp"
 #include "../PanelPluginRegistry.hpp"
 #include <cstdio>
+#include <cstring>
 
 void DatePlugin::draw(Display* d, Window panel, int x, int baseline)
 {
@@ -15,7 +16,12 @@ void DatePlugin::draw(Display* d, Window panel, int x, int baseline)
 
 int DatePlugin::width() const
 {
-  std::string sample = std::string("\xee\xaa\xb0 ") + "0000-September-00";
+  time_t now = time(nullptr);
+  struct tm* t = localtime(&now);
+  char datePart[48];
+  strftime(datePart, sizeof(datePart), "%Y-%B-%d", t);
+  char buf[80];
+  snprintf(buf, sizeof(buf), "\xee\xaa\xb0 %s", datePart);
 
   XftFont* pFont = m_font.font();
   if (!pFont)
@@ -27,11 +33,11 @@ int DatePlugin::width() const
   XftTextExtentsUtf8(
     m_xconn.display(),
     pFont,
-    reinterpret_cast<const FcChar8*>(sample.c_str()),
-    static_cast<int>(sample.size()),
+    reinterpret_cast<const FcChar8*>(buf),
+    static_cast<int>(std::strlen(buf)),
     &ext);
 
-  return ext.xOff + 12;
+  return ext.xOff;
 }
 
 bool DatePlugin::tick()
