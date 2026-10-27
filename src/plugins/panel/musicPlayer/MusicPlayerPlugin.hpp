@@ -5,6 +5,7 @@
 #include "../FontRenderer.hpp"
 #include "../Config.hpp"
 #include "../EmbeddedFont.hpp"
+#include "../PluginProcess.hpp"
 
 #include <sys/un.h>
 #include <sys/socket.h>
@@ -104,6 +105,13 @@ public:
 
   /** @brief True while the directory popup has keyboard focus. */
   bool hasFocusedPopup() const override { return m_popupActive; }
+
+  /** @brief Optional out-of-process backend for the plugin. */
+  PluginProcess* process() const override
+  {
+    if (m_playerProcess.isRunning()) return const_cast<PluginProcess*>(&m_playerProcess);
+    return const_cast<PluginProcess*>(&m_scanProcess);
+  }
 
   /** @brief Pixel width of the equalizer region. */
   int eqWidth() const { return m_eqBars * (kEqBarW + kEqBarGap) + 8; }
@@ -233,6 +241,10 @@ private:
   double m_duration = -1.0;      ///< Last duration read from mpv.
   long long m_lastQueryMs = 0;   ///< Timestamp of last mpv query.
   std::string m_mpvSocket;       ///< Path to the mpv IPC socket.
+
+  PluginProcess m_scanProcess;
+  PluginProcess m_playerProcess;
+  bool m_scanPending = false;
 
   bool m_popupActive = false;
   int m_popupW = 0;

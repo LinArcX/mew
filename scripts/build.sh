@@ -386,8 +386,11 @@ else
 fi
 
 echo "${C_CYAN}>>> linking${C_RESET}"
-$CCACHE_CMD g++ "${OBJS[@]}" $PKGCONF_LIBS $LD_FLAGS $LINK_EXTRA -o "build/$MODE/mew"
-echo "${C_GREEN}>>> done:${C_RESET} ${C_BOLD}build/$MODE/mew${C_RESET}"
+TARGET="build/$MODE/mew"
+TMP_TARGET="${TARGET}.tmp"
+$CCACHE_CMD g++ "${OBJS[@]}" $PKGCONF_LIBS $LD_FLAGS $LINK_EXTRA -o "$TMP_TARGET"
+mv -f "$TMP_TARGET" "$TARGET"
+echo "${C_GREEN}>>> done:${C_RESET} ${C_BOLD}$TARGET${C_RESET}"
 
 # =========================================================
 # INSTALL

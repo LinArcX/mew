@@ -2,6 +2,7 @@
 #include "panel/PanelPlugin.hpp"
 #include "XConnection.hpp"
 #include "FontRenderer.hpp"
+#include "PluginProcess.hpp"
 #include <X11/Xlib.h>
 #include <string>
 #include <vector>
@@ -83,6 +84,9 @@ public:
   /** @brief True while the picker popup has keyboard focus. */
   bool hasFocusedPopup() const override { return m_popupActive; }
 
+  /** @brief Optional out-of-process backend for the plugin. */
+  PluginProcess* process() const override { return const_cast<PluginProcess*>(&m_process); }
+
 private:
   /** @brief Re-enumerate /sys/class/net and pick a default interface. */
   void refresh();
@@ -110,6 +114,8 @@ private:
 
   std::vector<std::string> m_ifaces;   ///< Enumerated interfaces (sans lo).
   std::string m_selected;              ///< Currently selected interface.
+  PluginProcess m_process;
+  bool m_queryPending = false;
   Window m_popup = None;               ///< Picker popup window.
   bool m_popupActive = false;          ///< True while the picker is mapped.
   time_t m_lastRefresh = 0;            ///< Last interface rescan time.

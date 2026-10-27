@@ -37,6 +37,9 @@ public:
   /** @brief Whether the process is still running. */
   bool isRunning() const { return m_pid > 0 && !m_exited; }
 
+  /** @brief Get the child process ID. */
+  pid_t pid() const { return m_pid; }
+
   /** @brief Get the latest output read from the child. */
   const std::string& output() const { return m_output; }
 

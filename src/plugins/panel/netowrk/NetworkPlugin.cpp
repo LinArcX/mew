@@ -1,6 +1,8 @@
 #include "panel/PanelPluginRegistry.hpp"
 #include "NetworkPlugin.hpp"
 #include "Util.hpp"
+#include <sstream>
+#include "Util.hpp"
 #include <X11/Xutil.h>
 #include <dirent.h>
 #include <algorithm>
@@ -51,28 +53,8 @@ bool NetworkPlugin::isUp(const std::string& n) const
 
 void NetworkPlugin::refresh()
 {
-  m_ifaces.clear();
-  DIR* d = opendir("/sys/class/net");
-  if (d)
-  {
-    struct dirent* e = nullptr;
-    while ((e = readdir(d)) != nullptr)
-    {
-      std::string n = e->d_name;
-      if (n == "." || n == ".." || n == "lo") continue;
-      m_ifaces.push_back(n);
-    }
-    closedir(d);
-    std::sort(m_ifaces.begin(), m_ifaces.end());
-  }
-  if (std::find(m_ifaces.begin(), m_ifaces.end(), m_selected) == m_ifaces.end())
-  {
-    m_selected.clear();
-    for (const std::string& n : m_ifaces)
-      if (isUp(n)) { m_selected = n; break; }
-    if (m_selected.empty() && !m_ifaces.empty()) m_selected = m_ifaces.front();
-  }
-  m_lastRefresh = time(nullptr);
+  m_queryPending = true;
+  m_process.start("ls /sys/class/net");
 }
 
 void NetworkPlugin::killSwitch()
@@ -100,11 +82,35 @@ void NetworkPlugin::draw(Display* d, Window panel, int x, int baseline)
 
 bool NetworkPlugin::tick()
 {
+  m_process.tick();
+
+  if (m_queryPending && !m_process.isRunning())
+  {
+    m_queryPending = false;
+    m_ifaces.clear();
+    std::istringstream iss(m_process.output());
+    std::string n;
+    while (iss >> n)
+    {
+      if (n != "lo") m_ifaces.push_back(n);
+    }
+    std::sort(m_ifaces.begin(), m_ifaces.end());
+
+    if (std::find(m_ifaces.begin(), m_ifaces.end(), m_selected) == m_ifaces.end())
+    {
+      m_selected.clear();
+      for (const std::string& iface : m_ifaces)
+        if (isUp(iface)) { m_selected = iface; break; }
+      if (m_selected.empty() && !m_ifaces.empty()) m_selected = m_ifaces.front();
+    }
+    m_lastRefresh = time(nullptr);
+    return true;
+  }
+
   time_t now = time(nullptr);
   if (now - m_lastRefresh >= 5)
   {
     refresh();
-    return true;
   }
   return false;
 }

@@ -5,6 +5,7 @@
 #include "FontRenderer.hpp"
 #include "Config.hpp"
 #include "Types.hpp"
+#include "PluginProcess.hpp"
 
 /**
  * @brief Minimal Pong game embedded in the panel.
@@ -59,6 +60,9 @@ public:
 
   /** @brief True while the settings popup is mapped. */
   bool hasFocusedPopup() const override { return m_settingsActive; }
+
+  /** @brief Optional out-of-process backend for the plugin. */
+  PluginProcess* process() const override { return const_cast<PluginProcess*>(&m_soundProcess); }
 
   /** @brief Return the settings popup window, or None. */
   Window popupWindow() const override;
@@ -192,6 +196,8 @@ private:
   std::string m_lostRoundSound;    ///< Player lost a round.
   std::string m_wonGameSound;      ///< Player won the game.
   std::string m_lostGameSound;     ///< Player lost the game.
+
+  PluginProcess m_soundProcess;
 
   unsigned long m_bgColor = 0x0a0a1a;      ///< Field background.
   unsigned long m_playerColor = 0x00d0ff;  ///< Player paddle color.

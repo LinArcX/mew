@@ -1,6 +1,7 @@
 #include "MusicPlayerPlugin.hpp"
 #include "../PanelPluginRegistry.hpp"
 #include "../Util.hpp"
+#include <sstream>
 #include "symbols_font_data.h"
 
 #include <X11/Xutil.h>
@@ -210,44 +211,15 @@ void MusicPlayerPlugin::saveDirs()
 
 void MusicPlayerPlugin::scanFiles()
 {
-  m_files.clear();
-  for (const std::string& d : m_dirs) scanRecursive(d, m_files);
-  if (m_current >= m_files.size()) m_current = 0;
+  if (m_dirs.empty()) return;
+  m_scanPending = true;
+  std::string cmd = "find ";
+  for (const auto& d : m_dirs) cmd += "'" + d + "' ";
+  cmd += "-type f \\( -iname \"*.mp3\" -o -iname \"*.flac\" -o -iname \"*.ogg\" -o -iname \"*.wav\" -o -iname \"*.m4a\" -o -iname \"*.opus\" \\) 2>/dev/null || true";
+  m_scanProcess.start(cmd);
 }
 
-pid_t spawnPlayer(const std::string& path, const std::string& socketPath)
-{
-  pid_t pid = fork();
-  if (pid != 0)
-  {
-    return pid;
-  }
-
-  setsid();
-  freopen("/dev/null", "r", stdin);
-  freopen("/dev/null", "w", stdout);
-  freopen("/dev/null", "w", stderr);
-
-  std::string ipc = "--input-ipc-server=" + socketPath;
-  execlp("mpv", "mpv",
-         "--no-video",
-         "--vo=null",
-         "--no-terminal",
-         "--really-quiet",
-         "--audio-display=no",
-         "--force-window=no",
-         "--no-resume-playback",
-         ipc.c_str(),
-         path.c_str(), static_cast<char*>(nullptr));
-
-  // Fallback if mpv is not installed
-  execlp("mpg123", "mpg123", "-q", path.c_str(), static_cast<char*>(nullptr));
-  
-  // Fallback if mpg123 is not installed
-  execlp("ffplay", "ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path.c_str(), static_cast<char*>(nullptr));
-
-  _exit(1);
-}
+// Removed spawnPlayer, using PluginProcess instead.
 
 void MusicPlayerPlugin::playIndex(size_t idx)
 {
@@ -259,7 +231,10 @@ void MusicPlayerPlugin::playIndex(size_t idx)
   m_mpvSocket = "/tmp/mew-mpv-" + std::to_string(static_cast<long>(getpid())) + ".sock";
   unlink(m_mpvSocket.c_str());
 
-  m_playerPid = spawnPlayer(m_files[m_current], m_mpvSocket);
+  std::string ipc = "--input-ipc-server=" + m_mpvSocket;
+  std::string cmd = "mpv --no-video --vo=null --no-terminal --really-quiet --audio-display=no --force-window=no --no-resume-playback " + ipc + " '" + m_files[m_current] + "'";
+  m_playerProcess.start(cmd);
+  m_playerPid = m_playerProcess.pid();
   m_paused = false;
   m_trackName = baseName(m_files[m_current]);
   m_playStart = time(nullptr);
@@ -267,19 +242,8 @@ void MusicPlayerPlugin::playIndex(size_t idx)
 
 void MusicPlayerPlugin::stopPlayback()
 {
-  if (m_playerPid > 0)
-  {
-    kill(m_playerPid, SIGTERM);
-    // Non-blocking: reap in tick(). If a previous pending kill exists,
-    // do a quick non-blocking reap on it too.
-    if (m_pendingKill > 0)
-    {
-      int status = 0;
-      waitpid(m_pendingKill, &status, WNOHANG);
-    }
-    m_pendingKill = m_playerPid;
-    m_playerPid = -1;
-  }
+  m_playerProcess.stop();
+  m_playerPid = -1;
   m_paused = false;
 }
 
@@ -375,15 +339,23 @@ bool MusicPlayerPlugin::tick()
 {
   bool needRedraw = false;
 
-  if (m_pendingKill > 0)
+  m_scanProcess.tick();
+  if (m_scanPending && !m_scanProcess.isRunning())
   {
-    int status = 0;
-    pid_t r = waitpid(m_pendingKill, &status, WNOHANG);
-    if (r == m_pendingKill || r == -1)
+    m_scanPending = false;
+    m_files.clear();
+    std::istringstream iss(m_scanProcess.output());
+    std::string line;
+    while (std::getline(iss, line))
     {
-      m_pendingKill = -1;
+      if (!line.empty()) m_files.push_back(line);
     }
+    std::sort(m_files.begin(), m_files.end());
+    if (m_current >= m_files.size()) m_current = 0;
+    needRedraw = true;
   }
+
+  m_playerProcess.tick();
 
   if (m_playerPid > 0 && !m_paused)
   {
@@ -410,20 +382,16 @@ bool MusicPlayerPlugin::tick()
     return needRedraw;
   }
 
-  int status = 0;
-  pid_t r = waitpid(m_playerPid, &status, WNOHANG);
-  if (r != m_playerPid)
+  if (!m_playerProcess.isRunning())
   {
-    return needRedraw;
-  }
+    m_playerPid = -1;
+    m_paused = false;
 
-  m_playerPid = -1;
-  m_paused = false;
-
-  if (m_playStart == 0 || (time(nullptr) - m_playStart) >= 1)
-  {
-    playNext();
-    needRedraw = true;
+    if (m_playStart == 0 || (time(nullptr) - m_playStart) >= 1)
+    {
+      playNext();
+      needRedraw = true;
+    }
   }
   return needRedraw;
 }

@@ -94,28 +94,8 @@ void PongPlugin::playSound(const std::string& path)
     return;
   }
 
-  pid_t pid = fork();
-  if (pid != 0)
-  {
-    return;
-  }
-
-  setsid();
-  freopen("/dev/null", "r", stdin);
-  freopen("/dev/null", "w", stdout);
-  freopen("/dev/null", "w", stderr);
-
-  // Low-latency ALSA first, then PulseAudio, then mpv as a fallback.
-  execlp("aplay", "aplay", "-q", path.c_str(),
-         static_cast<char*>(nullptr));
-  execlp("paplay", "paplay", path.c_str(),
-         static_cast<char*>(nullptr));
-  execlp("mpv", "mpv",
-         "--no-video", "--vo=null", "--no-terminal",
-         "--really-quiet", "--force-window=no",
-         "--no-resume-playback",
-         path.c_str(), static_cast<char*>(nullptr));
-  _exit(1);
+  std::string cmd = "aplay -q '" + path + "' || paplay '" + path + "' || mpv --no-video --vo=null --no-terminal --really-quiet --force-window=no --no-resume-playback '" + path + "'";
+  m_soundProcess.start(cmd);
 }
 
 void PongPlugin::finishGame(bool playerWon)
@@ -407,6 +387,8 @@ void PongPlugin::drawPopup()
 }
 bool PongPlugin::tick()
 {
+  m_soundProcess.tick();
+
   if (!m_gameActive || m_paused)
   {
     return false;
