@@ -1,5 +1,8 @@
 #include "Mew.hpp"
+#include "PolkitAgent.hpp"
 #include "Util.hpp"
+
+#include <glib.h>
 
 #include <X11/Xatom.h>
 #include <X11/keysym.h>
@@ -26,6 +29,9 @@ Mew::~Mew()
   m_pLauncher = nullptr;
   delete m_pKeybindings;
   m_pKeybindings = nullptr;
+  delete m_pPolkitAgent;
+  m_pPolkitAgent = nullptr;
+
   delete m_pPower;
   m_pPower = nullptr;
   delete m_pSwitcher;
@@ -831,6 +837,14 @@ int Mew::run()
 
   m_pSwitcher = new WindowSwitcher(m_xconn, m_font, *m_pClients);
   m_pKeybindings = new KeybindingsWindow(m_xconn, m_font, m_config);
+  m_pPolkitAgent = new PolkitAgent(m_xconn.display(), m_xconn.screen());
+  if (!m_pPolkitAgent->start())
+  {
+    fprintf(stderr, "mew: polkit agent unavailable; privileged actions may require manual intervention\n");
+    delete m_pPolkitAgent;
+    m_pPolkitAgent = nullptr;
+  }
+
   m_pPower = new PowerWindow(m_xconn, m_font);
   m_pPower->setOnReconfigure(onReconfigure);
   m_pPower->setOnQuit(onQuit);
@@ -873,6 +887,11 @@ int Mew::run()
     if (m_pPanel)
     {
       m_pPanel->tick();
+    }
+
+    // Pump GLib for polkit agent callbacks.
+    while (g_main_context_iteration(nullptr, FALSE))
+    {
     }
 
     if (XPending(m_xconn.display()) == 0)

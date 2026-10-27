@@ -122,6 +122,9 @@ function menu () {
       nvim "$file"
       if [ $? -eq 0 ] && [ -s "$file" ]; then
         applyPatch "$file"
+
+        echo -e "Removing patch $file .."
+        rm -f "$file"
       fi
       ;;
     "build(debug)")

@@ -39,7 +39,13 @@ libXft-devel
 freetype-devel
 libXcursor-devel
 alsa-lib-devel
+polkit-devel
+glib-devel
 ```
+
+All build-time dependencies are installed automatically by `scripts/build.sh`
+on Void Linux if they are missing. On other distributions install the
+`polkit`/`glib` development packages by hand.
 
 ## build
 First you need to clone the project:
@@ -183,3 +189,73 @@ Let's:
 - mew only supports `.wav` audio files. you can convert any format to `.wav` with ffmpeg:
 
   `ffmpeg -i xp_shutdown.mp3 xp_shutdown.wav`
+
+## Privileged actions (reboot / poweroff)
+
+mew registers a polkit authentication agent at startup. When a privileged
+action is requested (for example Reboot from the power menu), polkit calls
+the agent, which shows a small password dialog. The password is sent
+directly to polkit over D-Bus and verified through PAM; mew never stores it
+and clears its own copy as soon as verification finishes.
+
+If the agent could not be registered at startup (e.g. another polkit agent
+is already running for this session, or polkit is not installed), the
+privileged action will silently fail. Check the log output for
+`mew: polkit agent unavailable` and ensure `polkit` is installed and
+running.
+
+If you prefer password-less reboot/poweroff, add a polkit rule:
+
+```javascript
+// /etc/polkit-1/rules.d/49-mew-power.rules
+polkit.addRule(function(action, subject) {
+  if ((action.id == "org.freedesktop.login1.reboot" ||
+       action.id == "org.freedesktop.login1.power-off") &&
+      subject.isInGroup("wheel")) {
+    return polkit.Result.YES;
+  }
+});
+```
+
+The rule only affects the reboot and power-off actions and only for members
+of the `wheel` group. For the widest applicability use
+`org.freedesktop.login1.reboot-multiple-sessions` and
+`org.freedesktop.login1.power-off-multiple-sessions` instead. See the
+polkit documentation for details.
+
+See `src/PolkitAgent.cpp` for the agent implementation.
+
+## Privileged actions (reboot / poweroff)
+
+mew registers a polkit authentication agent at startup. When a privileged
+action is requested (for example Reboot from the power menu), polkit calls
+the agent, which shows a small password dialog. The password is sent
+directly to polkit over D-Bus and verified through PAM; mew never stores it
+and clears its own copy as soon as verification finishes.
+
+If the agent could not be registered at startup (e.g. another polkit agent
+is already running for this session, or polkit is not installed), the
+privileged action will silently fail. Check the log output for
+`mew: polkit agent unavailable` and ensure `polkit` is installed and
+running.
+
+If you prefer password-less reboot/poweroff, add a polkit rule:
+
+```javascript
+// /etc/polkit-1/rules.d/49-mew-power.rules
+polkit.addRule(function(action, subject) {
+  if ((action.id == "org.freedesktop.login1.reboot" ||
+       action.id == "org.freedesktop.login1.power-off") &&
+      subject.isInGroup("wheel")) {
+    return polkit.Result.YES;
+  }
+});
+```
+
+The rule only affects the reboot and power-off actions and only for members
+of the `wheel` group. For the widest applicability use
+`org.freedesktop.login1.reboot-multiple-sessions` and
+`org.freedesktop.login1.power-off-multiple-sessions` instead. See the
+polkit documentation for details.
+
+See `src/PolkitAgent.cpp` for the agent implementation.

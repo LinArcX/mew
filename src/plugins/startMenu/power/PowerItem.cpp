@@ -86,10 +86,11 @@ void PowerItem::drawSubmenu(Display* d, int screen)
 void PowerItem::doReboot()
 {
   sync();
+  // interactive=true allows polkit to invoke the registered agent.
   if (std::system("dbus-send --system --print-reply "
                   "--dest=org.freedesktop.login1 "
                   "/org/freedesktop/login1 "
-                  "org.freedesktop.login1.Manager.Reboot boolean:false "
+                  "org.freedesktop.login1.Manager.Reboot boolean:true "
                   ">/dev/null 2>&1") == 0)
   {
     return;
@@ -105,10 +106,11 @@ void PowerItem::doReboot()
 void PowerItem::doPoweroff()
 {
   sync();
+  // interactive=true allows polkit to invoke the registered agent.
   if (std::system("dbus-send --system --print-reply "
                   "--dest=org.freedesktop.login1 "
                   "/org/freedesktop/login1 "
-                  "org.freedesktop.login1.Manager.PowerOff boolean:false "
+                  "org.freedesktop.login1.Manager.PowerOff boolean:true "
                   ">/dev/null 2>&1") == 0)
   {
     return;

@@ -44,6 +44,28 @@ if [ "$MODE" = "clean" ] && [ "$INSTALL" = "1" ]; then
   exit 1
 fi
 
+# ---------- dependency helpers (Void Linux only) ----------
+if [ "$MODE" != "clean" ] && command -v xbps-install >/dev/null 2>&1; then
+  ensure_pkg() {
+    local pkg="$1"
+    if xbps-query -q "$pkg" >/dev/null 2>&1; then
+      return 0
+    fi
+    echo "${C_YELLOW}>>> installing missing package:${C_RESET} $pkg"
+    if sudo xbps-install -Sy "$pkg"; then
+      return 0
+    fi
+    echo "${C_RED}build.sh: failed to install $pkg${C_RESET}" >&2
+    echo "         install it manually: sudo xbps-install -S $pkg" >&2
+    return 1
+  }
+  ensure_pkg polkit-devel
+  ensure_pkg glib-devel
+elif [ "$MODE" != "clean" ]; then
+  echo "${C_DIM}build.sh: xbps not found, skipping automatic dependency install${C_RESET}"
+  echo "${C_DIM}          ensure polkit and glib development packages are installed${C_RESET}"
+fi
+
 if [ "$INSTALL" = "1" ] && [ "$MODE_SET" = "0" ]; then
   MODE="release"
 fi
@@ -236,7 +258,7 @@ xxd -i -n logout_wav   ./assets/audio/logout.wav                         > "$GEN
 # ---------- plugin modules ----------
 echo "${C_CYAN}>>> scanning plugin modules${C_RESET}"
 LD_FLAGS="-lasound"
-PKGS="x11 xft fontconfig freetype2 xcursor"
+PKGS="x11 xft fontconfig freetype2 xcursor polkit-gobject-1 polkit-agent-1 gio-2.0"
 
 for d in "${REAL_MODULES[@]}"; do
   f="${d}compiler_flags.txt"

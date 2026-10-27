@@ -7,6 +7,7 @@
 #include "FontRenderer.hpp"
 #include "KeybindingsWindow.hpp"
 #include "Panel.hpp"
+#include "PolkitAgent.hpp"
 #include "Sound.hpp"
 #include "WindowSwitcher.hpp"
 #include "XConnection.hpp"
@@ -83,6 +84,7 @@ private:
   AppLauncher* m_pLauncher = nullptr;
   Panel* m_pPanel = nullptr;
   PowerWindow* m_pPower = nullptr;
+  PolkitAgent* m_pPolkitAgent = nullptr;
 
   bool m_shouldQuit = false;
   bool m_needReconfigure = false;
