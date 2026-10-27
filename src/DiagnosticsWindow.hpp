@@ -3,6 +3,9 @@
 #include "FontRenderer.hpp"
 #include "Types.hpp"
 #include "XConnection.hpp"
+#include "plugins/panel/PanelPlugin.hpp"
+
+#include <vector>
 
 #include <X11/Xlib.h>
 #include <string>
@@ -31,7 +34,8 @@ public:
   /**
    * @brief Build the display list, map the window centered, and draw.
    */
-  void show();
+  void show(const std::vector<PanelPlugin*>& plugins);
+  void tick();
 
   /**
    * @brief Unmap the window.
@@ -90,6 +94,7 @@ private:
   int m_width = 600;
   int m_height = 300;
   std::vector<std::string> m_lines;
+  std::vector<PanelPlugin*> m_pPlugins;
 
   static constexpr int kLineHeight = 20;
   static constexpr int kPadding = 12;

@@ -87,9 +87,9 @@ void Mew::onShowKeybindings()
 
 void Mew::onShowDiagnostics()
 {
-  if (s_pInstance && s_pInstance->m_pDiagnostics)
+  if (s_pInstance && s_pInstance->m_pDiagnostics && s_pInstance->m_pPanel)
   {
-    s_pInstance->m_pDiagnostics->show();
+    s_pInstance->m_pDiagnostics->show(s_pInstance->m_pPanel->plugins());
   }
 }
 
@@ -917,6 +917,11 @@ int Mew::run()
     if (m_pPanel)
     {
       m_pPanel->tick();
+    }
+
+    if (m_pDiagnostics)
+    {
+      m_pDiagnostics->tick();
     }
 
     // Pump GLib for polkit agent callbacks.

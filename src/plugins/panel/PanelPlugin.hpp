@@ -4,6 +4,8 @@
 #include <string>
 #include "../Config.hpp"
 
+class PluginProcess;
+
 enum class PanelPosition { Left, Center, Right };
 
 /**
@@ -87,6 +89,9 @@ public:
 
   /** @brief True to anchor the plugin to the right edge of the panel. */
   virtual bool anchorRight() const { return false; }
+
+  /** @brief Optional out-of-process backend for the plugin. */
+  virtual PluginProcess* process() const { return nullptr; }
 
   PanelPosition position() const { return m_position; }
 

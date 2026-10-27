@@ -1,5 +1,6 @@
 #include "DiagnosticsWindow.hpp"
 #include "Util.hpp"
+#include "PluginProcess.hpp"
 
 #include <X11/keysym.h>
 #include <algorithm>
@@ -47,8 +48,19 @@ void DiagnosticsWindow::buildDisplay()
 
   m_lines.push_back("");
   m_lines.push_back("Plugins:");
-  m_lines.push_back("  All plugins are currently running in-process.");
-  m_lines.push_back("  Next step: Migrate to out-of-process architecture.");
+  int oopCount = 0;
+  for (PanelPlugin* p : m_pPlugins)
+  {
+    if (p && p->process())
+    {
+      m_lines.push_back("  " + std::string(p->id()) + " : " + p->process()->statusString());
+      oopCount++;
+    }
+  }
+  if (oopCount == 0)
+  {
+    m_lines.push_back("  All plugins are currently running in-process.");
+  }
 
   m_lines.push_back("");
   m_lines.push_back("Press ESC to close.");
@@ -163,8 +175,9 @@ void DiagnosticsWindow::moveInteractive()
   XUngrabPointer(d, CurrentTime);
 }
 
-void DiagnosticsWindow::show()
+void DiagnosticsWindow::show(const std::vector<PanelPlugin*>& plugins)
 {
+  m_pPlugins = plugins;
   buildDisplay();
 
   int screenW = m_xconn.width();
@@ -216,6 +229,30 @@ void DiagnosticsWindow::raiseIfActive()
   if (m_window != None && m_active)
   {
     XRaiseWindow(m_xconn.display(), m_window);
+  }
+}
+
+void DiagnosticsWindow::tick()
+{
+  if (!m_active || m_window == None)
+  {
+    return;
+  }
+
+  bool changed = false;
+  for (PanelPlugin* p : m_pPlugins)
+  {
+    if (p && p->process())
+    {
+      p->process()->tick();
+      changed = true;
+    }
+  }
+
+  if (changed)
+  {
+    buildDisplay();
+    draw();
   }
 }
 
