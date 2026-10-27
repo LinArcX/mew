@@ -279,10 +279,12 @@ function menu () {
       ;;
     "lcov")
       # https://wiki.cs.jmu.edu/student/gcov/start
+      ./scripts/build.sh --coverage --debug
       ./build/debug/mew
       lcov --capture --directory build/debug --output-file build/debug/coverage.info
       ;;
     "gcovr")
+      ./scripts/build.sh --coverage --debug
       gcovr build/debug
       ;;
     "genhtml")

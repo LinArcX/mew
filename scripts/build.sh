@@ -25,14 +25,20 @@ fi
 MODE="debug"
 MODE_SET=0
 INSTALL=0
+COVERAGE=0
+PROFILE=0
 for arg in "$@"; do
   case "$arg" in
-    --debug)   MODE="debug";   MODE_SET=1 ;;
-    --release) MODE="release"; MODE_SET=1 ;;
-    --clean)   MODE="clean" ;;
-    --install) INSTALL=1 ;;
+    --debug)    MODE="debug";   MODE_SET=1 ;;
+    --release)  MODE="release"; MODE_SET=1 ;;
+    --clean)    MODE="clean" ;;
+    --install)  INSTALL=1 ;;
+    --coverage) COVERAGE=1 ;;
+    --profile)  PROFILE=1 ;;
     -h|--help)
-      echo "Usage: scripts/build.sh [--debug|--release|--clean] [--install]"
+      echo "Usage: scripts/build.sh [--debug|--release|--clean] [--install] [--coverage] [--profile]"
+      echo "  --coverage  enable gcov instrumentation (for lcov/gcovr)"
+      echo "  --profile   enable gprof profiling (for gprof)"
       exit 0
       ;;
     *) echo "build.sh: unknown option: $arg" >&2; exit 1 ;;
@@ -228,11 +234,11 @@ GEN_PLUGINS="$GEN_DIR/plugins"
 mkdir -p "$GEN_CORE" "$GEN_PLUGINS"
 
 if [ "$MODE" = "debug" ]; then
-  CXXFLAGS="-std=c++23 -g -pg -O0 -DDEBUG --coverage -Isrc -Isrc/plugins -I$GEN_CORE"
-  BEAR_PREFIX="bear -- "
+  CXXFLAGS="-std=c++23 -g -O0 -DDEBUG -Isrc -Isrc/plugins -I$GEN_CORE"
+  [ "$COVERAGE" = "1" ] && CXXFLAGS="$CXXFLAGS --coverage"
+  [ "$PROFILE"  = "1" ] && CXXFLAGS="$CXXFLAGS -pg"
 else
   CXXFLAGS="-std=c++23 -O2 -DNDEBUG -Isrc -Isrc/plugins -I$GEN_CORE"
-  BEAR_PREFIX=""
 fi
 
 # ---------- core sources ----------
@@ -328,16 +334,59 @@ for s in "${SRC[@]}"; do
   UNIQ+=("$s")
 done
 
-# ---------- compile ----------
-echo "${C_CYAN}>>> compiling${C_RESET}"
+# ---------- compile (parallel + ccache) ----------
+CCACHE_CMD=""
+if command -v ccache >/dev/null 2>&1; then
+  CCACHE_CMD="ccache "
+  echo "${C_CYAN}>>> ccache:${C_RESET} $(command -v ccache)"
+else
+  echo "${C_YELLOW}>>> ccache not found; install it for much faster rebuilds${C_RESET}"
+  echo "${C_YELLOW}    on Void: sudo xbps-install -S ccache${C_RESET}"
+fi
+
+JOBS=$(nproc 2>/dev/null || echo 4)
+[ "$JOBS" -ge 1 ] || JOBS=1
+
+OBJDIR="build/$MODE/obj"
+mkdir -p "$OBJDIR"
+
+PKGCONF_CFLAGS=$(pkg-config --cflags $PKGS 2>/dev/null)
+PKGCONF_LIBS=$(pkg-config --libs $PKGS 2>/dev/null)
+
+LINK_EXTRA=""
+[ "$COVERAGE" = "1" ] && LINK_EXTRA="$LINK_EXTRA --coverage"
+[ "$PROFILE"  = "1" ] && LINK_EXTRA="$LINK_EXTRA -pg"
+
+declare -a COMPILE_CMDS
+declare -a OBJS
+
+for src in "${UNIQ[@]}"; do
+  obj="$OBJDIR/$(echo "$src" | tr '/' '_' | sed 's/\.cpp$/.o/')"
+  OBJS+=("$obj")
+  COMPILE_CMDS+=("${CCACHE_CMD}g++ $CXXFLAGS $PKGCONF_CFLAGS -MMD -MP -c '$src' -o '$obj'")
+done
+
+echo "${C_CYAN}>>> compiling${C_RESET} (${JOBS} jobs)"
 echo "    sources  : ${#UNIQ[@]}"
 echo "    packages : $PKGS"
 echo "    ld_flags : $LD_FLAGS"
 echo
-$BEAR_PREFIX g++ $CXXFLAGS "${UNIQ[@]}" \
-  $(pkg-config --cflags --libs $PKGS) \
-  $LD_FLAGS \
-  -o "build/$MODE/mew"
+
+# Note: to regenerate compile_commands.json for LSP, run once:
+#   bear -- ./scripts/build.sh --debug
+# (bear traces the whole tree, so it captures the parallel g++ calls too.)
+
+if [ "$JOBS" -gt 1 ]; then
+  printf '%s\n' "${COMPILE_CMDS[@]}" | \
+    xargs -d '\n' -P "$JOBS" -I {} bash -c "{}" || exit 1
+else
+  for cmd in "${COMPILE_CMDS[@]}"; do
+    bash -c "$cmd" || exit 1
+  done
+fi
+
+echo "${C_CYAN}>>> linking${C_RESET}"
+$CCACHE_CMD g++ "${OBJS[@]}" $PKGCONF_LIBS $LD_FLAGS $LINK_EXTRA -o "build/$MODE/mew"
 echo "${C_GREEN}>>> done:${C_RESET} ${C_BOLD}build/$MODE/mew${C_RESET}"
 
 # =========================================================
