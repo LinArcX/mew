@@ -100,12 +100,8 @@ void NetworkPlugin::draw(Display* d, Window panel, int x, int baseline)
 
 bool NetworkPlugin::tick()
 {
-  bool wasRunning = m_process.isRunning();
-  m_process.tick();
-  bool justFinished = wasRunning && !m_process.isRunning();
-
   time_t now = time(nullptr);
-  if (justFinished || (now - m_lastRefresh >= 5))
+  if (now - m_lastRefresh >= 5)
   {
     refresh();
     return true;

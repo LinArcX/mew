@@ -505,12 +505,14 @@ bool WeatherPlugin::handleEscape()
 
 void WeatherPlugin::draw(Display* display, Window panel, int x, int baseline)
 {
+  int screen = m_xconn.screen();
+
   if (!m_valid)
   {
+    m_font.setColor(m_textColor);
+    m_font.draw(display, screen, panel, x, baseline, "Weather: N/A");
     return;
   }
-
-  int screen = m_xconn.screen();
 
   if (m_iconFont.font())
   {

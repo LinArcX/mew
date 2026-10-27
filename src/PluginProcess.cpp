@@ -131,7 +131,11 @@ std::string PluginProcess::statusString() const
   }
   if (m_exited)
   {
-    return "Crashed/Exited (Code: " + std::to_string(m_exitCode) + ")";
+    if (m_exitCode == 0)
+    {
+      return "Finished (Code: 0)";
+    }
+    return "Crashed (Code: " + std::to_string(m_exitCode) + ")";
   }
   return "Running (PID: " + std::to_string(m_pid) + ")";
 }
