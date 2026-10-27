@@ -53,7 +53,6 @@ void DiagnosticsWindow::buildDisplay()
   std::vector<std::string> allIds = reg.getAllIds();
   std::sort(allIds.begin(), allIds.end());
 
-  int oopCount = 0;
   for (const std::string& id : allIds)
   {
     PanelPlugin* activePlugin = nullptr;
@@ -66,12 +65,16 @@ void DiagnosticsWindow::buildDisplay()
       }
     }
 
-    if (activePlugin)
+    bool enabled = (activePlugin != nullptr);
+    bool oop = false;
+    std::string status = "";
+
+    if (enabled)
     {
       if (activePlugin->process())
       {
-        m_lines.push_back("  " + id + " : " + activePlugin->process()->statusString());
-        oopCount++;
+        oop = true;
+        status = activePlugin->process()->statusString();
       }
     }
     else
@@ -81,17 +84,26 @@ void DiagnosticsWindow::buildDisplay()
       {
         if (temp->process())
         {
-          m_lines.push_back("  " + id + " (Disabled) : Not running");
-          oopCount++;
+          oop = true;
+          status = "Not running";
         }
         delete temp;
       }
     }
-  }
-  
-  if (oopCount == 0)
-  {
-    m_lines.push_back("  All plugins are currently running in-process.");
+
+    std::string line = "  ";
+    if (enabled) line += "[Enabled] ";
+    else         line += "[Disabled] ";
+
+    if (oop) line += "[Out-of-Process] ";
+    else     line += "[In-Process] ";
+
+    line += id;
+    if (!status.empty())
+    {
+      line += " : " + status;
+    }
+    m_lines.push_back(line);
   }
 
   m_lines.push_back("");
