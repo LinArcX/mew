@@ -276,7 +276,7 @@ bool WeatherPlugin::tick()
   time_t now = time(nullptr);
   if (m_fetchState == FetchState::Idle)
   {
-    if (!m_valid || (now - m_lastFetch) >= kRefreshSeconds)
+    if (m_lastFetch == 0 || (now - m_lastFetch) >= kRefreshSeconds)
     {
       startFetch();
     }

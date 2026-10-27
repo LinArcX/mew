@@ -1,6 +1,7 @@
 #include "DiagnosticsWindow.hpp"
 #include "Util.hpp"
 #include "PluginProcess.hpp"
+#include "plugins/panel/PanelPluginRegistry.hpp"
 
 #include <X11/keysym.h>
 #include <algorithm>
@@ -48,15 +49,46 @@ void DiagnosticsWindow::buildDisplay()
 
   m_lines.push_back("");
   m_lines.push_back("Plugins:");
+  auto& reg = PanelPluginRegistry::instance();
+  std::vector<std::string> allIds = reg.getAllIds();
+  std::sort(allIds.begin(), allIds.end());
+
   int oopCount = 0;
-  for (PanelPlugin* p : m_pPlugins)
+  for (const std::string& id : allIds)
   {
-    if (p && p->process())
+    PanelPlugin* activePlugin = nullptr;
+    for (PanelPlugin* p : m_pPlugins)
     {
-      m_lines.push_back("  " + std::string(p->id()) + " : " + p->process()->statusString());
-      oopCount++;
+      if (p && std::string(p->id()) == id)
+      {
+        activePlugin = p;
+        break;
+      }
+    }
+
+    if (activePlugin)
+    {
+      if (activePlugin->process())
+      {
+        m_lines.push_back("  " + id + " : " + activePlugin->process()->statusString());
+        oopCount++;
+      }
+    }
+    else
+    {
+      PanelPlugin* temp = reg.createOne(id, m_xconn, m_font);
+      if (temp)
+      {
+        if (temp->process())
+        {
+          m_lines.push_back("  " + id + " (Disabled) : Not running");
+          oopCount++;
+        }
+        delete temp;
+      }
     }
   }
+  
   if (oopCount == 0)
   {
     m_lines.push_back("  All plugins are currently running in-process.");

@@ -30,6 +30,17 @@ public:
   
   PanelPlugin* createOne(const std::string& id, XConnection& xconn, FontRenderer& font);
 
+  /** @brief Get a list of all registered plugin IDs. */
+  std::vector<std::string> getAllIds() const
+  {
+    std::vector<std::string> ids;
+    for (const auto& kv : m_factories)
+    {
+      ids.push_back(kv.first);
+    }
+    return ids;
+  }
+
 private:
   PanelPluginRegistry() = default;
   std::map<std::string, PanelPluginFactory> m_factories;
