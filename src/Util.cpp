@@ -109,6 +109,17 @@ void removePidfile()
   unlink(getPidfile().c_str());
 }
 
+void runAsync(const std::string& cmd)
+{
+  pid_t pid = fork();
+  if (pid == 0)
+  {
+    setsid();
+    execl("/bin/sh", "sh", "-c", cmd.c_str(), static_cast<char*>(nullptr));
+    _exit(1);
+  }
+}
+
 bool isLogindAvailable()
 {
   return std::system("dbus-send --system --print-reply "

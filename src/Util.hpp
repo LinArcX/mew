@@ -28,6 +28,12 @@ namespace Util
   /** @brief Remove the pid file. */
   void removePidfile();
 
+  /**
+   * @brief Run a shell command in the background without blocking.
+   * @param cmd The command to execute.
+   */
+  void runAsync(const std::string& cmd);
+
   /** @brief Check if org.freedesktop.login1 (logind/elogind) is on the system bus. */
   bool isLogindAvailable();
 

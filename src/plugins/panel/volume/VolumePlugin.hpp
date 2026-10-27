@@ -3,6 +3,7 @@
 #include "XConnection.hpp"
 #include "FontRenderer.hpp"
 #include "Config.hpp"
+#include "PluginProcess.hpp"
 #include <X11/Xlib.h>
 #include <string>
 
@@ -94,7 +95,13 @@ public:
   /** @brief True while the slider popup has keyboard focus. */
   bool hasFocusedPopup() const override { return m_popupActive; }
 
+  /** @brief Optional out-of-process backend for the plugin. */
+  PluginProcess* process() const override { return const_cast<PluginProcess*>(&m_process); }
+
 private:
+  /** @brief Parse the amixer output into m_percent and m_muted. */
+  void parseOutput(const std::string& out);
+
   /** @brief Query amixer for the current level and mute state. */
   void refresh();
 
@@ -135,6 +142,8 @@ private:
   bool m_popupActive = false;///< True while the popup is mapped.
   bool m_dragging = false;   ///< True while the user drags the slider.
   time_t m_lastRefresh = 0;  ///< Timestamp of the last amixer query.
+  PluginProcess m_process;
+  bool m_queryPending = false;
 
   static constexpr int kPopupW = 60;   ///< Slider popup width.
   static constexpr int kPopupH = 230;  ///< Slider popup height.

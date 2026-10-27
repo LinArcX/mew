@@ -1,5 +1,6 @@
 #include "panel/PanelPluginRegistry.hpp"
 #include "NetworkPlugin.hpp"
+#include "Util.hpp"
 #include <X11/Xutil.h>
 #include <dirent.h>
 #include <algorithm>
@@ -80,14 +81,8 @@ void NetworkPlugin::killSwitch()
   if (m_selected.empty()) return;
   bool up = isUp(m_selected);
   std::string cmd = "ip link set dev " + m_selected + (up ? " down" : " up");
-  if (std::system((cmd + " >/dev/null 2>&1").c_str()) != 0)
-  {
-    if (std::system(("pkexec " + cmd + " >/dev/null 2>&1").c_str()) != 0)
-      std::system(("sudo -n " + cmd + " >/dev/null 2>&1").c_str());
-  }
-  struct timespec ts = {0, 150 * 1000 * 1000};
-  nanosleep(&ts, nullptr);
-  refresh();
+  std::string fullCmd = cmd + " >/dev/null 2>&1 || pkexec " + cmd + " >/dev/null 2>&1 || sudo -n " + cmd + " >/dev/null 2>&1";
+  Util::runAsync(fullCmd);
 }
 
 void NetworkPlugin::draw(Display* d, Window panel, int x, int baseline)
@@ -105,8 +100,12 @@ void NetworkPlugin::draw(Display* d, Window panel, int x, int baseline)
 
 bool NetworkPlugin::tick()
 {
+  bool wasRunning = m_process.isRunning();
+  m_process.tick();
+  bool justFinished = wasRunning && !m_process.isRunning();
+
   time_t now = time(nullptr);
-  if (now - m_lastRefresh >= 5)
+  if (justFinished || (now - m_lastRefresh >= 5))
   {
     refresh();
     return true;
@@ -224,9 +223,8 @@ bool NetworkPlugin::handlePopupClick(XButtonEvent* e)
     if (!isUp(m_selected) && !prev.empty() && isUp(prev))
     {
       std::string cmd = "ip link set dev " + prev + " down";
-      if (std::system((cmd + " >/dev/null 2>&1").c_str()) != 0)
-        if (std::system(("pkexec " + cmd + " >/dev/null 2>&1").c_str()) != 0)
-          std::system(("sudo -n " + cmd + " >/dev/null 2>&1").c_str());
+      std::string fullCmd = cmd + " >/dev/null 2>&1 || pkexec " + cmd + " >/dev/null 2>&1 || sudo -n " + cmd + " >/dev/null 2>&1";
+      Util::runAsync(fullCmd);
     }
   }
   hidePopup();

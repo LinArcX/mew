@@ -1,5 +1,6 @@
 #include "panel/PanelPluginRegistry.hpp"
 #include "VolumePlugin.hpp"
+#include "Util.hpp"
 #include "Mew.hpp"
 #include "Util.hpp"
 #include <X11/Xutil.h>
@@ -57,34 +58,36 @@ void VolumePlugin::resolveControl(std::string& device, std::string& control) con
   }
 }
 
-void VolumePlugin::refresh()
+void VolumePlugin::parseOutput(const std::string& out)
 {
-  std::string device, control;
-  resolveControl(device, control);
-  std::string cmd = device.empty()
-    ? ("amixer sget " + control + " 2>/dev/null")
-    : ("amixer -D " + device + " sget " + control + " 2>/dev/null");
-
-  FILE* p = popen(cmd.c_str(), "r");
-  if (!p) return;
-  char line[256];
   bool found = false, anyOff = false, anyOn = false;
-  while (fgets(line, sizeof(line), p))
+  std::istringstream iss(out);
+  std::string line;
+  while (std::getline(iss, line))
   {
-    char* pct = std::strchr(line, '[');
+    const char* pct = std::strchr(line.c_str(), '[');
     if (!pct) continue;
     int v = 0;
     if (std::sscanf(pct, "[%d%%]", &v) == 1) { m_percent = v; found = true; }
-    if (std::strstr(line, "[off]")) { anyOff = true; found = true; }
-    else if (std::strstr(line, "[on]")) { anyOn = true; }
+    if (std::strstr(line.c_str(), "[off]")) { anyOff = true; found = true; }
+    else if (std::strstr(line.c_str(), "[on]")) { anyOn = true; }
   }
-  pclose(p);
   if (found)
   {
     if (anyOff || (anyOn && !anyOff)) m_muted = anyOff;
     m_valid = true;
   }
-  m_lastRefresh = time(nullptr);
+}
+
+void VolumePlugin::refresh()
+{
+  m_queryPending = true;
+  std::string device, control;
+  resolveControl(device, control);
+  std::string cmd = device.empty()
+    ? ("amixer sget " + control + " 2>/dev/null")
+    : ("amixer -D " + device + " sget " + control + " 2>/dev/null");
+  m_process.start(cmd);
 }
 
 void VolumePlugin::setPercent(int pct)
@@ -95,14 +98,11 @@ void VolumePlugin::setPercent(int pct)
   resolveControl(device, control);
   std::string dp = device.empty() ? "" : ("-D " + device + " ");
   std::string cmd = "amixer " + dp + "sset " + control + " " + std::to_string(pct) + "%";
-  std::system((cmd + " >/dev/null 2>&1").c_str());
   if (pct > 0 && m_muted)
   {
-    std::string um = "amixer " + dp + "sset " + control + " unmute";
-    std::system((um + " >/dev/null 2>&1").c_str());
+    cmd += " unmute";
   }
-  struct timespec ts = {0, 40 * 1000 * 1000};
-  nanosleep(&ts, nullptr);
+  Util::runAsync(cmd);
   refresh();
 }
 
@@ -112,9 +112,7 @@ void VolumePlugin::toggleMute()
   resolveControl(device, control);
   std::string dp = device.empty() ? "" : ("-D " + device + " ");
   std::string cmd = "amixer " + dp + "set " + control + " toggle";
-  std::system((cmd + " >/dev/null 2>&1").c_str());
-  struct timespec ts = {0, 60 * 1000 * 1000};
-  nanosleep(&ts, nullptr);
+  Util::runAsync(cmd);
   refresh();
 }
 
@@ -136,11 +134,20 @@ std::string VolumePlugin::tooltip() const
 
 bool VolumePlugin::tick()
 {
+  m_process.tick();
+
+  if (m_queryPending && !m_process.isRunning())
+  {
+    m_queryPending = false;
+    parseOutput(m_process.output());
+    m_lastRefresh = time(nullptr);
+    return true;
+  }
+
   time_t now = time(nullptr);
   if (!m_valid || now - m_lastRefresh >= 3)
   {
     refresh();
-    return true;
   }
   return false;
 }
