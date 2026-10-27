@@ -24,53 +24,6 @@ namespace
     return s.substr(a, b - a + 1);
   }
 
-  std::string httpGet(const char* url, int maxSeconds)
-  {
-    int pipeFd[2];
-    if (pipe(pipeFd) != 0)
-    {
-      return "";
-    }
-    pid_t pid = fork();
-    if (pid < 0)
-    {
-      close(pipeFd[0]);
-      close(pipeFd[1]);
-      return "";
-    }
-    if (pid == 0)
-    {
-      close(pipeFd[0]);
-      dup2(pipeFd[1], STDOUT_FILENO);
-      close(pipeFd[1]);
-      char secs[16];
-      snprintf(secs, sizeof(secs), "%d", maxSeconds);
-      execlp("curl", "curl", "-sf", "--max-time", secs, url,
-        static_cast<char*>(nullptr));
-      _exit(1);
-    }
-    close(pipeFd[1]);
-    std::string out;
-    char buf[4096];
-    ssize_t n = 0;
-    while ((n = read(pipeFd[0], buf, sizeof(buf))) > 0)
-    {
-      out.append(buf, static_cast<size_t>(n));
-      if (out.size() > 256 * 1024)
-      {
-        break;
-      }
-    }
-    close(pipeFd[0]);
-    int status = 0;
-    waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-    {
-      return "";
-    }
-    return out;
-  }
-
   // "key": "value"
   std::string jsonString(const std::string& src, const std::string& key)
   {
@@ -223,13 +176,18 @@ void WeatherPlugin::configure(const Config& config)
   m_textColor = config.weatherTextColor();
 }
 
-bool WeatherPlugin::fetch()
+void WeatherPlugin::startFetch()
 {
+  m_fetchState = FetchState::Current;
   std::string url = m_locationOverride.empty()
     ? "wttr.in/?format=j1"
     : "wttr.in/" + m_locationOverride + "?format=j1";
 
-  std::string json = httpGet(url.c_str(), 8);
+  m_process.start("curl -sf --max-time 8 '" + url + "'");
+}
+
+bool WeatherPlugin::parseCurrent(const std::string& json)
+{
   if (json.empty())
   {
     return false;
@@ -255,28 +213,27 @@ bool WeatherPlugin::fetch()
 
   m_icon = iconForDesc(m_desc);
   m_valid = true;
-  m_lastFetch = time(nullptr);
 
-  // Latitude / longitude for the 10-day forecast.
-  std::string lat = jsonString(json, "latitude");
-  std::string lon = jsonString(json, "longitude");
-  if (!lat.empty() && !lon.empty())
-  {
-    fetchForecast(lat, lon);
-  }
+  m_lat = jsonString(json, "latitude");
+  m_lon = jsonString(json, "longitude");
 
   return true;
 }
 
-bool WeatherPlugin::fetchForecast(const std::string& lat, const std::string& lon)
+void WeatherPlugin::startFetchForecast(const std::string& lat, const std::string& lon)
 {
+  m_fetchState = FetchState::Forecast;
   std::string url =
     "api.open-meteo.com/v1/forecast?latitude=" + lat +
     "&longitude=" + lon +
     "&daily=weather_code,temperature_2m_max,temperature_2m_min"
     "&forecast_days=10&timezone=auto";
 
-  std::string json = httpGet(url.c_str(), 8);
+  m_process.start("curl -sf --max-time 8 '" + url + "'");
+}
+
+bool WeatherPlugin::parseForecast(const std::string& json)
+{
   if (json.empty())
   {
     return false;
@@ -292,7 +249,6 @@ bool WeatherPlugin::fetchForecast(const std::string& lat, const std::string& lon
   for (size_t i = 0; i < count; ++i)
   {
     ForecastDay d;
-    // "2026-09-13" -> "Sat 13"
     if (dates[i].size() >= 10)
     {
       int month = std::atoi(dates[i].substr(5, 2).c_str());
@@ -318,11 +274,42 @@ bool WeatherPlugin::fetchForecast(const std::string& lat, const std::string& lon
 bool WeatherPlugin::tick()
 {
   time_t now = time(nullptr);
-  if (m_valid && (now - m_lastFetch) < kRefreshSeconds)
+  if (m_fetchState == FetchState::Idle)
   {
+    if (!m_valid || (now - m_lastFetch) >= kRefreshSeconds)
+    {
+      startFetch();
+    }
     return false;
   }
-  fetch();
+
+  m_process.tick();
+
+  if (!m_process.isRunning())
+  {
+    if (m_fetchState == FetchState::Current)
+    {
+      if (parseCurrent(m_process.output()))
+      {
+        startFetchForecast(m_lat, m_lon);
+        return false;
+      }
+      else
+      {
+        m_fetchState = FetchState::Idle;
+        m_lastFetch = time(nullptr);
+        return false;
+      }
+    }
+    else if (m_fetchState == FetchState::Forecast)
+    {
+      parseForecast(m_process.output());
+      m_fetchState = FetchState::Idle;
+      m_lastFetch = time(nullptr);
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -494,9 +481,9 @@ std::string WeatherPlugin::tooltip() const
 bool WeatherPlugin::onClick(int screenX)
 {
   time_t now = time(nullptr);
-  if (!m_valid || (now - m_lastFetch) >= kRefreshSeconds)
+  if (m_fetchState == FetchState::Idle && (!m_valid || (now - m_lastFetch) >= kRefreshSeconds))
   {
-    fetch();
+    startFetch();
   }
   if (m_forecast.empty())
   {

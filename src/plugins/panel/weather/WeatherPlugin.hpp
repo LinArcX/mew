@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../PanelPlugin.hpp"
+#include "PluginProcess.hpp"
 #include "EmbeddedFont.hpp"
 #include "XConnection.hpp"
 #include "FontRenderer.hpp"
@@ -82,6 +83,9 @@ public:
   /** @brief Close the forecast popup on ESC. */
   bool handleEscape() override;
 
+  /** @brief Optional out-of-process backend for the plugin. */
+  PluginProcess* process() const override { return const_cast<PluginProcess*>(&m_process); }
+
   /** @brief Return the forecast popup window, or None. */
   Window popupWindow() const override { return m_popup; }
 
@@ -89,15 +93,23 @@ public:
   void drawPopup() override;
 
 private:
-  /** @brief Fetch current conditions from wttr.in. */
-  bool fetch();
+  enum class FetchState { Idle, Current, Forecast };
+
+  /** @brief Start background fetch for current conditions. */
+  void startFetch();
+
+  /** @brief Parse current conditions from JSON. */
+  bool parseCurrent(const std::string& json);
 
   /**
-   * @brief Fetch the 10-day forecast from Open-Meteo.
+   * @brief Start background fetch for the 10-day forecast.
    * @param lat Latitude string.
    * @param lon Longitude string.
    */
-  bool fetchForecast(const std::string& lat, const std::string& lon);
+  void startFetchForecast(const std::string& lat, const std::string& lon);
+
+  /** @brief Parse the forecast from JSON. */
+  bool parseForecast(const std::string& json);
 
   /**
    * @brief Pick a Weather Icons glyph from a text description.
@@ -133,6 +145,11 @@ private:
 
   std::vector<ForecastDay> m_forecast;  ///< Up to 10 daily forecast rows.
   EmbeddedFont m_iconFont;              ///< Embedded Weather Icons font.
+
+  PluginProcess m_process;
+  FetchState m_fetchState = FetchState::Idle;
+  std::string m_lat;
+  std::string m_lon;
   unsigned long m_iconColor = 0xffffff; ///< Icon color (config).
   unsigned long m_textColor = 0xffffff; ///< Text color (config).
 
