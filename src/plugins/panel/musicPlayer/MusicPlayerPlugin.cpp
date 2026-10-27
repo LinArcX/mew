@@ -187,7 +187,7 @@ void MusicPlayerPlugin::loadDirs()
       line = Util::trim(line);
       if (!line.empty()) m_dirs.push_back(line);
     }
-    return;
+    if (!m_dirs.empty()) return;
   }
   const char* home = getenv("HOME");
   if (home)
@@ -239,6 +239,12 @@ pid_t spawnPlayer(const std::string& path, const std::string& socketPath)
          "--no-resume-playback",
          ipc.c_str(),
          path.c_str(), static_cast<char*>(nullptr));
+
+  // Fallback if mpv is not installed
+  execlp("mpg123", "mpg123", "-q", path.c_str(), static_cast<char*>(nullptr));
+  
+  // Fallback if mpg123 is not installed
+  execlp("ffplay", "ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path.c_str(), static_cast<char*>(nullptr));
 
   _exit(1);
 }
@@ -435,9 +441,13 @@ bool MusicPlayerPlugin::onClick(int screenX)
 
 std::string MusicPlayerPlugin::tooltip() const
 {
+  if (m_files.empty())
+  {
+    return "Music player (no files found in directories)";
+  }
   if (m_playerPid <= 0 && m_trackName.empty())
   {
-    return "Music player (no track)";
+    return "Music player (no track playing)";
   }
   if (m_paused)
   {
