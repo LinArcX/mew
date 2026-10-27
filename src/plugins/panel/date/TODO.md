@@ -1,6 +1,4 @@
-- [ ] time and date should be separate plugings. with their own classes.
-
-- [ ] New Feature: When i hover over date/time in panel, shows a pop-up calendar window.
+- [ ] New Feature: When i hover over date in panel, shows a pop-up calendar window.
   It should be close when i:
     hit ESCAPE
     click on other apps or other part of mew.

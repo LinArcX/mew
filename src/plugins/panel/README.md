@@ -49,7 +49,8 @@ list is needed.
 
 | Id | Class | Description |
 |---|---|---|
-| `clock` | `ClockPlugin` | Date + time. |
+| `clock` | `ClockPlugin` | Time. |
+| `date`  | `DatePlugin`  | Date. |
 | `desktop` | `DesktopPlugin` | Show-desktop toggle. |
 | `language` | `LanguagePlugin` | Keyboard layout indicator / cycler. |
 | `music` | `MusicPlayerPlugin` | mpv-backed music player. |

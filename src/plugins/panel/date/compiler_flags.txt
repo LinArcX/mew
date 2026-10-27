@@ -1,0 +1,5 @@
+# Date widget
+LD_FLAGS=
+PKGCONF_FLAG=
+SRC=DatePlugin.cpp
+ENABLE=true

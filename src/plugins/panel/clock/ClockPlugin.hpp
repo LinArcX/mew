@@ -7,7 +7,7 @@
 #include <string>
 
 /**
- * @brief Panel plugin that displays the current date and time.
+ * @brief Panel plugin that displays the current time.
  *
  * The width is computed from the font metrics of a worst-case sample
  * string so that layout does not shift as digits change. Redraws once
@@ -34,7 +34,7 @@ public:
   bool anchorRight() const override { return true; }
 
   /**
-   * @brief Draw the date and time string.
+   * @brief Draw the time string.
    * @param d        X display.
    * @param panel    Panel pixmap/window.
    * @param x        Left edge of the plugin.

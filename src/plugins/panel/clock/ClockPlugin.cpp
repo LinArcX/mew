@@ -5,25 +5,21 @@ void ClockPlugin::draw(Display* d, Window panel, int x, int baseline)
 {
   time_t now = time(nullptr);
   struct tm* t = localtime(&now);
-  char datePart[48], timePart[16];
-  strftime(datePart, sizeof(datePart), "%Y-%B-%d", t);
+  char timePart[16];
   strftime(timePart, sizeof(timePart), "%H:%M:%S", t);
   char buf[80];
-  snprintf(buf, sizeof(buf), "\xee\xaa\xb0 %s \xee\x99\x81 %s", datePart, timePart);
+  snprintf(buf, sizeof(buf), "\xee\x99\x81 %s", timePart);
   m_font.draw(d, m_xconn.screen(), panel, x, baseline, buf);
 }
 
 int ClockPlugin::width() const
 {
-  // Match the exact string produced by draw(): "%Y-%B-%d" plus time.
-  std::string sample =
-    std::string("\xee\xaa\xb0 ") + "0000-September-00" +
-    " \xee\x99\x81 " + "00:00:00";
+  std::string sample = std::string("\xee\x99\x81 ") + "00:00:00";
 
   XftFont* pFont = m_font.font();
   if (!pFont)
   {
-    return 220;
+    return 120;
   }
 
   XGlyphInfo ext{};
@@ -37,7 +33,7 @@ int ClockPlugin::width() const
   return ext.xOff + 12;
 }
 
-std::string ClockPlugin::tooltip() const { return "Date and time"; }
+std::string ClockPlugin::tooltip() const { return "Time"; }
 
 bool ClockPlugin::tick()
 {
