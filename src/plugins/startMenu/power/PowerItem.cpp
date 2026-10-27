@@ -86,15 +86,24 @@ void PowerItem::drawSubmenu(Display* d, int screen)
 void PowerItem::doReboot()
 {
   sync();
-  // interactive=true allows polkit to invoke the registered agent.
-  if (std::system("dbus-send --system --print-reply "
-                  "--dest=org.freedesktop.login1 "
-                  "/org/freedesktop/login1 "
-                  "org.freedesktop.login1.Manager.Reboot boolean:true "
-                  ">/dev/null 2>&1") == 0)
+  fprintf(stderr, "mew: doReboot: requesting interactive reboot via logind\n");
+
+  // Background dbus-send: it must stay alive while polkit auth runs, but it
+  // must NOT block our event loop, because we need to pump GLib to receive
+  // polkit's authentication request for this session.
+  int ret = std::system("dbus-send --system --print-reply "
+                        "--dest=org.freedesktop.login1 "
+                        "/org/freedesktop/login1 "
+                        "org.freedesktop.login1.Manager.Reboot boolean:true "
+                        "&") ;
+  if (ret == 0)
   {
     return;
   }
+
+  fprintf(stderr,
+          "mew: doReboot: fork failed (ret=%d); falling back to direct reboot\n",
+          ret);
   if (std::system("/sbin/reboot >/dev/null 2>&1 &") == 0
       || std::system("reboot >/dev/null 2>&1 &") == 0)
   {
@@ -106,15 +115,23 @@ void PowerItem::doReboot()
 void PowerItem::doPoweroff()
 {
   sync();
-  // interactive=true allows polkit to invoke the registered agent.
-  if (std::system("dbus-send --system --print-reply "
-                  "--dest=org.freedesktop.login1 "
-                  "/org/freedesktop/login1 "
-                  "org.freedesktop.login1.Manager.PowerOff boolean:true "
-                  ">/dev/null 2>&1") == 0)
+  fprintf(stderr, "mew: doPoweroff: requesting interactive poweroff via logind\n");
+
+  // Background dbus-send so our event loop keeps pumping GLib during the
+  // polkit authentication flow.
+  int ret = std::system("dbus-send --system --print-reply "
+                        "--dest=org.freedesktop.login1 "
+                        "/org/freedesktop/login1 "
+                        "org.freedesktop.login1.Manager.PowerOff boolean:true "
+                        "&") ;
+  if (ret == 0)
   {
     return;
   }
+
+  fprintf(stderr,
+          "mew: doPoweroff: fork failed (ret=%d); falling back to direct poweroff\n",
+          ret);
   if (std::system("/sbin/poweroff >/dev/null 2>&1 &") == 0
       || std::system("poweroff >/dev/null 2>&1 &") == 0)
   {

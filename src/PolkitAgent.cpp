@@ -337,6 +337,11 @@ extern "C" void initiate_authentication(
   GAsyncReadyCallback callback,
   gpointer user_data)
 {
+  fprintf(stderr,
+          "mew: polkit initiate_authentication: action=%s msg=%s\n",
+          action_id ? action_id : "(null)",
+          message ? message : "(null)");
+
   (void)icon_name;
   (void)details;
   (void)cancellable;
@@ -460,6 +465,8 @@ bool PolkitAgent::start()
     return true;
   }
 
+  fprintf(stderr, "mew: polkit agent: starting (pid=%d)\n", getpid());
+
   AgentData* agentData = new AgentData{};
   agentData->pDialog = new PasswordDialog(m_pDisplay, m_screen);
 
@@ -468,12 +475,24 @@ bool PolkitAgent::start()
   g_object_set_data_full(
     G_OBJECT(listener), "mew-data", agentData, agent_data_destroy);
 
+  fprintf(stderr, "mew: polkit agent: resolving unix session for pid %d\n",
+          getpid());
   PolkitSubject* subject = polkit_unix_session_new_for_process_sync(
     getpid(), nullptr, nullptr);
   if (!subject)
   {
+    fprintf(stderr,
+            "mew: polkit agent: polkit_unix_session_new_for_process_sync "
+            "returned NULL (is mew running inside an active logind session?)\n");
     g_object_unref(listener);
     return false;
+  }
+
+  {
+    gchar* s = polkit_subject_to_string(subject);
+    fprintf(stderr, "mew: polkit agent: session subject: %s\n",
+            s ? s : "(null)");
+    g_free(s);
   }
 
   GError* error = nullptr;
@@ -489,13 +508,14 @@ bool PolkitAgent::start()
 
   if (!handle)
   {
-    fprintf(stderr, "mew: polkit register failed: %s\n",
+    fprintf(stderr, "mew: polkit agent: register failed: %s\n",
             error ? error->message : "unknown");
     g_clear_error(&error);
     g_object_unref(listener);
     return false;
   }
 
+  fprintf(stderr, "mew: polkit agent: registered OK\n");
   m_pListener = listener;
   m_pRegistration = handle;
   m_registered = true;

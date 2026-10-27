@@ -890,8 +890,16 @@ int Mew::run()
     }
 
     // Pump GLib for polkit agent callbacks.
-    while (g_main_context_iteration(nullptr, FALSE))
     {
+      static bool s_pumpLogged = false;
+      while (g_main_context_iteration(nullptr, FALSE))
+      {
+        if (!s_pumpLogged)
+        {
+          fprintf(stderr, "mew: glib pump: dispatching first event\n");
+          s_pumpLogged = true;
+        }
+      }
     }
 
     if (XPending(m_xconn.display()) == 0)
