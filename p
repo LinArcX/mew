@@ -39,7 +39,7 @@ function applyPatch() {
   if [ -n $1 ]; then
     if python3 scripts/extractFiles.py "$1"; then
       echo "Patch Success!"
-      ./scripts/build.sh --debug
+      ./scripts/build.sh --install --debug
     else
       echo "Patch Failed!"
     fi
