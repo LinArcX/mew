@@ -27,4 +27,13 @@ namespace Util
 
   /** @brief Remove the pid file. */
   void removePidfile();
+
+  /** @brief Check if org.freedesktop.login1 (logind/elogind) is on the system bus. */
+  bool isLogindAvailable();
+
+  /** @brief Request system reboot via logind (polkit dialog), or sudo fallback. */
+  void requestReboot();
+
+  /** @brief Request system poweroff via logind (polkit dialog), or sudo fallback. */
+  void requestPoweroff();
 }

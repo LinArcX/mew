@@ -253,20 +253,12 @@ bool Mew::handleCustomKeybinding(XKeyEvent* pEvent)
     }
     if (cmd == "reboot")
     {
-      fprintf(stderr, "mew: reboot: requesting interactive reboot via logind\n");
-      std::system("dbus-send --system --print-reply "
-                  "--dest=org.freedesktop.login1 /org/freedesktop/login1 "
-                  "org.freedesktop.login1.Manager.Reboot boolean:true "
-                  "&");
+      Util::requestReboot();
       return true;
     }
     if (cmd == "poweroff")
     {
-      fprintf(stderr, "mew: poweroff: requesting interactive poweroff via logind\n");
-      std::system("dbus-send --system --print-reply "
-                  "--dest=org.freedesktop.login1 /org/freedesktop/login1 "
-                  "org.freedesktop.login1.Manager.PowerOff boolean:true "
-                  "&");
+      Util::requestPoweroff();
       return true;
     }
     if (cmd == "power-manager" || cmd == "open-power")

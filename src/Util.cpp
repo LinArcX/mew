@@ -1,5 +1,6 @@
 #include "Util.hpp"
 
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <sys/stat.h>
@@ -106,6 +107,65 @@ void writePidfile()
 void removePidfile()
 {
   unlink(getPidfile().c_str());
+}
+
+bool isLogindAvailable()
+{
+  return std::system("dbus-send --system --print-reply "
+                     "--dest=org.freedesktop.login1 "
+                     "/org/freedesktop/login1 "
+                     "org.freedesktop.login1.Manager.CanReboot "
+                     ">/dev/null 2>&1") == 0;
+}
+
+void requestReboot()
+{
+  sync();
+  fprintf(stderr, "mew: reboot: requesting reboot\n");
+
+  if (isLogindAvailable())
+  {
+    fprintf(stderr, "mew: reboot: logind available, sending interactive request\n");
+    std::system("dbus-send --system --print-reply "
+                "--dest=org.freedesktop.login1 "
+                "/org/freedesktop/login1 "
+                "org.freedesktop.login1.Manager.Reboot boolean:true "
+                "&");
+    return;
+  }
+
+  fprintf(stderr, "mew: reboot: logind unavailable, using sudo fallback\n");
+  if (std::system("sudo -n /sbin/reboot >/dev/null 2>&1") == 0
+      || std::system("sudo -n /usr/bin/reboot >/dev/null 2>&1") == 0)
+  {
+    return;
+  }
+  fprintf(stderr, "mew: reboot: sudo fallback failed (check sudoers NOPASSWD rule)\n");
+}
+
+void requestPoweroff()
+{
+  sync();
+  fprintf(stderr, "mew: poweroff: requesting poweroff\n");
+
+  if (isLogindAvailable())
+  {
+    fprintf(stderr, "mew: poweroff: logind available, sending interactive request\n");
+    std::system("dbus-send --system --print-reply "
+                "--dest=org.freedesktop.login1 "
+                "/org/freedesktop/login1 "
+                "org.freedesktop.login1.Manager.PowerOff boolean:true "
+                "&");
+    return;
+  }
+
+  fprintf(stderr, "mew: poweroff: logind unavailable, using sudo fallback\n");
+  if (std::system("sudo -n /sbin/poweroff >/dev/null 2>&1") == 0
+      || std::system("sudo -n /usr/bin/poweroff >/dev/null 2>&1") == 0)
+  {
+    return;
+  }
+  fprintf(stderr, "mew: poweroff: sudo fallback failed (check sudoers NOPASSWD rule)\n");
 }
 
 }

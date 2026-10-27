@@ -1,4 +1,5 @@
 #include "PowerWindow.hpp"
+#include "Util.hpp"
 
 #include <X11/keysym.h>
 #include <algorithm>
@@ -29,46 +30,12 @@ namespace
 
   void doReboot()
   {
-    sync();
-    fprintf(stderr, "mew: PowerWindow::doReboot: requesting interactive reboot via logind\n");
-    int ret = std::system("dbus-send --system --print-reply "
-                          "--dest=org.freedesktop.login1 "
-                          "/org/freedesktop/login1 "
-                          "org.freedesktop.login1.Manager.Reboot boolean:true "
-                          "&") ;
-    if (ret == 0)
-    {
-      return;
-    }
-    fprintf(stderr, "mew: PowerWindow::doReboot: fork failed (ret=%d); falling back to direct reboot\n", ret);
-    if (std::system("/sbin/reboot >/dev/null 2>&1 &") == 0
-        || std::system("reboot >/dev/null 2>&1 &") == 0)
-    {
-      return;
-    }
-    reboot(RB_AUTOBOOT);
+    Util::requestReboot();
   }
 
   void doPoweroff()
   {
-    sync();
-    fprintf(stderr, "mew: PowerWindow::doPoweroff: requesting interactive poweroff via logind\n");
-    int ret = std::system("dbus-send --system --print-reply "
-                          "--dest=org.freedesktop.login1 "
-                          "/org/freedesktop/login1 "
-                          "org.freedesktop.login1.Manager.PowerOff boolean:true "
-                          "&") ;
-    if (ret == 0)
-    {
-      return;
-    }
-    fprintf(stderr, "mew: PowerWindow::doPoweroff: fork failed (ret=%d); falling back to direct poweroff\n", ret);
-    if (std::system("/sbin/poweroff >/dev/null 2>&1 &") == 0
-        || std::system("poweroff >/dev/null 2>&1 &") == 0)
-    {
-      return;
-    }
-    reboot(RB_POWER_OFF);
+    Util::requestPoweroff();
   }
 }
 
