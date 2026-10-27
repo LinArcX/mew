@@ -58,18 +58,14 @@ namespace
   std::vector<int> jsonIntArray(const std::string& src, const std::string& key)
   {
     std::vector<int> out;
-    size_t pos = src.find("\"" + key + "\":[");
-    if (pos == std::string::npos)
-    {
-      return out;
-    }
-    pos += key.size() + 4; // skip past "key":[
-    size_t end = src.find(']', pos);
-    if (end == std::string::npos)
-    {
-      return out;
-    }
-    std::string content = src.substr(pos, end - pos);
+    size_t pos = src.find("\"" + key + "\"");
+    if (pos == std::string::npos) return out;
+    size_t start = src.find('[', pos);
+    if (start == std::string::npos) return out;
+    size_t end = src.find(']', start);
+    if (end == std::string::npos) return out;
+    
+    std::string content = src.substr(start + 1, end - start - 1);
     std::stringstream ss(content);
     std::string item;
     while (std::getline(ss, item, ','))
@@ -87,18 +83,14 @@ namespace
   std::vector<std::string> jsonStringArray(const std::string& src, const std::string& key)
   {
     std::vector<std::string> out;
-    size_t pos = src.find("\"" + key + "\":[");
-    if (pos == std::string::npos)
-    {
-      return out;
-    }
-    pos += key.size() + 4;
-    size_t end = src.find(']', pos);
-    if (end == std::string::npos)
-    {
-      return out;
-    }
-    std::string content = src.substr(pos, end - pos);
+    size_t pos = src.find("\"" + key + "\"");
+    if (pos == std::string::npos) return out;
+    size_t start = src.find('[', pos);
+    if (start == std::string::npos) return out;
+    size_t end = src.find(']', start);
+    if (end == std::string::npos) return out;
+
+    std::string content = src.substr(start + 1, end - start - 1);
     size_t i = 0;
     while (i < content.size())
     {
@@ -292,7 +284,7 @@ bool WeatherPlugin::tick()
       if (parseCurrent(m_process.output()))
       {
         startFetchForecast(m_lat, m_lon);
-        return false;
+        return true;
       }
       else
       {

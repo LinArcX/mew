@@ -91,9 +91,9 @@ void PluginProcess::tick()
     {
       buf[n] = '\0';
       m_output += buf;
-      if (m_output.size() > 4096)
+      if (m_output.size() > 1024 * 1024)
       {
-        m_output.erase(0, m_output.size() - 4096);
+        m_output.erase(0, m_output.size() - 1024 * 1024);
       }
     }
     if (n == 0)
