@@ -16,6 +16,7 @@ void Config::load()
   m_useEmbeddedBackground = true;
   m_useEmbeddedSound = true;
   m_useEmbeddedLogoutSound = true;
+  m_compositor = true;
 
   m_panelPlugins.clear();
 
@@ -280,6 +281,10 @@ void Config::load()
     else if (key == "window_theme")
     {
       m_windowTheme = val;
+    }
+    else if (key == "compositor")
+    {
+      m_compositor = (val == "true" || val == "1" || val == "yes");
     }
     else if (key == "window_button_min")
     {

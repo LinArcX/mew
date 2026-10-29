@@ -245,6 +245,12 @@ fi
 SRC=()
 for f in src/*.cpp; do [ -f "$f" ] && SRC+=("$f"); done
 
+# ---------- C sources (third_party: NanoVG) ----------
+C_SRC=(
+  third_party/nanovg/nanovg.c
+  third_party/impl.c
+)
+
 # ---------- plugin infrastructure ----------
 for d in "${PLUGIN_INFRA_DIRS[@]}"; do
   for f in "${d}"/*.cpp; do
@@ -263,7 +269,7 @@ xxd -i -n logout_wav   ./assets/audio/logout.wav                         > "$GEN
 
 # ---------- plugin modules ----------
 echo "${C_CYAN}>>> scanning plugin modules${C_RESET}"
-LD_FLAGS="-lasound"
+LD_FLAGS="-lasound -lGL"
 PKGS="x11 xft fontconfig freetype2 xcursor polkit-gobject-1 polkit-agent-1 gio-2.0"
 
 for d in "${REAL_MODULES[@]}"; do
@@ -364,6 +370,19 @@ for src in "${UNIQ[@]}"; do
   obj="$OBJDIR/$(echo "$src" | tr '/' '_' | sed 's/\.cpp$/.o/')"
   OBJS+=("$obj")
   COMPILE_CMDS+=("${CCACHE_CMD}g++ $CXXFLAGS $PKGCONF_CFLAGS -MMD -MP -c '$src' -o '$obj'")
+done
+
+# ---------- C compile (third_party) ----------
+# NanoVG is always compiled at -O2 even in debug builds; -O0 makes its
+# inlined tessellator path an order of magnitude slower.
+# -DNVG_NO_STB disables NanoVG's bundled stb_image; mew's src/stb_image.h
+# is the single implementation (see src/third_party_stb.cpp).
+# -DGL_GLEXT_PROTOTYPES exposes GL 3.x entry points from <GL/glext.h>.
+for src in "${C_SRC[@]}"; do
+  [ -f "$src" ] || continue
+  obj="$OBJDIR/$(echo "$src" | tr '/' '_' | sed 's/\.c$/.o/')"
+  OBJS+=("$obj")
+  COMPILE_CMDS+=("${CCACHE_CMD}gcc -O2 -DNDEBUG -DNVG_NO_STB -DGL_GLEXT_PROTOTYPES $PKGCONF_CFLAGS -MMD -MP -c '$src' -o '$obj'")
 done
 
 echo "${C_CYAN}>>> compiling${C_RESET} (${JOBS} jobs)"

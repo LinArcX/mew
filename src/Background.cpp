@@ -3,7 +3,6 @@
 
 #include <X11/Xutil.h>
 
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #include <cstdio>

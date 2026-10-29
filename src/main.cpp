@@ -1,5 +1,6 @@
 #include "Mew.hpp"
 #include "Util.hpp"
+#include "GlTest.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -38,9 +39,13 @@ int main(int argc, char** argv)
       fprintf(stderr, "mew: no running instance found\n");
       return -1;
     }
+    else if (std::strcmp(argv[i], "--gl-test") == 0)
+    {
+      return runGlTest();
+    }
     else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0)
     {
-      printf("Usage: mew [--reconfigure]\n");
+      printf("Usage: mew [--reconfigure] [--gl-test]\n");
       return 0;
     }
   }
