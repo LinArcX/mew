@@ -185,7 +185,7 @@ void MusicPlayerPlugin::loadDirs()
     std::string line;
     while (std::getline(f, line))
     {
-      line = Util::trim(line);
+      line = Util::expandHome(Util::trim(line));
       if (!line.empty()) m_dirs.push_back(line);
     }
     if (!m_dirs.empty()) return;
@@ -411,7 +411,14 @@ std::string MusicPlayerPlugin::tooltip() const
 {
   if (m_files.empty())
   {
-    return "Music player (no files found in directories)";
+    if (m_dirs.empty()) return "Music player (no directories configured)";
+    std::string dirs;
+    for (const auto& d : m_dirs)
+    {
+      if (!dirs.empty()) dirs += ", ";
+      dirs += d;
+    }
+    return "Music player (no files in: " + dirs + ")";
   }
   if (m_playerPid <= 0 && m_trackName.empty())
   {

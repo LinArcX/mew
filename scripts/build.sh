@@ -390,14 +390,16 @@ TARGET="build/$MODE/mew"
 TMP_TARGET="${TARGET}.tmp"
 $CCACHE_CMD g++ "${OBJS[@]}" $PKGCONF_LIBS $LD_FLAGS $LINK_EXTRA -o "$TMP_TARGET"
 
-# Remove the old binary first. On NTFS/FUSE mounts (like /mnt/D/), moving over a running
-# executable fails with 'Input/output error'. Forcing a delete usually bypasses the lock.
-rm -f "$TARGET"
-if ! mv "$TMP_TARGET" "$TARGET"; then
-  echo "  ${C_RED}error:${C_RESET} failed to move $TMP_TARGET to $TARGET."
-  echo "  Is mew currently running? If so, close it or run 'killall mew' and build again."
-  exit 1
+if [ -f "$TARGET" ]; then
+  if ! rm -f "$TARGET" 2>/dev/null; then
+    echo "  ${C_RED}error:${C_RESET} cannot remove running binary '$TARGET' (NTFS/FUSE lock)."
+    echo "  Please close mew (e.g., run 'killall mew') and build again."
+    rm -f "$TMP_TARGET"
+    exit 1
+  fi
 fi
+
+mv "$TMP_TARGET" "$TARGET"
 echo "${C_GREEN}>>> done:${C_RESET} ${C_BOLD}$TARGET${C_RESET}"
 
 # =========================================================

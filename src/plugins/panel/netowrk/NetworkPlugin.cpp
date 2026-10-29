@@ -2,7 +2,6 @@
 #include "NetworkPlugin.hpp"
 #include "Util.hpp"
 #include <sstream>
-#include "Util.hpp"
 #include <X11/Xutil.h>
 #include <dirent.h>
 #include <algorithm>
